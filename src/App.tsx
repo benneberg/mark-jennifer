@@ -68,6 +68,7 @@ export default function App() {
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
+  const [referencePhoto, setReferencePhoto] = useState('');
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [railPinned, setRailPinned] = useState<boolean>(
     () => localStorage.getItem(LS_KEYS.RAIL_PINNED) === 'true'
@@ -325,6 +326,8 @@ export default function App() {
         const result = await runJenniferTurn({
           userMessage: trimmed,
           history: prevHistory,
+          sessionFacts: activeChat.sessionFacts,
+          referencePhoto: referencePhoto.trim(),
           settings: activeSettings,
           guardrails,
           experts,
@@ -371,11 +374,21 @@ export default function App() {
 
         await saveMessage(jenniferMsg);
         setMessages((curr) => [...curr, jenniferMsg]);
+        const updatedChat = {
+          ...activeChat,
+          sessionFacts: result.updatedFacts,
+          updatedAt: nowIso(),
+        };
+        setActiveChat(updatedChat);
+        await updateChat(updatedChat);
+
         addDebugEntry({
           type: 'turn',
           summary:
             result.delegatedExperts.length > 0
-              ? `Delegated to ${result.delegatedExperts.join(', ')}`
+              ? `Delegated to ${result.delegatedExperts.join(', ')}${
+                  result.truncatedDelegates ? ` (+${result.truncatedDelegates} capped)` : ''
+                }`
               : 'Direct Jennifer reply',
           callCount: result.callCount,
           durationMs: result.durationMs,
@@ -447,7 +460,17 @@ export default function App() {
         });
       }
     },
-    [activeChat, addDebugEntry, experts, guardrails, messages, pushToast, settings, streamingState.active]
+    [
+      activeChat,
+      addDebugEntry,
+      experts,
+      guardrails,
+      messages,
+      pushToast,
+      referencePhoto,
+      settings,
+      streamingState.active,
+    ]
   );
 
   const handleSend = useCallback(() => {
@@ -516,6 +539,7 @@ export default function App() {
     const fresh = await createNewChat();
     setActiveChat(fresh);
     setMessages([]);
+    setReferencePhoto('');
     setNewChatModalOpen(false);
     pushToast('Started a fresh session.', 'info');
   }, [activeChat, pushToast]);
@@ -694,6 +718,8 @@ export default function App() {
             <Composer
               draft={draft}
               onDraftChange={setDraft}
+              referencePhoto={referencePhoto}
+              onReferencePhotoChange={setReferencePhoto}
               onSend={handleSend}
               onStop={handleStop}
               onOpenWizard={() => setWizardOpen(true)}

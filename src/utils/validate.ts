@@ -153,7 +153,7 @@ export function validateSchema(
             const res = validateSchema(propVal, propSchema, `${path}.${key}`, options);
             errors.push(...res.errors);
           }
-        } else if (schema.additionalProperties === false) {
+        } else if (propVal !== undefined && schema.additionalProperties === false) {
           if (options.relaxAdditionalProperties) {
             strippedFields.push(`${path}.${key}`);
             delete record[key];
@@ -278,6 +278,20 @@ export const CHAT_SCHEMA: JsonSchemaNode = {
     title: { type: 'string', minLength: 1, maxLength: 120 },
     createdAt: { type: 'string', format: 'date-time' },
     updatedAt: { type: 'string', format: 'date-time' },
+    sessionFacts: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        constraints: { type: 'array', items: { type: 'string', maxLength: 300 }, maxItems: 20 },
+        audience: { type: 'array', items: { type: 'string', maxLength: 300 }, maxItems: 20 },
+        budget: { type: 'string', maxLength: 200 },
+        awards: { type: 'array', items: { type: 'string', maxLength: 300 }, maxItems: 20 },
+        channels: { type: 'array', items: { type: 'string', maxLength: 120 }, maxItems: 20 },
+        focus: { type: 'string', maxLength: 400 },
+        referencePhoto: { type: 'string', maxLength: 1000 },
+        notes: { type: 'array', items: { type: 'string', maxLength: 300 }, maxItems: 20 },
+      },
+    },
   },
 };
 
@@ -295,5 +309,24 @@ export const MESSAGE_SCHEMA: JsonSchemaNode = {
     status: { type: 'string', enum: ['complete', 'streaming', 'stopped', 'error'] },
     savedToLibrary: { type: 'boolean' },
     turnId: { type: 'string', format: 'uuid' },
+    handoffText: { type: 'string', maxLength: 2000 },
+    delegatedExperts: {
+      type: 'array',
+      items: { type: 'string', maxLength: 60 },
+      maxItems: 10,
+    },
+    errorData: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['code', 'provider'],
+      properties: {
+        code: { type: 'string', maxLength: 40 },
+        provider: { type: 'string', enum: ['groq', 'openrouter', 'openai', 'mock'] },
+        status: { type: 'integer' },
+        retryAfterMs: { type: 'number' },
+        modelId: { type: 'string', maxLength: 200 },
+        lastUserMessage: { type: 'string', maxLength: 60000 },
+      },
+    },
   },
 };

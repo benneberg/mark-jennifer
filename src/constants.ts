@@ -15,9 +15,14 @@ export const LS_KEYS = {
 
 export const MODEL_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 export const HISTORY_MAX_MESSAGES = 20;
+export const HISTORY_MAX_EXPERT_MESSAGES = 6;
 export const HISTORY_MAX_TOKENS_APPROX = 8000;
 export const CHAT_DISPLAY_CAP = 500;
 export const REQUEST_TIMEOUT_MS = 60000;
+export const MAX_DELEGATES_PER_TURN = 3;
+export const PLANNER_MAX_TOKENS = 600;
+export const EXPERT_MAX_TOKENS = 1400;
+export const SYNTHESIS_MAX_TOKENS = 2000;
 
 export const PRIVACY_NOTICE =
   'Hedetangen AI Studio runs entirely in your browser. Your API key and your content are stored on this device only. When you chat, your message is sent directly to your chosen provider using your key. Nothing is sent to Hedetangen or any other server. Export your data regularly if you want a backup.';

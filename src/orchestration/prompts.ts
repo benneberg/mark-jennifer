@@ -1,4 +1,4 @@
-import type { AppSettings, Expert, Guardrails, LanguagePref } from '../types';
+import type { AppSettings, Expert, Guardrails, LanguagePref, SessionFacts } from '../types';
 
 function getLanguageInstruction(language: LanguagePref, expertName?: string): string {
   switch (language) {
@@ -36,6 +36,45 @@ export function buildGuardrailsBlock(guardrails: Guardrails): string {
 </guardrails>`;
 }
 
+function escapeFactXml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+export function buildSessionFactsBlock(
+  sessionFacts?: SessionFacts,
+  referencePhoto?: string
+): string {
+  const effectiveRef =
+    referencePhoto !== undefined
+      ? referencePhoto.trim()
+      : sessionFacts?.referencePhoto?.trim() || '';
+  const lines: string[] = [];
+
+  if (sessionFacts?.focus) lines.push(`  <focus>${escapeFactXml(sessionFacts.focus)}</focus>`);
+  if (sessionFacts?.constraints?.length) {
+    lines.push(`  <constraints>${escapeFactXml(sessionFacts.constraints.join('; '))}</constraints>`);
+  }
+  if (sessionFacts?.audience?.length) {
+    lines.push(`  <audience>${escapeFactXml(sessionFacts.audience.join('; '))}</audience>`);
+  }
+  if (sessionFacts?.budget) lines.push(`  <budget>${escapeFactXml(sessionFacts.budget)}</budget>`);
+  if (sessionFacts?.awards?.length) {
+    lines.push(`  <awards>${escapeFactXml(sessionFacts.awards.join('; '))}</awards>`);
+  }
+  if (sessionFacts?.channels?.length) {
+    lines.push(`  <channels>${escapeFactXml(sessionFacts.channels.join('; '))}</channels>`);
+  }
+  if (sessionFacts?.notes?.length) {
+    lines.push(`  <notes>${escapeFactXml(sessionFacts.notes.join('; '))}</notes>`);
+  }
+  if (effectiveRef) {
+    lines.push(`  <confirmed_reference>${escapeFactXml(effectiveRef)}</confirmed_reference>`);
+  }
+
+  if (lines.length === 0) return '';
+  return `<session_facts priority="high">\n${lines.join('\n')}\n</session_facts>`;
+}
+
 function buildSeasonalContextBlock(machinePrompt: string): string {
   const trimmed = machinePrompt.trim();
   if (!trimmed) return '';
@@ -61,8 +100,11 @@ export function buildJenniferPrompt(ctx: {
   guardrails: Guardrails;
   experts: Expert[];
   settings: AppSettings;
+  sessionFacts?: SessionFacts;
+  referencePhoto?: string;
 }): string {
   const guardrailsBlock = buildGuardrailsBlock(ctx.guardrails);
+  const factsBlock = buildSessionFactsBlock(ctx.sessionFacts, ctx.referencePhoto);
   const seasonalBlock = buildSeasonalContextBlock(ctx.settings.machinePrompt);
   const registry = buildExpertsRegistry(ctx.experts);
   const langInstr = getLanguageInstruction(ctx.settings.language);
@@ -83,26 +125,37 @@ never talk to your experts directly.
 
 ${guardrailsBlock}
 
-${seasonalBlock ? `${seasonalBlock}\n` : ''}<experts>
+${factsBlock ? `${factsBlock}\n\n` : ''}${seasonalBlock ? `${seasonalBlock}\n\n` : ''}<experts>
 ${registry}
 </experts>
+
+<tone_and_sensitivity>
+- When the owners share personal constraints (e.g., illness recovery, a baby,
+  limited hours), acknowledge them briefly and respectfully in ONE sentence —
+  never dwell or be paternalistic — and immediately treat them purely as
+  operational capacity constraints.
+- Never suggest using the owners' health, family, or hardships as marketing
+  copy or a reason to book.
+</tone_and_sensitivity>
 
 <delegation_protocol>
 You have two ways to respond. Choose exactly one per turn.
 
-OPTION A — DIRECT ANSWER.
-If the request is simple, conversational, or does not benefit from a
-specialist, respond directly:
+OPTION A — DIRECT ANSWER (OR CLARIFYING QUESTION).
+If the request is simple, conversational, does not benefit from a specialist,
+OR is genuinely underspecified (missing timeline, capacity, budget, or key
+assets needed to produce useful work), respond directly using OPTION A. When
+underspecified, ask ONE focused clarifying question before delegating:
 
 <response>
 Your message to the user. Markdown is allowed. Keep it tight.
 </response>
 
 OPTION B — DELEGATE TO ONE OR MORE EXPERTS.
-If the request benefits from specialist work (drafting copy, planning a
-campaign, researching competitors, pricing analysis, visual direction),
-hand off to the appropriate expert(s). You must still produce a short
-handoff message to the user first:
+If the request has enough context and benefits from specialist work (drafting
+copy, planning a campaign, researching competitors, pricing analysis, visual
+direction), hand off to the appropriate expert(s) (max 3 per turn). You must
+still produce a short handoff message to the user first:
 
 <response>
 A short, natural message explaining what you're doing, e.g. "I'll have our
@@ -111,13 +164,27 @@ against your Brand DNA. One moment."
 </response>
 <delegate expert="EXACT EXPERT NAME FROM THE REGISTRY">
   <task>Precise description of what the expert should produce.</task>
-  <context>Relevant context: audience, channel, prior outputs, constraints.</context>
+  <context>Relevant context: session facts (capacity, budget, list size, awards), prior drafts being revised, channel, constraints.</context>
   <constraints>Format, length, language, number of variants, CTA requirements.</constraints>
 </delegate>
 
+Optional <facts> update: whenever the user reveals or changes sticky business
+facts (capacity constraints, audience/list sizes, budget, awards/press, focus),
+you may append a <facts> block so those details persist across turns:
+<facts>
+  <constraints>...</constraints>
+  <audience>...</audience>
+  <budget>...</budget>
+  <awards>...</awards>
+  <channels>...</channels>
+  <focus>...</focus>
+</facts>
+
 Rules for delegation:
 - Use the EXACT expert name as listed in <experts>. Do not invent experts.
-- You may include multiple <delegate> blocks. They run in document order.
+- Cap delegations at 3 <delegate> blocks per turn. They run in document order.
+- When revising prior drafts (e.g. shortening captions), copy the prior draft
+  context clearly into <context>.
 - If a later expert depends on an earlier one, say so in its <context>.
 - Do not delegate trivial conversational replies ("thanks", "what can you do?").
 - Do not delegate the same task to two experts.
@@ -129,14 +196,17 @@ Rules for delegation:
 <brand_check>
 Before returning any output — direct or synthesized — verify it against the
 guardrails above. In particular:
-- Does it invent, imply, or describe a structure, building, sauna, hot tub,
-  boat, or location that is not confirmed by a supplied reference? If yes,
-  rewrite it. Without a reference, only atmosphere, water, light, fire,
-  textures, hands, natural details, food, and drink are allowed.
+- Visuals vs. Copy: Copy may name confirmed offerings (wood-fired sauna, ice
+  bath, floating AuroraHut). Visual prompts and shot directions must NEVER
+  depict, invent, or imply structures (AuroraHut, sauna building, dock, boat,
+  island) unless a <confirmed_reference> photo description is present in
+  <session_facts>. Without a reference, visual directions allow only
+  atmosphere, water, light, fire, steam, textures, hands, food, and drink.
 - Does it use generic luxury clichés (marble, champagne buckets, "paradise",
-  "world-class")? If yes, rewrite in Hedetangen's voice: understated, warm,
-  sensory, specific to Swedish nature.
-- Does it overpromise (e.g. "guaranteed northern lights")? If yes, soften it.
+  "world-class", "hidden gem", "bucket list")? If yes, rewrite in Hedetangen's
+  voice: understated, warm, sensory, specific to Swedish nature.
+- Does it overpromise weather-dependent phenomena (e.g. "guaranteed northern
+  lights" or guaranteed snow/ice)? If yes, keep it strictly conditional.
 </brand_check>
 
 <language_instruction>
@@ -162,8 +232,11 @@ export function buildExpertPrompt(ctx: {
   expert: Expert;
   guardrails: Guardrails;
   settings: AppSettings;
+  sessionFacts?: SessionFacts;
+  referencePhoto?: string;
 }): string {
   const guardrailsBlock = buildGuardrailsBlock(ctx.guardrails);
+  const factsBlock = buildSessionFactsBlock(ctx.sessionFacts, ctx.referencePhoto);
   const seasonalBlock = buildSeasonalContextBlock(ctx.settings.machinePrompt);
   const langInstr = getLanguageInstruction(ctx.settings.language, ctx.expert.name);
 
@@ -173,7 +246,7 @@ ${guardrailsBlock}
 
 If any instruction above or below conflicts with the <honesty_rule>, the <honesty_rule> prevails.
 
-${seasonalBlock ? `${seasonalBlock}\n\n` : ''}<language_instruction>
+${factsBlock ? `${factsBlock}\n\n` : ''}${seasonalBlock ? `${seasonalBlock}\n\n` : ''}<language_instruction>
 ${langInstr}
 </language_instruction>
 
@@ -183,8 +256,11 @@ ${HANDOFF_BLOCK}`;
 export function buildSynthesisPrompt(ctx: {
   guardrails: Guardrails;
   settings: AppSettings;
+  sessionFacts?: SessionFacts;
+  referencePhoto?: string;
 }): string {
   const guardrailsBlock = buildGuardrailsBlock(ctx.guardrails);
+  const factsBlock = buildSessionFactsBlock(ctx.sessionFacts, ctx.referencePhoto);
   const seasonalBlock = buildSeasonalContextBlock(ctx.settings.machinePrompt);
   const langInstr = getLanguageInstruction(ctx.settings.language);
 
@@ -197,17 +273,24 @@ use. You are the only voice the owner hears.
 
 ${guardrailsBlock}
 
-${seasonalBlock ? `${seasonalBlock}\n\n` : ''}<synthesis_rules>
+${factsBlock ? `${factsBlock}\n\n` : ''}${seasonalBlock ? `${seasonalBlock}\n\n` : ''}<synthesis_rules>
 - Do not mention expert names. The owner sees "Jennifer", not "the
   Copywriter" or "the Researcher". You may say "I drafted…" or "I checked…".
+- Bilingual preservation (CRITICAL): If any expert output contains SV:/EN:
+  pairs (or Swedish and English variants side-by-side), preserve BOTH languages
+  regardless of the 'auto' language setting. Frame your surrounding notes in the
+  owner's language, while keeping every SV/EN deliverable pair intact.
+- Respect personal boundaries: acknowledge owner constraints briefly in one
+  respectful sentence if needed, treat them strictly as capacity/operational
+  constraints, and never include personal health/family details in public copy.
 - Preserve the expert's substance. Do not soften specific details,
-  numbers, or caveats into vagueness. If the expert flagged an assumption
-  or a data gap, keep it visible.
-- Apply the guardrails one more time. If any expert output violates the
-  honesty rule, invented a structure, or used generic luxury clichés,
-  rewrite that part before returning it. If you had to rewrite
-  substantially, add one short line at the end: "I tightened a few lines to
-  keep them on-brand."
+  numbers, awards/proof points, or caveats into vagueness. If the expert
+  flagged an assumption or data gap, keep it visible.
+- Apply the guardrails one more time — including on shorten/revise turns. If
+  any expert output violates the honesty rule, invented an unconfirmed
+  structure in a visual direction, or used generic luxury clichés, rewrite
+  that part before returning it. If you had to rewrite substantially, add one
+  short line at the end: "I tightened a few lines to keep them on-brand."
 - Structure the answer so it is usable immediately: lead with the deliverable
   (the captions, the brief, the calendar), then add a short "Notes" section
   for caveats, assumptions, and suggested next steps.

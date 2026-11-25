@@ -7,12 +7,12 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
       reject(new DOMException('Aborted', 'AbortError'));
       return;
     }
-    const timer = window.setTimeout(() => {
+    const timer = globalThis.setTimeout(() => {
       signal?.removeEventListener('abort', onAbort);
       resolve();
     }, ms);
     const onAbort = () => {
-      window.clearTimeout(timer);
+      globalThis.clearTimeout(timer);
       reject(new DOMException('Aborted', 'AbortError'));
     };
     signal?.addEventListener('abort', onAbort, { once: true });
@@ -66,7 +66,8 @@ export class MockProvider implements AIProvider {
 
     // Stage 1: Jennifer orchestration planner
     if (sys.includes('<delegation_protocol>')) {
-      const content = this.planResponse(lowerUser, lastUser);
+      const hasHistory = options.messages.some((m) => m.role === 'assistant');
+      const content = this.planResponse(lowerUser, lastUser, sys, hasHistory);
       return { content, model: options.model || 'hedetangen-demo-v1', finishReason: 'stop' };
     }
 
@@ -79,12 +80,12 @@ export class MockProvider implements AIProvider {
     // Stage 3: Jennifer synthesis (streams to UI)
     const expertOutputsBlock =
       options.messages.find((m) => m.content.includes('<expert_outputs>'))?.content ?? '';
-    const synthesized = this.synthesizeResponse(expertOutputsBlock, lowerUser);
+    const synthesized = this.synthesizeResponse(expertOutputsBlock, lowerUser, sys);
     await streamText(synthesized, options.onToken, options.signal);
     return { content: synthesized, model: options.model || 'hedetangen-demo-v1', finishReason: 'stop' };
   }
 
-  private planResponse(lower: string, original: string): string {
+  private planResponse(lower: string, original: string, sys: string, hasHistory: boolean): string {
     const isGreeting =
       /^(hej|hi|hello|hey|tack|thanks|thank you|who are you|what can you do)/i.test(original.trim()) &&
       original.trim().length < 60;
@@ -99,41 +100,123 @@ Tell me what you're working on — Instagram captions, a seasonal booking campai
 </response>`;
     }
 
-    if (lower.includes('pricing') || lower.includes('sek') || lower.includes('roi') || lower.includes('price')) {
+    // Underspecified first turn ("we really need bookings for the winter, like now. what can you do")
+    if (
+      !hasHistory &&
+      original.trim().length < 110 &&
+      /(bookings|bokningar)/i.test(lower) &&
+      !/(sek|kr|list|lista|email|mejl|instagram)/i.test(lower)
+    ) {
       return `<response>
-I'll run the numbers on that pricing and occupancy scenario and verify the assumptions against your two-guest capacity. One moment.
+I can help you build a focused winter plan right away, but I want to match it to what you can realistically execute this week.
+
+Before I draft anything: **how many hours/people do you have available right now, do you have an existing guest list or ad budget in mind, and which winter experience (sauna, ice bath, or AuroraHut stays) do you want to push first?**
+</response>`;
+    }
+
+    // Email request (EN / SV)
+    if (/\b(email|e-?mail|mejl|epost|nyhetsbrev|our list)\b/i.test(lower)) {
+      return `<response>
+I'll draft a ready-to-send email tailored to your past guests and inquiries, weaving in your verified proof points and Brand DNA. One moment.
+</response>
+<delegate expert="Copywriter">
+  <task>Write an email campaign version for the past-guest and inquiry list (${original}).</task>
+  <context>Carry forward confirmed session facts (200 previous guests + inquiries, wood-fired sauna & ice bath winter experience, and verified awards/Visit Sweden mention). Do not mention personal family/health details.</context>
+  <constraints>Ready to paste into an email tool, one clear CTA, weather/aurora conditional, bilingual or crisp EN/SV per context.</constraints>
+</delegate>`;
+    }
+
+    // Refinement / shorten / less poetic (EN / SV)
+    if (/(shorter|kortare|less poetic|mindre poetisk|tighten|simplify)/i.test(lower)) {
+      return `<response>
+I'll tighten all the drafted variants so they are shorter and more direct while keeping your Brand DNA, proof points, and weather honesty intact.
+</response>
+<delegate expert="Copywriter">
+  <task>Refine and shorten all prior caption variants (${original}).</task>
+  <context>Preserve every verified award/Visit Sweden proof point and keep aurora/weather phrasing conditional. No personal family/health hooks.</context>
+  <constraints>Bilingual SV and EN pairs, noticeably shorter and less poetic, one CTA per variant, atmosphere-only visual direction.</constraints>
+</delegate>`;
+    }
+
+    // Pricing / budget / ROI (EN / SV including kr/sek)
+    if (/(pricing|roi|price|budget|\d+\s*(?:kr|sek))/i.test(lower)) {
+      const alsoAwards = /(award|visit sweden|utmärkelse)/i.test(lower);
+      if (alsoAwards) {
+        return `<response>
+I'll recalibrate the plan around your stated ad budget, run the break-even math with a clear stop/spend threshold, and weave your awards into fresh bilingual ad copy.
+</response>
+<delegate expert="Marketing Strategist">
+  <task>Update the winter campaign mix around the stated ad budget and proof points (${original}).</task>
+  <context>Respect 1.5 FTE capacity and prioritize owned email list before paid ads.</context>
+  <constraints>Ranked channels (email first), realistic 2-week timeline.</constraints>
+</delegate>
+<delegate expert="Business & Pricing Analyst">
+  <task>Calculate break-even booking math and a stop/spend threshold for the stated ad budget (${original}).</task>
+  <context>Capacity 2 guests per hut, summer anchor 1750 SEK/person/night.</context>
+  <constraints>Show step-by-step arithmetic, all assumptions, and one concrete stop/spend threshold.</constraints>
+</delegate>
+<delegate expert="Copywriter">
+  <task>Draft Instagram ad variants using the verified awards and Visit Sweden mention sparingly as trust proof.</task>
+  <context>Sauna & ice bath winter focus, bilingual SV + EN.</context>
+  <constraints>Bilingual SV + EN, atmosphere-only visuals, no invented structures, no aurora promises.</constraints>
+</delegate>`;
+      }
+
+      return `<response>
+I'll run the numbers on that pricing and ROI scenario and verify every assumption against your two-guest capacity. One moment.
 </response>
 <delegate expert="Business & Pricing Analyst">
   <task>${original}</task>
   <context>Hedetangen operates one floating AuroraHut (capacity 2 guests). Summer 2026 rate is 1750 SEK per person per night.</context>
-  <constraints>Show step-by-step arithmetic, explicit assumptions, and data gaps.</constraints>
+  <constraints>Show step-by-step arithmetic, explicit assumptions, break-even bookings, and a stop/spend threshold.</constraints>
 </delegate>`;
     }
 
-    if (lower.includes('post this week') || lower.includes('calendar') || lower.includes('content plan')) {
+    // Operational plan / capacity / weekly action ("what would you actually do this week", calendar, post this week)
+    if (
+      /(what would you actually do|this week|half days?|fte|post this week|calendar|content plan|veckoplan|innehållskalender)/i.test(
+        lower
+      )
+    ) {
       return `<response>
-I'll put together a realistic, iPhone-shootable content plan for this week that fits two owner-operators, and check every visual note against your Brand DNA.
-</response>
-<delegate expert="Social Media Strategist">
-  <task>${original}</task>
-  <context>Two-person family team in Värmland. Bilingual SV/EN audience.</context>
-  <constraints>2-3 posts max, iPhone-friendly, atmosphere-only visuals unless a real photo is supplied, max 8 hashtags.</constraints>
-</delegate>`;
-    }
-
-    if (lower.includes('campaign') || lower.includes('spring') || lower.includes('summer') || lower.includes('bookings') || lower.includes('wizard')) {
-      return `<response>
-I'll structure a focused campaign plan tailored to Hedetangen's capacity and booking window, then pair it with on-brand messaging.
+Thank you for sharing your capacity upfront — keeping things manageable for the two of you comes first. I'll prioritize high-return, low-effort steps starting with your existing list.
 </response>
 <delegate expert="Marketing Strategist">
   <task>${original}</task>
-  <context>Single floating AuroraHut on a private island in Värmland, plus winter sauna & ice bath. Tagline: Unlock Your Senses.</context>
-  <constraints>Prioritize owner-run channels (Instagram, Facebook, past-guest email, hedetangen.com, Visit Värmland).</constraints>
+  <context>Two founders at ~1.5 FTE (half days). Existing email list of previous guests and inquiries. Never use personal/family context as ad copy.</context>
+  <constraints>Rank owned email list #1, low-effort iPhone social #2, paid ads only after budget is clear.</constraints>
+</delegate>
+<delegate expert="Social Media Strategist">
+  <task>Propose a minimal 2-week iPhone-friendly cadence matching ~1.5 FTE capacity.</task>
+  <context>1–2 posts per week max, winter sauna & ice bath atmosphere only unless reference supplied.</context>
+  <constraints>Realistic 1.5 FTE cadence, atmosphere-only shoot notes, max 8 hashtags.</constraints>
+</delegate>`;
+    }
+
+    // Campaign (EN + SV "kampanj")
+    if (/(campaign|kampanj|spring|summer|winter|vinter|bookings|bokningar|wizard|bastu|isbad)/i.test(lower)) {
+      const hasPaidCaution = /(not much money|inte så mycket pengar|tight budget)/i.test(lower);
+      return `<response>
+${
+  /kampanj|bastu|isbad|vintern|inte så mycket/i.test(lower)
+    ? 'Jag tar fram en fokuserad plan som utgår från låg annonsbudget och kombinerar den med tvåspråkiga utkast och atmosfäriska bildförslag.'
+    : "I'll structure a focused campaign plan tailored to Hedetangen's capacity and budget, paired with bilingual copy and atmosphere-only visual directions."
+}
+</response>
+<delegate expert="Marketing Strategist">
+  <task>${original}</task>
+  <context>Single floating AuroraHut on a private island in Värmland, winter sauna & ice bath. ${hasPaidCaution ? 'Budget is tight — lead with zero-budget owned channels.' : ''}</context>
+  <constraints>Prioritize owned email list first, organic iPhone social second, paid ads third.</constraints>
 </delegate>
 <delegate expert="Copywriter">
-  <task>Draft two bilingual launch variants supporting this campaign brief.</task>
-  <context>Use the Marketing Strategist's occasion-based focus in rustic Scandinavian voice.</context>
-  <constraints>Bilingual SV and EN, atmosphere-only visual directions, no generic luxury clichés.</constraints>
+  <task>Draft bilingual SV + EN Instagram variants for winter sauna and ice bath.</task>
+  <context>Use understated Scandinavian voice, conditional weather/aurora language.</context>
+  <constraints>Native SV and EN pairs, atmosphere-only visual directions, zero generic luxury clichés.</constraints>
+</delegate>
+<delegate expert="Visual Director">
+  <task>Create iPhone-shootable atmospheric visual briefs for winter sauna and ice bath.</task>
+  <context>${sys.includes('<confirmed_reference>') ? 'Confirmed reference supplied in session facts.' : 'No reference photo supplied — atmosphere only (steam, water, frost, firelight, hands).'}</context>
+  <constraints>Single continuous slow move or static, one sensory feeling per shot, no invented structures.</constraints>
 </delegate>`;
     }
 
@@ -170,68 +253,96 @@ I'll draft bilingual Swedish and English options in Hedetangen's understated voi
 </delegate>`;
   }
 
-  private expertResponse(sys: string, _lower: string, taskBlock: string): string {
-    if (sys.includes('Business & Pricing Analyst')) {
-      return `QUESTION RESTATED: Evaluating package and pricing sensitivity around the 1750 SEK/person/night anchor.
+  private expertResponse(sys: string, lower: string, taskBlock: string): string {
+    const isAnalyst =
+      sys.includes('<!-- expert:business-analyst -->') ||
+      sys.includes('You are the Business & Pricing Analyst');
+    const isSocial =
+      sys.includes('<!-- expert:social-media-strategist -->') ||
+      sys.includes('You are the Social Media Strategist');
+    const isStrategist =
+      sys.includes('<!-- expert:marketing-strategist -->') ||
+      sys.includes('You are the Marketing Strategist');
+    const isVisual =
+      sys.includes('<!-- expert:visual-director -->') ||
+      sys.includes('You are the Visual Director');
+    const isResearcher =
+      sys.includes('<!-- expert:researcher -->') ||
+      sys.includes('You are the Researcher');
+
+    if (isAnalyst) {
+      const has3000 = /3000/.test(taskBlock) || /3000/.test(sys);
+      return `QUESTION RESTATED: ${
+        has3000
+          ? 'Break-even and ROI sketch for a 3,000 SEK winter ad test.'
+          : 'Evaluating package and pricing sensitivity around the 1750 SEK/person/night anchor.'
+      }
 
 ASSUMPTIONS:
-- Capacity: 2 guests per night (3500 SEK gross nightly revenue at full hut rate; source: Hedetangen baseline).
-- Variable turnover cost (linen, firewood, cleaning, local breakfast basics): 650 SEK per stay (assumed — replace with your actual figure).
-- Average stay length: 2 nights (assumed).
+- Capacity: 2 guests per AuroraHut (source: Hedetangen baseline).
+- Nightly rate: 1,750 SEK/person/night = 3,500 SEK/night for two guests (assumed winter anchor from summer 2026 rate — replace if winter rate differs).
+- Average stay length: 2 nights = 7,000 SEK gross per booking (assumed).
+- Variable turnover cost (firewood, linen, cleaning, provisions): 650 SEK/stay (assumed) → ~6,350 SEK contribution per 2-night booking.
+${
+  has3000
+    ? `- Paid ad budget: 3,000 SEK max (owner-supplied).
+- Estimated CPC / click-to-inquiry / close rate: 4–8 SEK CPC → 375–750 clicks; at 2–3% inquiry rate and 25% close rate → ~2–5 bookings (assumed range — replace after Week 1).`
+    : ''
+}
 
 ANALYSIS:
-- A 2-night stay at 1750 SEK/person = 7000 SEK gross revenue, ~6350 SEK contribution before fixed overhead.
-- Bundling a guided wood-fired sauna + ice-bath evening with local grill provisions priced at +450 SEK/person adds 900 SEK per booking without needing an extra night.
-- Discounting the nightly rate by 15% (to 1487 SEK/person) costs 1050 SEK on a 2-night stay, requiring 18% higher occupancy just to break even on contribution.
+${
+  has3000
+    ? `- Break-even on ad spend: 3,000 SEK ÷ 6,350 SEK contribution per 2-night stay = 0.47 bookings (1 confirmed 2-night stay covers the entire 3,000 SEK ad test and leaves ~3,350 SEK net contribution).
+- Break-even on a single 1-night stay (3,500 SEK gross − 650 SEK variable = 2,850 SEK): 3,000 ÷ 2,850 = 1.05 bookings (~1–2 nights).`
+    : `- A 2-night stay at 1750 SEK/person = 7000 SEK gross revenue, ~6350 SEK contribution before fixed overhead.
+- Bundling a wood-fired sauna + ice-bath evening with local grill provisions priced at +450 SEK/person adds 900 SEK per booking without needing an extra night.`
+}
 
 RECOMMENDATION:
-1. Hold the 1750 SEK base rate and test a midweek "Sauna & Stillness" value-add bundle instead of discounting.
-2. Track booking lead time per season to spot when shoulder-month gaps actually open.
+1. ${
+        has3000
+          ? 'Run a capped 3,000 SEK test split across 2 weeks (~215 SEK/day) ONLY after sending your past-guest email.'
+          : 'Hold base rate and test a midweek "Sauna & Stillness" value-add bundle instead of discounting.'
+      }
+2. Spend more / stop threshold: **Stop or pause ads if you spend 1,500 SEK with fewer than 2 qualified booking inquiries or >8 SEK CPC; spend more only if 1+ confirmed winter stay books within 14 days.**
 
-WHAT TO WATCH: Inquiry-to-booking conversion rate and midweek fill rate over the next 30 days.
-DATA GAPS: Actual variable cost per turnover and historical off-season inquiry volume.`;
+WHAT TO WATCH: Cost per qualified booking inquiry and direct booking inquiries referencing winter dates.
+DATA GAPS: Exact winter nightly rate, historical inquiry-to-booking close rate, and actual variable turnover cost.`;
     }
 
-    if (sys.includes('Social Media Strategist')) {
+    if (isSocial) {
       return `WEEK | DAY | PILLAR | FORMAT | HOOK | CAPTION | HASHTAGS | SHOOT NOTE | CTA
-1 | Tue | The Ritual | Reel | The sound before the water stills. | SV: Elden tar fart innan skymningen lägger sig över sjön. Enkelhet möter stillhet i Värmland.\nEN: The fire catches before dusk settles over the lake. Simple meets stillness in Värmland. | #hedetangen #värmland #bastu #nordicnature #slowtravel | iPhone 15s static clip of birch embers and steam rising — no structures shown. | Link in bio for open dates.
-1 | Thu | The Place | Carousel | Blue hour on the lake lasts twenty quiet minutes. | SV: Inget filter, inget brus — bara kylan i luften och spegelblankt vatten.\nEN: No filter, no rush — just crisp air and mirror-still water. | #värmland #swedishnature #unlockyoursenses #offgrid | 3 vertical photos: frosted pine, lantern glow, wool blanket texture. | Save for your next reset.
-1 | Sun | The Ritual | Story | Morning coffee by the water. | SV: Varm kaffe i kalla händer. Det räcker.\nEN: Warm coffee in cold hands. That is enough. | #hedetangen | Close-up of weathered enamel mug and steam at dawn. | Reply with your favorite season.
+1 | Tue | The Ritual | Reel | Steg från hetta till iskallt vatten. | SV: Bastuvärme mot frostig sjöluft. Ett lugnt andetag innan kvällen faller i Värmland.\nEN: Wood-fired sauna warmth against crisp lake air. One unhurried breath before dusk in Värmland. | #hedetangen #värmland #bastu #isbad #slowtravel | iPhone 12s static clip of birch embers and steam rising — no buildings or structures shown. | Boka vinterdatum via länk i bio.
+1 | Fri | The Place | Carousel | Tystnaden över sjön i blå timmen. | SV: Inget filter, inget brus — bara kylan i luften och vatten som stillnar.\nEN: No rush, no noise — just crisp air and water settling at dusk. | #värmland #swedishnature #unlockyoursenses #winterreset | 3 iPhone shots in one afternoon: frosted pine needles, lantern light on wood grain, steaming stoneware mug. | Save for your winter reset.
 
-SUMMARY: Three low-effort, iPhone-native posts pacing rhythm across warmth, quiet winter landscape, and morning ritual without requiring a shoot crew.`;
+SUMMARY: Minimal 2-post/week cadence designed for ~1.5 FTE capacity — shootable in one afternoon on an iPhone with pure atmosphere scenes.`;
     }
 
-    if (sys.includes('Marketing Strategist')) {
-      return `OBJECTIVE: Fill shoulder and early-summer 2-night stays at 1750 SEK/person/night without discounting.
-AUDIENCE: Couples seeking an unhurried reset and international travelers planning a slow Sweden road trip.
-CORE MESSAGE: Off-grid stillness on a private island in Värmland — where wood smoke, lake water, and 360° night skies replace the noise of everyday schedules.
+    if (isStrategist) {
+      return `OBJECTIVE: Generate winter bookings quickly within a ~1.5 FTE owner capacity and capped budget without discounting brand trust.
+AUDIENCE: Repeat summer guests (gifting/winter return), nearby Swedish couples needing a quiet sauna + ice-bath reset, and winter slow-travelers.
+CORE MESSAGE: Simple meets luxury in raw Swedish winter — wood-fired sauna warmth, cold lake water, and quiet evenings away from everyday noise (with northern lights when clear skies allow).
 CHANNEL MIX:
-1. Past-guest email — highest trust and lowest acquisition cost for repeat stays and gift referrals.
-2. Instagram Reels & Carousels — strongest sensory discovery for couples and Nordic travel planners.
-3. Visit Värmland / Visit Sweden listings — captures high-intent international searchers.
-TIMELINE: Weeks 1–2 capture raw atmospheric clips; Week 3 send email + launch 3-post sequence; Weeks 4–6 respond to inquiries and share seasonal availability updates.
-ASSETS NEEDED: 2 bilingual copy variants, 3 atmospheric visual prompts (no invented structures), 1 short past-guest email.
-SUCCESS SIGNAL: Direct booking inquiries referencing summer or shoulder-season dates within 14 days of email send.
-RISKS: Weather dependency (never promise northern lights) and strict 2-guest capacity ceiling.`;
+1. Owned email list (~200 past guests + ~100 inquiries) — highest trust, zero media cost, fastest path to bookings this week.
+2. Organic Instagram (1–2 iPhone posts/week) — maintains presence for warm leads at zero ad spend.
+3. Paid Instagram ads (only within stated 3,000 SEK ceiling, paused if email fills open weekends first).
+TIMELINE: Days 1–2 send past-guest email + shoot 4 atmospheric iPhone clips in one afternoon; Weeks 1–2 publish 2 organic posts/week and run capped retargeting/cold test.
+ASSETS NEEDED: 1 past-guest email, 3 shorter bilingual IG ad/post variants, 4 atmosphere-only shot briefs, verified awards + Visit Sweden proof line.
+SUCCESS SIGNAL: Direct booking inquiries or bookings from the email list within 7 days of send.
+RISKS: Weather dependency (ice/snow/aurora cannot be promised), founder time ceiling (~1.5 FTE), and 2-guest nightly capacity.`;
     }
 
-    if (sys.includes('Visual Director')) {
-      return `PROMPT 1
-Scene: Close-up of weathered birch firewood catching orange flame beside dark lake water at blue hour, gentle mist drifting across the surface, linen and wool edge in foreground.
-Feeling: Quiet warmth against crisp evening air.
-Camera: 50mm lens, shallow depth of field, single continuous slow push-in over 6 seconds.
-Light & colour: Blue hour cool lake tones balanced with warm amber firelight, deep wood and charcoal.
-Reference required? no (pure atmosphere — no structures depicted).
+    if (isVisual) {
+      return `SHOT 1 | 6s | Close-up of glowing birch logs and rising sparks beside dark winter water at blue hour | Quiet warmth against winter air | 1x iPhone slow static frame | Amber firelight against cool blue dusk
+SHOT 2 | 5s | Steam rising off cold lake surface with frosted pine needles in soft foreground | Crisp winter stillness | Continuous slow pan right | Soft morning light, muted charcoal and moss
+SHOT 3 | 6s | Hands in thick wool cuffs lifting a stoneware mug of black coffee | Unhurried warmth at dawn | Shallow depth close-up, static | Golden hour sidelight, warm cream and earth tones
+SHOT 4 | 5s | Ice crystals and dark rippling water catching warm lantern reflection on shore stones | Sensory contrast of cold and light | Slow push-in, natural water motion only | Warm lantern glow on dark slate tones
 
-PROMPT 2
-Scene: Two weathered hands holding a stoneware mug of black coffee, soft morning light catching rising steam against blurred pine forest.
-Feeling: Unhurried presence at dawn.
-Camera: 35mm, static tripod frame, natural steam motion only.
-Light & colour: Soft golden hour sidelight, muted forest green, cream, and warm earth tones.
-Reference required? no.`;
+Reference required? no (pure atmosphere — no structures depicted).`;
     }
 
-    if (sys.includes('Researcher')) {
+    if (isResearcher) {
       return `BRIEF TITLE: Nordic Eco-Glamping & Slow Travel Positioning Context
 QUESTION: How should Hedetangen position off-grid island stays relative to regional glamping options?
 FINDINGS:
@@ -239,51 +350,113 @@ FINDINGS:
 - Transparency around seasonal realities (weather, off-grid simplicity) reduces expectation mismatch and improves review scores (confidence: high).
 - Bilingual English/Swedish booking paths remain essential for capturing German, Dutch, and UK road-trip guests visiting Värmland (confidence: high).
 IMPLICATIONS FOR HEDETANGEN:
-- Lead with private-island solitude and the real founders (Joacim & Madeleine) rather than generic luxury amenities.
-- Highlight bundled local rituals (wood-fired sauna, ice bath, grilling) as the core value at 1750 SEK/person.
+- Lead with private-island solitude and verified editorial credibility rather than generic luxury amenities.
+- Highlight bundled winter rituals (wood-fired sauna, ice bath, grilling) clearly.
 WHAT TO VERIFY: Current seasonal rates on Visit Värmland partner listings and local Värmland tourism event dates.
 SOURCES / FRESHNESS: Synthesized from baseline domain knowledge (Demo Mode — no live web search performed). Task context: ${taskBlock.slice(0, 80)}`;
     }
 
-    // Default: Copywriter
+    // Copywriter branches: email, shorten/revise, or standard bilingual variants
+    if (/(email|mejl|epost)/i.test(lower)) {
+      const hasAward = /(award|visit sweden|eco)/i.test(sys + taskBlock);
+      return `SUBJECT LINE:
+SV: Bastu och vinterstillhet vid sjön — några lediga nätter kvar
+EN: Wood-fired sauna and winter stillness — open nights this season
+
+BODY:
+SV: Hej! Efter sommaren hos oss vill vi bjuda in er tillbaka till Värmland när kylan lägger sig. Vår vedeldade bastu står varm vid vattnet, och för den som vågar väntar isbad under stjärnorna — ibland, under klara nätter, även norrsken.${hasAward ? ' (Tack för att ni är en del av resan som Visit Sweden kallat en av Sveriges nio "hidden island escapes".)' : ''}
+
+EN: Hello again — following summer on the lake, we're opening quiet winter nights by the wood-fired sauna and ice bath. When skies clear, the night sky opens wide above the trees — unhurried and simple.${hasAward ? ' Highlighted by Visit Sweden as one of Sweden\'s nine "hidden island escapes."' : ''}
+
+CTA:
+SV: Se lediga vinterdatum på hedetangen.com
+EN: View open winter dates at hedetangen.com`;
+    }
+
+    if (/(shorten|shorter|kortare|less poetic|mindre poetisk)/i.test(lower)) {
+      return `VARIANT 1
+Headline / hook: Bastu. Isbad. Vinterstillhet. / Sauna. Ice bath. Winter stillness.
+Body:
+SV: Vedeldad bastu vid sjön, ett kallt dopp och lugna kvällar i Värmland. Klara nätter syns ibland norrsken över vattnet.
+EN: Wood-fired sauna by the lake, a cold plunge, and quiet winter nights in Värmland. On clear nights, northern lights sometimes appear.
+CTA: SV: Se lediga datum på hedetangen.com | EN: Book winter nights at hedetangen.com
+Visual direction: Close-up of lantern light reflecting on dark ripples at dusk (atmosphere only).
+
+VARIANT 2
+Headline / hook: Vinter för två vid vattnet. / Winter for two by the water.
+Body:
+SV: Enkelt, varmt och stilla — bastu och isbad i egen takt. Uppmärksammad av Visit Sweden som en av nio "hidden island escapes".
+EN: Simple, warm, unhurried — sauna and ice bath at your own pace. Named by Visit Sweden as one of nine "hidden island escapes".
+CTA: SV: Boka din vistelse | EN: Reserve your stay
+Visual direction: Steam rising from a stoneware mug beside glowing birch embers (atmosphere only).
+
+VARIANT 3
+Headline / hook: Två platser. En stilla vinterkväll. / Two spots. One quiet winter night.
+Body:
+SV: Ved i ugnen, frost i luften och tid att bara vara — bara två gäster åt gången.
+EN: Birch on the fire, frost in the air, and time to slow down — strictly two guests at a time.
+CTA: SV: Kolla lediga nätter | EN: Check winter dates
+Visual direction: Hands in wool cuffs warming over birch embers at blue hour (atmosphere only).`;
+    }
+
+    // Default: Copywriter standard 3 variants
+    const hasVisitSweden = /visit\s+sweden/i.test(sys + taskBlock);
     return `VARIANT 1
 Headline / hook: Tystnaden börjar där vägen tar slut. / Silence begins where the road ends.
 Body:
-SV: Bastuvärme mot kall sjöluft. Sprakande björkved och stjärnklar himmel över vattnet. Enkelhet möter lyx på Hedetangen i Värmland — för två gäster åt gången.
-EN: Wood-fired sauna warmth against crisp lake air. Crackling birch and an open night sky over the water. Simple meets luxury at Hedetangen in Värmland — for two guests at a time.
+SV: Bastuvärme mot kall sjöluft. Sprakande björkved och en stjärnklar himmel över vattnet i Värmland — för två gäster åt gången, långt bort från vardagens tempo.${hasVisitSweden ? ' Uppmärksammad av Visit Sweden som en av Sveriges nio "hidden island escapes".' : ''}
+EN: Wood-fired sauna warmth against crisp lake air. Crackling birch and an open night sky in Värmland — strictly two guests at a time, far from everyday noise.${hasVisitSweden ? ' Highlighted by Visit Sweden as one of nine "hidden island escapes".' : ''}
 CTA: SV: Se lediga nätter på hedetangen.com | EN: View open nights at hedetangen.com
 Visual direction: Slow close-up of warm lantern glow reflecting on dark ripples at dusk, with pine silhouettes in soft focus (atmosphere only).
 
 VARIANT 2
 Headline / hook: Kalla dopp. Varma samtal. / Cold water. Warm light.
 Body:
-SV: Kliv upp ur isvaken och in i doften av varmt trä. Under klara vinterkvällar dansar ibland norrskenet ovanför trädtopparna, helt utan brådska.
-EN: Step out of the ice bath and into the scent of warm cedar. On clear winter nights, northern lights sometimes drift above the treeline, unhurried.
+SV: Kliv upp ur isbadet och rakt in i doften av varmt trä. Under klara vinterkvällar visar sig ibland norrskenet ovanför trädtopparna, helt utan brådska eller löften.
+EN: Step out of the ice bath and into the scent of warm cedar. On clear winter nights, northern lights sometimes drift above the treeline — unhurried and never rushed.
 CTA: SV: Boka er vintervistelse | EN: Reserve your winter stay
-Visual direction: Tactile close-up of wool blanket and steaming stoneware mug beside glowing embers at twilight (atmosphere only).`;
+Visual direction: Tactile close-up of thick wool and a steaming stoneware mug beside glowing embers at twilight (atmosphere only).
+
+VARIANT 3
+Headline / hook: Enkelt möter stillhet i Värmland. / Simple meets stillness in Värmland.
+Body:
+SV: När frosten lägger sig över sjön väntar vedeldad bastu, värmande glöd och mörka skogar. En liten vintervistelse för er som söker lugn framför allt annat.
+EN: As frost settles along the lake, wood-fired sauna warmth, quiet forest dark, and glowing birch coals await. An unhurried winter stay built for stillness.
+CTA: SV: Utforska lediga datum | EN: Explore winter dates
+Visual direction: Slow static frame of steam drifting across icy shore stones in early morning sidelight (atmosphere only).`;
   }
 
-  private synthesizeResponse(expertOutputsBlock: string, lowerUser: string): string {
+  private synthesizeResponse(expertOutputsBlock: string, lowerUser: string, _sys: string): string {
     const clean = expertOutputsBlock
       .replace(/<\/?expert_outputs>/g, '')
       .replace(/<expert name="[^"]+">/g, '\n')
       .replace(/<\/expert>/g, '\n')
+      .replace(/<orchestrator_note>[\s\S]*?<\/orchestrator_note>/g, '')
       .trim();
 
     if (!clean) {
       return `Here is a grounded starting point for Hedetangen.\n\nEverything stays within your Brand DNA — warm Swedish nature, understated luxury, and atmosphere-only visuals where no reference photo is provided. Would you like me to refine this for Instagram or email next?`;
     }
 
-    const note = lowerUser.includes('aurora') || lowerUser.includes('winter')
-      ? 'I kept northern lights phrasing cautious ("on clear winter nights") and restricted visual directions to pure atmosphere so nothing unverified is implied.'
-      : 'All copy and visual directions follow your Brand DNA guardrails — warm earth tones, tactile natural materials, and zero invented structures.';
+    const isSwedish = /kampanj|bastu|isbad|vintern|inte så mycket|kortare|mejl/i.test(lowerUser);
+    const hasPersonalConstraint = /baby|hospital|half day|bebis|sjukhus|halvdag/i.test(lowerUser);
 
-    return `${clean}
+    const intro = hasPersonalConstraint
+      ? 'I’ve kept the plan tightly scoped to what the two of you can realistically handle right now — starting with your own guest list before spending on ads.\n\n'
+      : isSwedish
+        ? 'Här är en fokuserad plan och tvåspråkigt material utifrån er låga budget och nuvarande kapacitet.\n\n'
+        : '';
+
+    const note = isSwedish
+      ? 'Jag har behållit både svenska och engelska varianter (SV/EN), hållit norrsken/väder villkorat ("under klara kvällar"), och enbart använt rena atmosfärsbilder.'
+      : 'All copy preserves native SV/EN pairs, keeps weather and northern lights conditional, and limits visual directions to pure atmosphere (no invented structures).';
+
+    return `${intro}${clean}
 
 ---
 
 **Brand DNA Notes**
 - ${note}
-- Want me to save this to your Content Library, or adapt a version for email?`;
+- Want me to save these deliverables to your Content Library, or adjust the tone next?`;
   }
 }

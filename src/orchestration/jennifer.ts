@@ -1,3 +1,8 @@
+import {
+  EXPERT_MAX_TOKENS,
+  PLANNER_MAX_TOKENS,
+  SYNTHESIS_MAX_TOKENS,
+} from '../constants';
 import { createProvider } from '../providers';
 import { AIError } from '../providers/errors';
 import type {
@@ -6,8 +11,15 @@ import type {
   ChatMessage,
   Expert,
   Guardrails,
+  SessionFacts,
 } from '../types';
-import { trimChatHistory, resolveExpert } from './context';
+import {
+  extractDeterministicFacts,
+  mergeSessionFacts,
+  resolveExpert,
+  trimChatHistory,
+  trimExpertHistory,
+} from './context';
 import { parseDelegation } from './delegation';
 import {
   buildExpertPrompt,
@@ -27,14 +39,26 @@ export interface TurnResult {
   content: string;
   handoffText?: string;
   delegatedExperts: string[];
+  updatedFacts: SessionFacts;
+  truncatedDelegates?: number;
   callCount: number;
   durationMs: number;
   stopped?: boolean;
 }
 
+function escapeXmlValue(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escapeXmlAttr(value: string): string {
+  return escapeXmlValue(value).replace(/"/g, '&quot;');
+}
+
 export async function runJenniferTurn(params: {
   userMessage: string;
   history: ChatMessage[];
+  sessionFacts?: SessionFacts;
+  referencePhoto?: string;
   settings: AppSettings;
   guardrails: Guardrails;
   experts: Expert[];
@@ -42,7 +66,17 @@ export async function runJenniferTurn(params: {
   callbacks: TurnCallbacks;
 }): Promise<TurnResult> {
   const startTime = performance.now();
-  const { userMessage, history, settings, guardrails, experts, signal, callbacks } = params;
+  const {
+    userMessage,
+    history,
+    sessionFacts,
+    referencePhoto,
+    settings,
+    guardrails,
+    experts,
+    signal,
+    callbacks,
+  } = params;
   const provider = await createProvider(settings.provider);
   const modelId = settings.provider === 'mock' ? 'hedetangen-demo-v1' : settings.model;
 
@@ -56,11 +90,23 @@ export async function runJenniferTurn(params: {
 
   let callCount = 0;
   const trimmedHistory = trimChatHistory(history);
+  const expertHistory = trimExpertHistory(history);
+  const deterministicPatch = extractDeterministicFacts(userMessage, referencePhoto);
+  const prePlanFacts = mergeSessionFacts(sessionFacts, deterministicPatch);
 
   // Pass 1: Jennifer planning call (buffered)
   callbacks.onStatus('Jennifer is thinking…');
   const planMessages: ChatCompletionMessage[] = [
-    { role: 'system', content: buildJenniferPrompt({ guardrails, experts, settings }) },
+    {
+      role: 'system',
+      content: buildJenniferPrompt({
+        guardrails,
+        experts,
+        settings,
+        sessionFacts: prePlanFacts,
+        referencePhoto,
+      }),
+    },
     ...trimmedHistory,
     { role: 'user', content: userMessage },
   ];
@@ -70,6 +116,7 @@ export async function runJenniferTurn(params: {
     model: modelId,
     messages: planMessages,
     temperature: 0.4,
+    maxTokens: PLANNER_MAX_TOKENS,
     signal,
   });
 
@@ -77,6 +124,8 @@ export async function runJenniferTurn(params: {
   if (plan.parseWarn) {
     callbacks.onParseWarn?.(firstPass.content);
   }
+
+  const updatedFacts = mergeSessionFacts(prePlanFacts, plan.facts);
 
   // Direct answer (no delegation)
   if (plan.delegates.length === 0) {
@@ -86,12 +135,13 @@ export async function runJenniferTurn(params: {
     return {
       content: directText,
       delegatedExperts: [],
+      updatedFacts,
       callCount,
       durationMs: Math.round(performance.now() - startTime),
     };
   }
 
-  // Pass 2: Execute delegated experts sequentially
+  // Pass 2: Execute delegated experts sequentially (capped at MAX_DELEGATES_PER_TURN = 3)
   const plannedNames = plan.delegates.map((d) => d.expert);
   const handoffText = plan.response || 'Working on this with your Brand DNA guardrails.';
   callbacks.onHandoff(handoffText, plannedNames);
@@ -122,11 +172,25 @@ export async function runJenniferTurn(params: {
             .join('\n\n')}\n\n`
         : '';
 
+    const refXml = referencePhoto?.trim()
+      ? `\n<confirmed_reference>${escapeXmlValue(referencePhoto.trim())}</confirmed_reference>`
+      : '';
+
     const expertMessages: ChatCompletionMessage[] = [
-      { role: 'system', content: buildExpertPrompt({ expert, guardrails, settings }) },
+      {
+        role: 'system',
+        content: buildExpertPrompt({
+          expert,
+          guardrails,
+          settings,
+          sessionFacts: updatedFacts,
+          referencePhoto,
+        }),
+      },
+      ...expertHistory,
       {
         role: 'user',
-        content: `${priorBlock}<task>${directive.task}</task>\n<context>${directive.context}</context>\n<constraints>${directive.constraints}</constraints>`,
+        content: `${priorBlock}<task>${escapeXmlValue(directive.task)}</task>\n<context>${escapeXmlValue(directive.context)}</context>\n<constraints>${escapeXmlValue(directive.constraints)}</constraints>${refXml}`,
       },
     ];
 
@@ -135,6 +199,7 @@ export async function runJenniferTurn(params: {
       model: modelId,
       messages: expertMessages,
       temperature: expert.temperature ?? settings.temperature,
+      maxTokens: EXPERT_MAX_TOKENS,
       signal,
     });
 
@@ -147,23 +212,36 @@ export async function runJenniferTurn(params: {
   // Pass 3: Synthesis (streams to UI)
   callbacks.onStatus('Jennifer is finalizing…');
 
+  const truncationNote =
+    plan.truncatedCount > 0
+      ? `\n<orchestrator_note>${plan.truncatedCount} extra delegation block(s) were omitted because turns are capped at 3 specialists.</orchestrator_note>`
+      : '';
+
   const expertOutputsXml = `<expert_outputs>\n${expertOutputs
     .map((o) =>
       o.content
-        ? `<expert name="${o.expert}">\n${o.content}\n</expert>`
-        : `<expert name="${o.expert}" status="unavailable">${o.error}</expert>`
+        ? `<expert name="${escapeXmlAttr(o.expert)}">\n${escapeXmlValue(o.content)}\n</expert>`
+        : `<expert name="${escapeXmlAttr(o.expert)}" status="unavailable">${escapeXmlValue(o.error ?? '')}</expert>`
     )
-    .join('\n')}\n</expert_outputs>`;
+    .join('\n')}${truncationNote}\n</expert_outputs>`;
 
   const synthesisMessages: ChatCompletionMessage[] = [
-    { role: 'system', content: buildSynthesisPrompt({ guardrails, settings }) },
+    {
+      role: 'system',
+      content: buildSynthesisPrompt({
+        guardrails,
+        settings,
+        sessionFacts: updatedFacts,
+        referencePhoto,
+      }),
+    },
     ...trimmedHistory,
     { role: 'user', content: userMessage },
     { role: 'user', content: expertOutputsXml },
     {
       role: 'user',
       content:
-        'Compose the final answer for the owner using the rules above. Apply the Brand DNA guardrails. Do not mention internal expert names.',
+        'Compose the final answer for the owner using the rules above. Apply the Brand DNA guardrails, preserve any bilingual SV:/EN: pairs, and do not mention internal expert names.',
     },
   ];
 
@@ -172,6 +250,7 @@ export async function runJenniferTurn(params: {
     model: modelId,
     messages: synthesisMessages,
     temperature: settings.temperature,
+    maxTokens: SYNTHESIS_MAX_TOKENS,
     signal,
     onToken: callbacks.onToken,
   });
@@ -181,6 +260,8 @@ export async function runJenniferTurn(params: {
     content: synthesisResult.content,
     handoffText,
     delegatedExperts: plannedNames,
+    updatedFacts,
+    truncatedDelegates: plan.truncatedCount || undefined,
     callCount,
     durationMs: Math.round(performance.now() - startTime),
   };

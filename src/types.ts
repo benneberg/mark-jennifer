@@ -57,11 +57,23 @@ export interface AppSettings {
   debug: boolean;
 }
 
+export interface SessionFacts {
+  constraints?: string[];
+  audience?: string[];
+  budget?: string;
+  awards?: string[];
+  channels?: string[];
+  focus?: string;
+  referencePhoto?: string;
+  notes?: string[];
+}
+
 export interface Chat {
   id: string;
   title: string;
   createdAt: string;
   updatedAt: string;
+  sessionFacts?: SessionFacts;
 }
 
 export interface ChatMessage {

@@ -1,9 +1,11 @@
-import React, { useEffect, useRef } from 'react';
-import { ArrowUp, Plus, Square } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowUp, Camera, Plus, Square, X } from 'lucide-react';
 
 interface ComposerProps {
   draft: string;
   onDraftChange: (next: string) => void;
+  referencePhoto: string;
+  onReferencePhotoChange: (next: string) => void;
   onSend: () => void;
   onStop: () => void;
   onOpenWizard: () => void;
@@ -17,6 +19,8 @@ interface ComposerProps {
 export function Composer({
   draft,
   onDraftChange,
+  referencePhoto,
+  onReferencePhotoChange,
   onSend,
   onStop,
   onOpenWizard,
@@ -27,6 +31,7 @@ export function Composer({
   inputRef,
 }: ComposerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [refOpen, setRefOpen] = useState(Boolean(referencePhoto));
 
   useEffect(() => {
     const el = inputRef.current;
@@ -73,7 +78,34 @@ export function Composer({
           </div>
         )}
 
-        <div className="flex items-end gap-2 p-1.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] focus-within:border-[var(--accent)] transition-colors">
+        {(refOpen || referencePhoto.trim()) && (
+          <div className="mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+            <Camera className="w-4 h-4 text-[var(--accent)] shrink-0" />
+            <input
+              type="text"
+              value={referencePhoto}
+              maxLength={400}
+              disabled={isStreaming}
+              onChange={(e) => onReferencePhotoChange(e.target.value)}
+              placeholder="Describe real reference photo (optional — blank = atmosphere-only visuals)"
+              aria-label="Reference photo description"
+              className="flex-1 min-w-0 bg-transparent text-xs text-[var(--text)] placeholder:text-[var(--text-faint)] focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                onReferencePhotoChange('');
+                setRefOpen(false);
+              }}
+              aria-label="Clear reference photo description"
+              className="min-h-[32px] min-w-[32px] flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text)]"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-end gap-1.5 p-1.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] focus-within:border-[var(--accent)] transition-colors">
           <button
             type="button"
             onClick={onOpenWizard}
@@ -83,6 +115,22 @@ export function Composer({
             className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-muted)] disabled:opacity-40 transition-colors shrink-0"
           >
             <Plus className="w-5 h-5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setRefOpen((o) => !o)}
+            disabled={isStreaming}
+            aria-label="Add reference photo description"
+            aria-pressed={refOpen || Boolean(referencePhoto.trim())}
+            title="Reference photo description (for Visual Director)"
+            className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg transition-colors shrink-0 disabled:opacity-40 ${
+              referencePhoto.trim()
+                ? 'bg-[var(--accent-soft)] text-[var(--accent-text)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-muted)]'
+            }`}
+          >
+            <Camera className="w-4 h-4" />
           </button>
 
           <textarea

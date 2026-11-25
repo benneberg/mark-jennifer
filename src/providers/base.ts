@@ -25,12 +25,12 @@ export async function fetchWithTimeout(
   externalSignal?: AbortSignal
 ): Promise<Response> {
   const timeoutController = new AbortController();
-  const timeoutId = window.setTimeout(() => timeoutController.abort('timeout'), REQUEST_TIMEOUT_MS);
+  const timeoutId = globalThis.setTimeout(() => timeoutController.abort('timeout'), REQUEST_TIMEOUT_MS);
 
   const onExternalAbort = () => timeoutController.abort(externalSignal?.reason ?? 'aborted');
   if (externalSignal) {
     if (externalSignal.aborted) {
-      window.clearTimeout(timeoutId);
+      globalThis.clearTimeout(timeoutId);
       throw new DOMException('Aborted', 'AbortError');
     }
     externalSignal.addEventListener('abort', onExternalAbort, { once: true });
@@ -56,7 +56,7 @@ export async function fetchWithTimeout(
       raw: err,
     });
   } finally {
-    window.clearTimeout(timeoutId);
+    globalThis.clearTimeout(timeoutId);
     externalSignal?.removeEventListener('abort', onExternalAbort);
   }
 }
@@ -127,7 +127,7 @@ export async function runOpenAICompatibleChat(
     };
   }
 
-  // SSE streaming
+  // SSE streaming with per-chunk inactivity timeout
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -135,8 +135,74 @@ export async function runOpenAICompatibleChat(
   let finishReason: string | undefined;
   let resolvedModel = options.model;
 
+  const processLine = (rawLine: string) => {
+    const line = rawLine.trim();
+    if (!line || !line.startsWith('data:')) return;
+    const payload = line.slice(5).trim();
+    if (payload === '[DONE]') return;
+
+    try {
+      const chunk = JSON.parse(payload) as {
+        model?: string;
+        choices?: Array<{ delta?: { content?: string }; finish_reason?: string }>;
+      };
+      if (chunk.model) resolvedModel = chunk.model;
+      const delta = chunk.choices?.[0]?.delta?.content;
+      if (delta) {
+        fullContent += delta;
+        options.onToken?.(delta);
+      }
+      if (chunk.choices?.[0]?.finish_reason) {
+        finishReason = chunk.choices[0].finish_reason;
+      }
+    } catch {
+      // Ignore partial SSE comment/keepalive lines
+    }
+  };
+
+  const readChunkWithTimeout = async (): Promise<ReadableStreamReadResult<Uint8Array>> => {
+    if (options.signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let onAbort: (() => void) | undefined;
+
+    try {
+      return await Promise.race([
+        reader.read(),
+        new Promise<never>((_, reject) => {
+          timeoutId = globalThis.setTimeout(() => {
+            reader.cancel('stream_timeout').catch(() => {});
+            reject(
+              new AIError({
+                code: 'TIMEOUT',
+                message: 'Stream stalled without receiving data',
+                provider,
+              })
+            );
+          }, REQUEST_TIMEOUT_MS);
+
+          if (options.signal) {
+            onAbort = () => {
+              if (timeoutId !== undefined) globalThis.clearTimeout(timeoutId);
+              reader.cancel(options.signal?.reason ?? 'aborted').catch(() => {});
+              reject(new DOMException('Aborted', 'AbortError'));
+            };
+            options.signal.addEventListener('abort', onAbort, { once: true });
+          }
+        }),
+      ]);
+    } finally {
+      if (timeoutId !== undefined) globalThis.clearTimeout(timeoutId);
+      if (onAbort && options.signal) {
+        options.signal.removeEventListener('abort', onAbort);
+      }
+    }
+  };
+
   while (true) {
-    const { done, value } = await reader.read();
+    const { done, value } = await readChunkWithTimeout();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
 
@@ -144,29 +210,13 @@ export async function runOpenAICompatibleChat(
     buffer = lines.pop() ?? '';
 
     for (const rawLine of lines) {
-      const line = rawLine.trim();
-      if (!line || !line.startsWith('data:')) continue;
-      const payload = line.slice(5).trim();
-      if (payload === '[DONE]') continue;
-
-      try {
-        const chunk = JSON.parse(payload) as {
-          model?: string;
-          choices?: Array<{ delta?: { content?: string }; finish_reason?: string }>;
-        };
-        if (chunk.model) resolvedModel = chunk.model;
-        const delta = chunk.choices?.[0]?.delta?.content;
-        if (delta) {
-          fullContent += delta;
-          options.onToken?.(delta);
-        }
-        if (chunk.choices?.[0]?.finish_reason) {
-          finishReason = chunk.choices[0].finish_reason;
-        }
-      } catch {
-        // Ignore partial SSE comment/keepalive lines
-      }
+      processLine(rawLine);
     }
+  }
+
+  buffer += decoder.decode();
+  if (buffer.trim()) {
+    processLine(buffer);
   }
 
   return {

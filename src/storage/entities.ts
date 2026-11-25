@@ -60,6 +60,7 @@ export async function ensureSeedData(): Promise<{ skippedCount: number }> {
 
   // Seed experts if none exist and never seeded before
   const seededFlag = await idbGet<MetaEntry<boolean>>('meta', 'seeded');
+  const seedPromptVersion = await idbGet<MetaEntry<number>>('meta', 'seedPromptsVersion');
   const existingExperts = await idbGetAll<Expert>('experts');
 
   if (!seededFlag?.value && existingExperts.length === 0) {
@@ -74,6 +75,20 @@ export async function ensureSeedData(): Promise<{ skippedCount: number }> {
     }
     await idbPut('meta', { key: 'seeded', value: true });
     await idbPut('meta', { key: 'schemaVersion', value: SCHEMA_VERSION });
+    await idbPut('meta', { key: 'seedPromptsVersion', value: 2 });
+  } else if ((seedPromptVersion?.value ?? 1) < 2) {
+    const freshSeeds = createSeedExperts(nowIso());
+    const freshById = new Map(freshSeeds.map((s) => [s.id, s]));
+    for (const exp of existingExperts) {
+      const replacement = freshById.get(exp.id);
+      if (replacement && exp.isSeed && exp.updatedAt === exp.createdAt) {
+        await idbPut('experts', {
+          ...exp,
+          systemPrompt: replacement.systemPrompt,
+        });
+      }
+    }
+    await idbPut('meta', { key: 'seedPromptsVersion', value: 2 });
   }
 
   // Seed guardrails if missing
