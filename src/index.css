@@ -1,0 +1,109 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg: #f7f4ef;
+  --surface: #fffdf9;
+  --surface-muted: #efeae2;
+  --border: #ddd5c8;
+  --border-strong: #c4b8a6;
+
+  --text: #2b2620;
+  --text-muted: #6f665b;
+  --text-faint: #756b5f;
+
+  --accent: #a8724a;
+  --accent-soft: #e8d9c9;
+  --accent-text: #5c3a22;
+
+  --danger: #a4453b;
+  --danger-soft: #f5e3e1;
+  --success: #4f6b4a;
+  --success-soft: #e6ede4;
+
+  --shadow-drawer: 0 8px 32px rgba(43, 38, 32, 0.12);
+  --font-body: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+[data-theme="dark"],
+.dark {
+  --bg: #1c1916;
+  --surface: #252019;
+  --surface-muted: #2f2820;
+  --border: #3d352b;
+  --border-strong: #55493b;
+
+  --text: #f0e9de;
+  --text-muted: #b3a89a;
+  --text-faint: #968b7e;
+
+  --accent: #c98a5c;
+  --accent-soft: #3a2c20;
+  --accent-text: #f0c9a8;
+
+  --danger: #d47a6f;
+  --danger-soft: #3b2421;
+  --success: #8aab84;
+  --success-soft: #243123;
+
+  --shadow-drawer: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+@layer base {
+  html,
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: contain;
+  }
+
+  .dark body,
+  [data-theme="dark"] body {
+    letter-spacing: 0.005em;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.font-mono-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes pulse-gentle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.streaming-caret::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background-color: var(--accent);
+  margin-left: 3px;
+  vertical-align: text-bottom;
+  animation: pulse-gentle 1s ease-in-out infinite;
+}
+
+.working-dot {
+  animation: pulse-gentle 1.3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streaming-caret::after,
+  .working-dot {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

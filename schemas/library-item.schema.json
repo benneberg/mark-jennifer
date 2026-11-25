@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://hedetangen.app/schemas/library-item.schema.json",
+  "title": "Library Item",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "content", "type", "tags", "createdAt"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "content": { "type": "string", "minLength": 1, "maxLength": 100000 },
+    "type": { "type": "string", "enum": ["copy", "campaign", "research", "visual-brief", "note"] },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 40 },
+      "maxItems": 20,
+      "uniqueItems": true
+    },
+    "sourceChatId": { "type": "string", "format": "uuid" },
+    "sourceMessageId": { "type": "string", "format": "uuid" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

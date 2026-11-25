@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://hedetangen.app/schemas/message.schema.json",
+  "title": "Message",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "chatId", "role", "content", "timestamp"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "chatId": { "type": "string", "format": "uuid" },
+    "role": { "type": "string", "enum": ["user", "jennifer", "expert", "system"] },
+    "expertName": { "type": "string", "maxLength": 60 },
+    "content": { "type": "string", "minLength": 1, "maxLength": 60000 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "status": { "type": "string", "enum": ["complete", "streaming", "stopped", "error"] },
+    "savedToLibrary": { "type": "boolean" },
+    "turnId": { "type": "string", "format": "uuid" }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://hedetangen.app/schemas/expert.schema.json",
+  "title": "Expert",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "role", "systemPrompt", "enabled", "tags", "createdAt", "updatedAt"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60,
+      "pattern": "^[\\p{L}0-9 _&'./-]+$"
+    },
+    "role": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "systemPrompt": { "type": "string", "minLength": 20, "maxLength": 8000 },
+    "temperature": { "type": "number", "minimum": 0, "maximum": 1.5 },
+    "enabled": { "type": "boolean" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 40 },
+      "maxItems": 20,
+      "uniqueItems": true
+    },
+    "isSeed": { "type": "boolean" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

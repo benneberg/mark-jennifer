@@ -1,0 +1,504 @@
+
+---
+
+Thoughts & Feedback on the Concept
+
+Strengths of your approach:
+
+· The single-interface, multi-expert orchestration model is excellent for non-technical users. Forcing the business owner to pick "which AI" adds friction; Jennifer as a single point of contact abstracts that complexity.
+· Client-side + BYOK (bring your own key) is the right architecture for a lightweight, privacy-respecting, GitHub-Pages-deployable tool. The owners keep control of their API keys and data.
+· Your Brand DNA v4 is unusually well-crafted. It solves the biggest risk in AI content generation for a place-based brand: hallucinating structures or experiences that don't exist. The "Honesty Rule" must be baked into every expert's system prompt, not treated as an optional appendix.
+
+Suggestions to make the tool significantly more useful:
+
+1. "Brand Guardrails" as a first-class feature. Rather than just a static appendix, the Brand DNA should be a live, editable panel that every expert call automatically inherits. Jennifer should be able to say: "I've applied your Brand DNA guardrails to this output — no invented structures, warm earth tones, single continuous camera move." This builds trust and reinforces brand consistency without the user having to re-explain it each time.
+2. A "Content Library" alongside the chat. Marketing work is iterative. Chats get long and valuable outputs get buried. Add a lightweight side panel where Jennifer automatically saves generated ads, captions, campaign outlines, and research briefs. Each entry should be taggable (e.g., "Instagram", "Summer 2026", "Copy", "Research") and exportable as JSON or Markdown. IndexedDB is perfect for this.
+3. Explicit "Free Model" awareness with quota warnings. Groq's free tier has RPM/RPD limits, and OpenRouter's free models can have latency or availability quirks. The app should display the selected model's known limits (if available via provider API or curated metadata) and warn Jennifer when a task might exceed them. For example, a long market-research task should default to a model with a higher context window or suggest splitting the task.
+4. A "Campaign Builder" wizard, not just free chat. The owners are busy running a glamping business. A guided flow — Objective → Audience → Channel → Brand Guardrails → Generate Variants — would produce more reliable outputs than a blank chat box. Jennifer can still be the conversational layer, but the wizard ensures no critical input is forgotten.
+5. Multilingual by default. Hedetangen's site is bilingual (Swedish/English), and their guests are international. Every expert should be able to produce output in Swedish, English, or both side-by-side. This is trivial to implement via prompt instruction but hugely valuable.
+6. A "Research Cache" with timestamps. When Jennifer performs web research (competitors, trends, seasonality), cache the findings with a timestamp and source URLs. The owners can revisit them later, and Jennifer can say "My last competitor analysis is from March — want me to refresh it?"
+7. Security posture that matches the threat model. Storing API keys in plain localStorage is common but risky. Use Web Crypto API (AES-GCM) to encrypt keys at rest in IndexedDB, with a non-extractable key. Also add a clear "this key never leaves your browser except to call the provider directly" notice. For a business owner who may not understand BYOK, this transparency is essential.
+8. A "Demo Mode" that works without keys. For initial testing and for demonstrating the app to stakeholders, ship with a mock provider that returns canned but realistic responses based on the Brand DNA. This lets you validate the UX before wiring live APIs.
+9. Rate-limit and error handling as UX, not afterthought. Free tiers fail. A 429 from Groq or a timeout from OpenRouter should produce a friendly, actionable message from Jennifer: "The selected model is rate-limited right now. I can retry with [alternative model] or wait a moment — what do you prefer?"
+10. Export/Import should cover everything, not just experts. The user asked for expert import/export, but the real value is migrating the entire studio: experts, settings (minus API keys), content library, and brand guardrails. One JSON file should reconstruct the workspace on another device or after a browser reset.
+
+---
+
+PRD.md — Hedetangen AI Marketing Studio
+
+Version: 1.0
+Status: Draft for review
+Product: Single-page, client-side AI marketing assistant for Hedetangen AB
+Owner: Hedetangen (Joacim & Madeleine)
+Build target: Static HTML/CSS/JS deployable on GitHub Pages
+
+---
+
+1. Executive Summary
+
+Hedetangen is a small family-run eco-tourism business in Värmland, Sweden, offering off-grid luxury glamping in a floating AuroraHut on a private island, plus sauna and ice-bath experiences. The owners need marketing, copywriting, social media, and basic business analysis support but have no technical expertise and limited time.
+
+This PRD defines a single-page HTML application where the user chats exclusively with Jennifer, an orchestrator AI persona. Jennifer delegates tasks to predefined expert roles (Copywriter, Marketing Strategist, Social Media Strategist, Business & Pricing Analyst, Visual Director, Researcher) and invokes tools such as web search when needed. The app runs entirely in the browser, stores data locally in IndexedDB/localStorage, and uses the user's own API keys for Groq, OpenRouter, or OpenAI. The design is mobile-first, minimalist Scandinavian, and the entire application can be deployed as static files on GitHub Pages.
+
+---
+
+2. Problem & Opportunity
+
+Problem: Hedetangen's owners are operators, not marketers. They have a compelling brand and a unique product but lack the time, structure, and specialized knowledge to consistently produce high-quality marketing content, run campaigns, and analyze pricing and demand. Generic AI chatbots require prompt engineering skills and produce off-brand, generic luxury imagery and copy that violates the brand's honesty rule.
+
+Opportunity: A purpose-built, brand-aware AI studio lowers the barrier to effective marketing. By embedding Hedetangen's Brand DNA into every expert prompt and providing a guided, chat-based workflow, the owners can generate on-brand ads, captions, campaign plans, and research briefs in minutes — without learning prompt engineering or managing multiple AI tools.
+
+---
+
+3. Goals & Success Metrics
+
+Goal Metric Target (v1)
+Zero-friction onboarding Time from first open to first successful AI response < 3 minutes (with API key)
+Brand-safe output User-reported "on-brand" rate for generated copy/visual briefs ≥ 90%
+Task completion Campaign brief or ad variant set generated in a single session ≥ 70% of sessions
+Reliability Successful API calls without unhandled errors ≥ 98% (excluding provider outages)
+Owner confidence Qualitative: owners feel comfortable using the tool without technical help "Yes" in post-use survey
+
+---
+
+4. Target Users & Personas
+
+Primary user: Joacim & Madeleine, founders/operators of Hedetangen.
+
+· Small business owners, not marketers.
+· Comfortable with everyday apps (Instagram, booking platforms) but not with API keys or prompt engineering.
+· Time-poor; need outputs they can use immediately.
+· Deeply protective of the brand's authenticity and the "honesty rule."
+
+Secondary user (future): A hired marketing freelancer or family member helping with seasonal campaigns.
+
+---
+
+5. Brand & Design Principles
+
+5.1 Brand DNA (non-negotiable)
+
+The following is the canonical brand context. Every expert system prompt must include a condensed version of these rules, and Jennifer must verify outputs against them.
+
+· Honesty Rule (highest priority): Never depict or imply the real Hedetangen place, AuroraHut, sauna, island, or accommodation unless a reference photo is supplied. Without a reference, generate only generic atmosphere scenes: water, light, fire, textures, hands, natural details, food and drink.
+· Essence: Genuine, understated luxury in raw Swedish nature. Rustic luxury, never glamorous luxury. Nothing staged.
+· Materials: Solid wood with visible grain, stone, rope, leather, linen, wool, sheepskin, glass, weathered bronze/copper.
+· Colour & light: Warm earth tones (deep wood, forest green, moss, bronze, copper, cream, charcoal, soft gold); natural cool tones in winter, dusk, water; golden hour, blue hour, firelight, lantern glow, mist, reflections. Soft natural light only.
+· People: At most one person, relaxed and real, often just hands or feet. Never posed, never model-like. Faces not required.
+· Cinema: High-end Scandinavian nature cinematography, photorealistic. Single continuous slow camera move (or static), shallow depth of field, tactile close-ups, natural motion. Each shot expresses one sensory feeling.
+· Emotion: Serenity, presence, warmth, discovery. Authenticity over perfection.
+· Avoid: Invented structures/locations, generic luxury (marble, champagne buckets), plastic, neon, oversaturated look, urban settings, crowds, fast cuts, music, text, logos, watermarks, zoom loops.
+
+5.2 Design language
+
+· Minimalist Scandinavian: generous whitespace, muted warm neutrals, one accent colour (soft bronze/copper), clean sans-serif typography (system fonts for performance), subtle borders, no gradients or shadows except for functional separation.
+· Mobile-first: single-column layout on small screens; a two-column layout on desktop (chat + side panel).
+· Chat as primary interface: the composer is always visible; expert activity is shown as subtle inline badges (e.g., "Jennifer → Copywriter") rather than separate screens.
+· Progressive disclosure: advanced settings (API keys, model selection, temperature, machine prompt) live behind a toggle panel or a settings drawer.
+
+---
+
+6. Core Features
+
+6.1 Jennifer — Orchestrator Persona
+
+· Identity: Warm, competent, concise. Speaks as a trusted marketing partner, not a chatbot.
+· Responsibilities:
+  · Greet the user and clarify the task if underspecified.
+  · Decide which expert(s) to invoke based on the request.
+  · Pass relevant context (Brand DNA, prior outputs, user constraints) to experts.
+  · Synthesize expert outputs into a coherent response.
+  · Invoke tools (web search, content library save) when appropriate.
+  · Enforce the Brand DNA honesty rule before returning any output.
+· Transparency: Jennifer announces delegation inline: "I'll have our Copywriter draft three Instagram captions, then I'll run them past the Brand Guardrails." No hidden multi-step process.
+
+6.2 Predefined Expert Roles (CRUD)
+
+Users can create, read, update, and delete experts. Each expert has:
+
+Field Description Example
+id UUID exp_copy_01
+name Display name "Copywriter"
+role Short role description "Conversion-focused copy for hospitality and experiences"
+systemPrompt Full system prompt, including Brand DNA injection See Appendix B
+temperature Default temperature override (optional) 0.7
+enabled Whether Jennifer can delegate to this expert true
+tags For organization ["copy", "social"]
+
+Seed experts (v1):
+
+1. Copywriter — Ads, captions, landing page copy, email subject lines.
+2. Marketing Strategist — Campaign structure, positioning, audience segmentation, channel mix.
+3. Social Media Strategist — Platform-specific content calendars, hashtag strategy, engagement prompts.
+4. Business & Pricing Analyst — Pricing scenarios, seasonality, occupancy analysis, campaign ROI estimation. Scoped to micro-business decisions; not macroeconomics.
+5. Visual Director — Image/video prompts and shot lists that strictly follow the Brand DNA honesty rule.
+6. Researcher — Web search synthesis for competitors, trends, local events, and market context. Uses the web-search tool; does not generate copy.
+
+6.3 Provider Integration
+
+The user selects one provider per session (or can switch in settings). The app stores the API key encrypted and never transmits it anywhere except directly to the chosen provider's API endpoint.
+
+Groq (default for development)
+
+· Endpoint: https://api.groq.com/openai/v1/chat/completions (OpenAI-compatible).
+· On API key entry, fetch GET /openai/v1/models and filter for chat-capable models.
+· Display model list with known context windows and free-tier limits (curated metadata for v1; optional live metadata later).
+· Example free models (as of late 2025/2026): llama-3.3-70b-versatile, llama-3.1-8b-instant, openai/gpt-oss-120b, moonshotai/kimi-k2-instruct. Limit list to models that support chat completions.
+
+OpenRouter
+
+· Endpoint: https://openrouter.ai/api/v1/chat/completions.
+· Model list: GET https://openrouter.ai/api/v1/models. Filter for models where pricing.prompt === "0" and pricing.completion === "0" (free models). Example free models: deepseek/deepseek-r1:free, meta-llama/llama-3.3-70b-instruct:free, qwen/qwen-2.5-72b-instruct:free.
+· Note: Free model availability changes frequently; display a "last refreshed" timestamp.
+
+OpenAI
+
+· Endpoint: https://api.openai.com/v1/chat/completions.
+· Model list: GET https://api.openai.com/v1/models. OpenAI generally does not offer free models; the user is responsible for billing. Display a warning that usage incurs cost.
+· The app should never assume a free model exists for OpenAI; the model selector should list all available models with a "paid" badge.
+
+Error handling: Map provider errors to user-friendly messages. For 429 (rate limit), Jennifer suggests an alternative model or a retry delay. For 401 (invalid key), show a clear prompt to re-enter the key in settings.
+
+6.4 Chat Interface
+
+· Message list with role labels: You, Jennifer, and inline expert tags (e.g., "Copywriter").
+· Markdown rendering for AI responses (headers, lists, bold, links). Code blocks for JSON export previews.
+· Streaming responses (where provider supports SSE) with a typing indicator.
+· Copy button on each AI message; "Save to Library" action.
+· Inline tool activity: e.g., "🔍 Jennifer is searching the web for competitor glamping pricing…"
+· Message persistence in IndexedDB; chat history survives reloads.
+· Clear chat / new session button (with confirmation).
+
+6.5 Content Library
+
+· Automatically saves any message the user marks with "Save to Library."
+· Jennifer can also save outputs proactively (e.g., after a campaign brief) with a note.
+· Fields: id, title, content, type (copy/campaign/research/visual-brief), tags, createdAt, sourceChatId.
+· Filter by type and tag; search by text.
+· Export selected items or entire library as JSON.
+
+6.6 Guided Campaign Builder (Wizard Mode)
+
+An optional, three-step guided flow accessible from a "+" button in the composer:
+
+1. Objective & Audience: Select goal (awareness / bookings / off-season / local partnerships), target segment (couples, international travelers, locals, corporate retreats), and language (SV / EN / bilingual).
+2. Channel & Format: Select channel(s) (Instagram, Facebook, email, website, Google Ads) and desired output (captions, ad variants, email sequence, landing page sections, visual brief).
+3. Brand Guardrails Review: A read-only card summarizing the Brand DNA rules that will apply. User can toggle "Strict mode" (default on) which forces the honesty rule and material/colour constraints.
+
+Jennifer then orchestrates the appropriate experts and returns a structured brief with variants. The wizard inputs are also passed as context to the chat so the user can iterate conversationally afterwards.
+
+6.7 Settings Panel (Advanced)
+
+Toggled via a gear icon; hidden by default.
+
+Setting Description
+Provider Groq / OpenRouter / OpenAI
+API Key Masked input; stored encrypted in IndexedDB. Never displayed in plain text after save.
+Model Dropdown populated from the provider's model list. Search/filter. Show free/paid badge and context window if known.
+Temperature Slider 0.0–1.5 (default 0.7 for copy, 0.4 for research). Per-expert override optional.
+Machine Prompt Optional global system prompt appended after the Brand DNA injection. Useful for seasonal campaigns.
+Language preference SV / EN / Auto.
+Brand Guardrails Link to edit the Brand DNA block (see 6.8).
+Import / Export Buttons for JSON import/export of experts, settings (excluding keys), library, and guardrails.
+Clear all data Destructive action with typed confirmation.
+
+6.8 Brand Guardrails Editor
+
+A dedicated panel (or modal) where the owner can edit the canonical Brand DNA block. Changes apply immediately to all subsequent expert calls. Include:
+
+· A "Reset to default" button.
+· A warning if the honesty rule is removed or weakened: "The honesty rule protects your brand from AI hallucinations. Are you sure you want to remove it?"
+· Version history (last 5 edits) stored locally.
+
+6.9 Import / Export (JSON)
+
+· Export: Produces a single .json file containing:
+  · schemaVersion
+  · experts (array)
+  · guardrails (Brand DNA object)
+  · library (array)
+  · settings (excluding API keys; model preference may be included)
+  · exportedAt
+· Import: Validates schema, shows a preview of what will be imported, and lets the user choose merge vs. replace. API keys are never included in export files.
+· Expert-only import/export is also available from the expert editor for quick sharing.
+
+---
+
+7. Technical Architecture
+
+7.1 Constraints
+
+· Single-page HTML application. No server-side runtime. Deployable to GitHub Pages (static hosting).
+· No build step required for v1 (or minimal, optional build). Prefer native ES modules and vanilla JavaScript to reduce complexity. A tiny reactive library (e.g., Alpine.js via CDN) is acceptable if it materially speeds development, but plain JS is preferred for longevity.
+· Mobile-first responsive design.
+· All data stays in the browser except API calls directly to the chosen provider.
+
+7.2 Storage Strategy
+
+Data Storage Encryption
+API keys IndexedDB AES-GCM via Web Crypto API; encryption key stored as a non-extractable CryptoKey in IndexedDB
+Chat messages IndexedDB Plaintext (local only)
+Experts IndexedDB Plaintext (exportable)
+Guardrails / Brand DNA IndexedDB Plaintext (exportable)
+Content library IndexedDB Plaintext (exportable)
+UI preferences (theme, last model) localStorage N/A
+
+Important: API keys are encrypted at rest but decrypted in memory only when making a provider call. The app never logs keys to the console. A prominent notice in settings states: "Your API key is stored only in this browser, encrypted. It is sent directly to [Provider] when you chat. It is never sent to Hedetangen or any third party."
+
+7.3 Provider Abstraction Layer
+
+A single Provider interface with methods:
+
+· listModels(): Promise<ModelInfo[]>
+· chat(messages, options): AsyncGenerator<StreamChunk> (or Promise for non-streaming fallback)
+· validateKey(): Promise<boolean>
+
+Implementations: GroqProvider, OpenRouterProvider, OpenAIProvider, MockProvider (for demo mode).
+
+All provider calls go through a request wrapper that:
+
+· Adds the correct auth headers.
+· Handles timeouts (AbortController).
+· Maps errors to a normalized AIError type.
+· Never logs the API key.
+
+7.4 Orchestration Flow (Simplified)
+
+```
+User message
+    ↓
+Jennifer (system prompt + Brand DNA + conversation history)
+    ↓
+Decision: respond directly OR delegate to expert(s) OR invoke tool
+    ↓
+If expert: call provider with expert system prompt + context
+    ↓
+If tool: web search (via provider-native tool or a search API) → synthesize
+    ↓
+Jennifer reviews output against Brand DNA guardrails
+    ↓
+Stream final response to UI
+    ↓
+Optionally save to library
+```
+
+Note on web search: Groq and OpenRouter may offer tool-calling / web-search capabilities depending on the model. For v1, Jennifer can perform web research by instructing a capable model to use its knowledge and by allowing the user to paste URLs for analysis. Native web-search tool integration is a v1.1 enhancement if provider support is reliable. The Researcher expert can still synthesize information the user provides or that the model already knows, with clear caveats about recency.
+
+7.5 Deployment
+
+· Static files: index.html, styles.css, app.js, providers.js, storage.js, experts.js, guardrails.js.
+· GitHub Pages: deploy from main branch /root or /docs.
+· Optional: a simple 404.html that redirects to index.html for client-side routing (if any).
+· No environment variables; all configuration is user-supplied via the UI.
+
+---
+
+8. Data Model (Core Entities)
+
+8.1 Expert
+
+```json
+{
+  "id": "exp_copy_01",
+  "name": "Copywriter",
+  "role": "Conversion-focused copy for hospitality and experiences",
+  "systemPrompt": "...",
+  "temperature": 0.7,
+  "enabled": true,
+  "tags": ["copy", "social"],
+  "createdAt": "2026-01-15T10:00:00Z",
+  "updatedAt": "2026-01-15T10:00:00Z"
+}
+```
+
+8.2 Guardrails (Brand DNA)
+
+```json
+{
+  "version": 4,
+  "honestyRule": "...",
+  "essence": "...",
+  "materials": ["..."],
+  "colourAndLight": ["..."],
+  "people": "...",
+  "cinema": "...",
+  "emotion": "...",
+  "avoid": ["..."],
+  "updatedAt": "2026-01-15T10:00:00Z"
+}
+```
+
+8.3 Chat Message
+
+```json
+{
+  "id": "msg_uuid",
+  "chatId": "chat_uuid",
+  "role": "user" | "jennifer" | "expert",
+  "expertName": "Copywriter",
+  "content": "...",
+  "timestamp": "ISO8601",
+  "savedToLibrary": false
+}
+```
+
+8.4 Library Item
+
+```json
+{
+  "id": "lib_uuid",
+  "title": "Summer 2026 Instagram captions — Set A",
+  "content": "...",
+  "type": "copy" | "campaign" | "research" | "visual-brief",
+  "tags": ["instagram", "summer-2026"],
+  "sourceChatId": "chat_uuid",
+  "createdAt": "ISO8601"
+}
+```
+
+8.5 Settings (persisted)
+
+```json
+{
+  "provider": "groq",
+  "model": "llama-3.3-70b-versatile",
+  "temperature": 0.7,
+  "language": "auto",
+  "machinePrompt": "",
+  "theme": "light"
+}
+```
+
+API keys are stored separately in an encrypted IndexedDB store, not in the settings object.
+
+---
+
+9. UI/UX Flows
+
+9.1 First-Run Flow
+
+1. Welcome screen with a one-sentence value proposition and a "Get started" button.
+2. Jennifer greets: "Hej! I'm Jennifer, your marketing partner for Hedetangen. To get started, I need an API key from Groq, OpenRouter, or OpenAI. You can add one in Settings — it stays in your browser, encrypted."
+3. A prominent "Open Settings" button.
+4. If the user prefers to explore first, a "Try demo mode" link enables the MockProvider with canned responses.
+
+9.2 Settings → API Key Flow
+
+1. User selects provider.
+2. User pastes API key. A "Validate & load models" button calls the provider's model endpoint.
+3. On success, the model dropdown populates. Free models are listed first with a "Free" badge; paid models show a "Paid" badge.
+4. User selects a model and optionally adjusts temperature.
+5. "Save" encrypts the key and persists settings.
+
+9.3 Chat → Delegation Flow
+
+1. User types: "I need three Instagram captions for a winter sauna campaign."
+2. Jennifer responds: "I'll ask our Copywriter to draft three captions in Swedish and English, then I'll check them against your Brand DNA. One moment."
+3. An inline expert badge appears: "Copywriter is working…"
+4. Output streams with three bilingual caption options, each tagged with a suggested visual direction that follows the honesty rule.
+5. Jennifer adds a closing note: "All three avoid invented structures and use only atmosphere/experience language. Want me to save these to your library?"
+
+9.4 Expert CRUD Flow
+
+1. Settings → Experts tab.
+2. List of experts with enabled toggles.
+3. "Add expert" opens a form: name, role, system prompt (with a "Insert Brand DNA" helper button), temperature, tags.
+4. Edit/delete actions with confirmation. Deleting a seed expert is allowed but shows a warning that Jennifer may lose a capability.
+5. Import/export buttons at the top of the list.
+
+---
+
+10. Security & Privacy
+
+Risk Mitigation
+API key leakage via XSS Encrypt keys at rest with Web Crypto AES-GCM; never render keys in DOM; use CSP headers via meta tag; sanitize all user-rendered markdown
+API key exfiltration to Hedetangen servers No backend exists. The app makes direct fetch calls to provider endpoints only. Document this clearly in the UI.
+Data loss on browser clear Provide export functionality; warn users that clearing site data deletes their studio.
+Prompt injection via web content If web-search results are incorporated, treat them as untrusted and delimit them clearly in prompts. Jennifer’s system prompt instructs her to ignore instructions embedded in retrieved content.
+Hallucinated brand assets Brand DNA honesty rule injected into every expert prompt; Jennifer performs a final guardrail check before returning output.
+
+Privacy notice (plain language, in settings):
+
+"Hedetangen AI Studio runs entirely in your browser. Your API key and your content are stored on this device only. When you chat, your message is sent directly to [Provider] using your key. Nothing is sent to Hedetangen or any other server. Export your data regularly if you want a backup."
+
+---
+
+11. Risks & Mitigations
+
+Risk Impact Mitigation
+Free-tier rate limits frustrate users High Display quota metadata; Jennifer suggests alternative models; exponential backoff with clear UI feedback
+Free model quality varies Medium Recommend llama-3.3-70b-versatile or gpt-oss-120b for copy; show model capability notes
+Brand DNA ignored by weaker models High Inject guardrails at the top of every system prompt; Jennifer explicitly verifies outputs; user can enable "Strict mode" that rejects outputs mentioning structures without a reference
+User loses API key or data Medium Export reminder after first week of use; prominent backup button in settings
+OpenRouter free model list changes frequently Low Fetch on demand; show "last refreshed" timestamp; allow manual model ID entry as a fallback
+Single-page app becomes hard to maintain Medium Modular ES modules; no framework lock-in; clear provider abstraction
+
+---
+
+12. Future Roadmap (Post-v1)
+
+· Native web search integration via provider tool-calling or a dedicated search API, with cached research results and source citations.
+· Competitor monitoring dashboard — periodic checks of competitor pricing and content (user-initiated).
+· Campaign performance input — manual entry of booking/revenue data to let the Business Analyst estimate ROI.
+· Multi-user / shared workspace — optional encrypted export/import for collaboration without a backend.
+· PWA offline support — service worker for offline access to library and guardrails.
+· Voice input for quick idea capture on mobile.
+· Direct publishing integrations (Instagram Graph API, etc.) — requires OAuth and a backend; out of scope for the client-side v1.
+
+---
+
+13. Appendices
+
+Appendix A — Seed Expert System Prompts (Outline)
+
+Each seed expert prompt follows this structure:
+
+1. Role identity (e.g., "You are the Copywriter for Hedetangen…").
+2. Brand DNA injection (full guardrails block, honesty rule first).
+3. Task boundaries (what this expert does and does not do).
+4. Output format (e.g., numbered variants, bilingual pairs, character counts).
+5. Handoff instruction ("Return your output to Jennifer; do not address the end user directly.").
+
+Appendix B — Example Copywriter Prompt (Excerpt)
+
+```
+You are the Copywriter for Hedetangen, a small family-run eco-tourism business in Värmland, Sweden, offering off-grid luxury glamping in a floating AuroraHut on a private island, plus sauna and ice-bath experiences.
+
+BRAND DNA — NON-NEGOTIABLE
+Honesty rule: Never invent or imply structures, locations, or amenities that are not confirmed by a supplied reference. Without a reference, write only about atmosphere, sensory experience, and generic natural details.
+Essence: Genuine, understated luxury in raw Swedish nature. Rustic luxury, never glamorous. Nothing staged.
+Tone: Warm, quiet, confident. Short sentences. No hype. No generic luxury clichés (marble, champagne, "paradise").
+Language: Produce output in Swedish and English side-by-side unless instructed otherwise.
+
+TASK
+Draft [N] variants of [format] for [channel], targeting [audience] with the objective [objective]. Each variant must include:
+- A headline or opening line.
+- Body copy (≤ [X] characters for Instagram; ≤ [Y] for email).
+- A call to action.
+- A one-line visual direction that follows the Brand DNA (atmosphere only if no reference photo is supplied).
+
+Return only the variants, numbered. Do not address the user directly.
+```
+
+Appendix C — Groq Model Metadata (Curated v1)
+
+Model ID Context Free tier notes Best for
+llama-3.3-70b-versatile 128K 30 RPM, 1K RPD (approx.) Copy, strategy, research synthesis
+llama-3.1-8b-instant 128K 30 RPM, 14.4K RPD (approx.) Quick drafts, low-latency tasks
+openai/gpt-oss-120b 128K 30 RPM, 1K RPD (approx.) High-quality copy and reasoning
+moonshotai/kimi-k2-instruct 128K 60 RPM, 1K RPD (approx.) Long-context research
+
+Limits are indicative and subject to change; the app should display a disclaimer and allow the user to refresh model metadata manually.
+
+Appendix D — OpenRouter Free Model Handling
+
+· Fetch https://openrouter.ai/api/v1/models.
+· Filter models where pricing.prompt === "0" and pricing.completion === "0".
+· Display model id, name, context_length, and architecture.modality (text-only for v1).
+· Allow manual entry of a model ID if the free list is empty or the desired model is not listed.
+
+---
+
+End of PRD v1.0
+
+---

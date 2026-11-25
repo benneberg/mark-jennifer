@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://hedetangen.app/schemas/export-package.schema.json",
+  "title": "Export Package",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "exportedAt", "app", "experts", "guardrails", "library", "settings"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "exportedAt": { "type": "string", "format": "date-time" },
+    "app": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "const": "Hedetangen AI Marketing Studio" },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" }
+      }
+    },
+    "experts": {
+      "type": "array",
+      "items": { "$ref": "expert.schema.json" }
+    },
+    "guardrails": { "$ref": "guardrails.schema.json" },
+    "library": {
+      "type": "array",
+      "items": { "$ref": "library-item.schema.json" }
+    },
+    "settings": { "$ref": "settings.schema.json" },
+    "chats": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["chat", "messages"],
+        "properties": {
+          "chat": { "$ref": "chat.schema.json" },
+          "messages": {
+            "type": "array",
+            "items": { "$ref": "message.schema.json" }
+          }
+        }
+      }
+    }
+  }
+}

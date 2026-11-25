@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://hedetangen.app/schemas/guardrails.schema.json",
+  "title": "Brand Guardrails",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "version", "editable", "honestyRule", "updatedAt"],
+  "properties": {
+    "id": { "type": "string", "const": "default" },
+    "version": { "type": "integer", "minimum": 1 },
+    "editable": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "essence": { "type": "string", "maxLength": 400 },
+        "materials": { "type": "array", "items": { "type": "string", "maxLength": 120 }, "maxItems": 30 },
+        "colourAndLight": { "type": "array", "items": { "type": "string", "maxLength": 160 }, "maxItems": 30 },
+        "people": { "type": "string", "maxLength": 400 },
+        "cinema": { "type": "string", "maxLength": 600 },
+        "emotion": { "type": "string", "maxLength": 300 },
+        "avoid": { "type": "array", "items": { "type": "string", "maxLength": 120 }, "maxItems": 30 },
+        "extraNotes": { "type": "string", "maxLength": 2000 }
+      }
+    },
+    "honestyRule": { "type": "string", "minLength": 50, "maxLength": 1200 },
+    "editedBy": { "type": "string", "maxLength": 120 },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "history": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "required": ["snapshot", "savedAt"],
+        "properties": {
+          "snapshot": { "type": "object" },
+          "savedAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}
