@@ -156,6 +156,18 @@ export function mapHttpError(
     parsedMessage = bodyText.slice(0, 240);
   }
 
+  if (retryAfterMs === undefined && parsedMessage) {
+    const secMatch = parsedMessage.match(/try again in\s+(\d+(?:\.\d+)?)\s*s\b/i);
+    if (secMatch) {
+      retryAfterMs = Math.ceil(Number(secMatch[1]) * 1000);
+    } else {
+      const msMatch = parsedMessage.match(/try again in\s+(\d+(?:\.\d+)?)\s*ms\b/i);
+      if (msMatch) {
+        retryAfterMs = Math.ceil(Number(msMatch[1]));
+      }
+    }
+  }
+
   if (status === 401 || status === 403) {
     return new AIError({
       code: 'AUTH_INVALID',

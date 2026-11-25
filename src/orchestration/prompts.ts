@@ -1,6 +1,10 @@
 import type { AppSettings, Expert, Guardrails, LanguagePref, SessionFacts } from '../types';
 
-function getLanguageInstruction(language: LanguagePref, expertName?: string): string {
+function getLanguageInstruction(
+  language: LanguagePref,
+  expertName?: string,
+  detectedLanguage?: 'sv' | 'en' | 'unknown'
+): string {
   switch (language) {
     case 'sv':
       return 'Always respond in Swedish, regardless of the language of the request.';
@@ -12,6 +16,12 @@ function getLanguageInstruction(language: LanguagePref, expertName?: string): st
     default:
       if (expertName === 'Copywriter' || expertName === 'Social Media Strategist') {
         return 'Detect the language of the request. If the request does not specify a single language, default to bilingual Swedish (SV:) and English (EN:) side-by-side since Hedetangen serves international guests.';
+      }
+      if (detectedLanguage === 'sv') {
+        return "CRITICAL LANGUAGE OVERRIDE FOR THIS TURN: The user's latest message is in SWEDISH. Write ALL of Jennifer's response, handoff text, and notes in SWEDISH — even if earlier messages in the conversation were in English. Still preserve any SV:/EN: copy pairs inside deliverables.";
+      }
+      if (detectedLanguage === 'en') {
+        return "The user's latest message is in ENGLISH. Write Jennifer's response, handoff text, and notes in ENGLISH (while keeping any SV:/EN: pairs inside copy deliverables intact).";
       }
       return "Detect the language of the user's most recent message. Respond in that language. If the user writes in Swedish, produce Swedish. If English, English.";
   }
@@ -102,12 +112,25 @@ export function buildJenniferPrompt(ctx: {
   settings: AppSettings;
   sessionFacts?: SessionFacts;
   referencePhoto?: string;
+  allowClarifying?: boolean;
+  detectedLanguage?: 'sv' | 'en' | 'unknown';
 }): string {
   const guardrailsBlock = buildGuardrailsBlock(ctx.guardrails);
   const factsBlock = buildSessionFactsBlock(ctx.sessionFacts, ctx.referencePhoto);
   const seasonalBlock = buildSeasonalContextBlock(ctx.settings.machinePrompt);
   const registry = buildExpertsRegistry(ctx.experts);
-  const langInstr = getLanguageInstruction(ctx.settings.language);
+  const langInstr = getLanguageInstruction(ctx.settings.language, undefined, ctx.detectedLanguage);
+  const allowClarifying = ctx.allowClarifying ?? true;
+
+  const turnPolicyBlock = allowClarifying
+    ? `<turn_policy>
+If this very first message gives no operational context, budget, or experience focus at all, you may ask ONE focused clarifying question via OPTION A before delegating. If the request is already concrete, delegate immediately via OPTION B.
+</turn_policy>`
+    : `<turn_policy priority="highest">
+CLARIFYING QUESTIONS ARE DISABLED FOR THIS TURN.
+You have already replied earlier in this conversation (or the owner gave an actionable task). NEVER ask another clarifying question or reply "to proceed, please provide...".
+If any detail is still missing or uses a placeholder (e.g., unclear ad budget, unnamed award like "[award names]", no photo), DO NOT stall — state reasonable assumptions in <context> (e.g. "Budget unclear: lead with zero-cost email/organic", "No specific award named: use Visit Sweden feature and omit or bracket unnamed awards") and IMMEDIATELY output OPTION B with 1–3 <delegate> blocks.
+</turn_policy>`;
 
   return `<role>
 You are Jennifer, the marketing partner and orchestrator for Hedetangen — a
@@ -138,33 +161,31 @@ ${registry}
   copy or a reason to book.
 </tone_and_sensitivity>
 
+${turnPolicyBlock}
+
 <delegation_protocol>
 You have two ways to respond. Choose exactly one per turn.
 
-OPTION A — DIRECT ANSWER (OR CLARIFYING QUESTION).
-If the request is simple, conversational, does not benefit from a specialist,
-OR is genuinely underspecified (missing timeline, capacity, budget, or key
-assets needed to produce useful work), respond directly using OPTION A. When
-underspecified, ask ONE focused clarifying question before delegating:
+OPTION A — DIRECT ANSWER${allowClarifying ? ' (OR ONE FIRST-TURN CLARIFYING QUESTION)' : ' (GREETINGS / CHITCHAT ONLY)'}.
+${
+  allowClarifying
+    ? 'Use ONLY for simple greetings/chitchat OR when this is Turn 1 and the request is genuinely underspecified (missing capacity, channel, or focus).'
+    : 'Use ONLY for pure greetings or conversational thanks ("hej", "thanks", "who are you?"). NEVER use OPTION A for plans, campaigns, copy, emails, pricing, visuals, or revisions.'
+}
 
 <response>
 Your message to the user. Markdown is allowed. Keep it tight.
 </response>
 
 OPTION B — DELEGATE TO ONE OR MORE EXPERTS.
-If the request has enough context and benefits from specialist work (drafting
-copy, planning a campaign, researching competitors, pricing analysis, visual
-direction), hand off to the appropriate expert(s) (max 3 per turn). You must
-still produce a short handoff message to the user first:
+For ANY marketing task (weekly action plan, campaign, captions, shortening/rewriting, email, pricing/ROI, research, visual direction), hand off to the appropriate expert(s) (max 3 per turn). First write a short handoff message in <response> in the user's current language:
 
 <response>
-A short, natural message explaining what you're doing, e.g. "I'll have our
-Copywriter draft three bilingual Instagram captions, then I'll check them
-against your Brand DNA. One moment."
+A short, natural message in the user's current language explaining what you're doing.
 </response>
 <delegate expert="EXACT EXPERT NAME FROM THE REGISTRY">
   <task>Precise description of what the expert should produce.</task>
-  <context>Relevant context: session facts (capacity, budget, list size, awards), prior drafts being revised, channel, constraints.</context>
+  <context>Relevant context: session facts (capacity, budget, list size, awards), prior drafts being revised, channel, assumptions for any gaps.</context>
   <constraints>Format, length, language, number of variants, CTA requirements.</constraints>
 </delegate>
 
@@ -215,8 +236,9 @@ ${langInstr}
 
 <output_format>
 Return only the XML structure defined above. No preamble, no explanation
-outside the tags. If you are unsure which option to choose, prefer a direct
-answer over an unnecessary delegation.
+outside the tags. For any marketing plan, campaign, copy, email, pricing,
+visual brief, or revision request, ALWAYS use OPTION B with <delegate> —
+never stall by asking repeated questions.
 </output_format>`;
 }
 
@@ -258,11 +280,12 @@ export function buildSynthesisPrompt(ctx: {
   settings: AppSettings;
   sessionFacts?: SessionFacts;
   referencePhoto?: string;
+  detectedLanguage?: 'sv' | 'en' | 'unknown';
 }): string {
   const guardrailsBlock = buildGuardrailsBlock(ctx.guardrails);
   const factsBlock = buildSessionFactsBlock(ctx.sessionFacts, ctx.referencePhoto);
   const seasonalBlock = buildSeasonalContextBlock(ctx.settings.machinePrompt);
-  const langInstr = getLanguageInstruction(ctx.settings.language);
+  const langInstr = getLanguageInstruction(ctx.settings.language, undefined, ctx.detectedLanguage);
 
   return `<role>
 You are Jennifer, the marketing partner for Hedetangen. You have just

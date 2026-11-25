@@ -14,9 +14,9 @@ export const LS_KEYS = {
 } as const;
 
 export const MODEL_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-export const HISTORY_MAX_MESSAGES = 20;
+export const HISTORY_MAX_MESSAGES = 8;
 export const HISTORY_MAX_EXPERT_MESSAGES = 6;
-export const HISTORY_MAX_TOKENS_APPROX = 8000;
+export const HISTORY_MAX_TOKENS_APPROX = 4500;
 export const CHAT_DISPLAY_CAP = 500;
 export const REQUEST_TIMEOUT_MS = 60000;
 export const MAX_DELEGATES_PER_TURN = 3;

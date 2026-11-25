@@ -23,6 +23,7 @@ import {
   createNewChat,
   DEFAULT_SETTINGS,
   deleteLibraryItem,
+  deleteMessage,
   ensureSeedData,
   getOrCreateActiveChat,
   loadExperts,
@@ -280,26 +281,42 @@ export default function App() {
   }, [models, settings.model, settings.provider]);
 
   const executeTurn = useCallback(
-    async (userText: string, overrideSettings?: AppSettings) => {
+    async (userText: string, overrideSettings?: AppSettings, retryErrorMsgId?: string) => {
       const trimmed = userText.trim();
       if (!trimmed || !activeChat || streamingState.active) return;
 
       const activeSettings = overrideSettings ?? settings;
       const turnId = generateId();
-      const userMsg: ChatMessage = {
-        id: generateId(),
-        chatId: activeChat.id,
-        role: 'user',
-        content: trimmed,
-        timestamp: nowIso(),
-        status: 'complete',
-        turnId,
-      };
 
-      const prevHistory = messages;
-      const updatedMessages = [...messages, userMsg];
-      setMessages(updatedMessages);
-      await saveMessage(userMsg);
+      let baseMessages = messages;
+      if (retryErrorMsgId) {
+        await deleteMessage(retryErrorMsgId);
+        baseMessages = messages.filter((m) => m.id !== retryErrorMsgId);
+      }
+
+      const lastMsg = baseMessages[baseMessages.length - 1];
+      const reuseExistingUserMsg =
+        Boolean(retryErrorMsgId) &&
+        lastMsg?.role === 'user' &&
+        lastMsg.content.trim() === trimmed;
+
+      const prevHistory = reuseExistingUserMsg ? baseMessages.slice(0, -1) : baseMessages;
+      if (reuseExistingUserMsg) {
+        setMessages(baseMessages);
+      } else {
+        const userMsg: ChatMessage = {
+          id: generateId(),
+          chatId: activeChat.id,
+          role: 'user',
+          content: trimmed,
+          timestamp: nowIso(),
+          status: 'complete',
+          turnId,
+        };
+        const updatedMessages = [...baseMessages, userMsg];
+        setMessages(updatedMessages);
+        await saveMessage(userMsg);
+      }
 
       if (prevHistory.length === 0) {
         const nextTitle = trimmed.slice(0, 60);
@@ -564,11 +581,11 @@ export default function App() {
       if (action === 'try_alt_model' && altModel) {
         const nextSettings = { ...settings, model: altModel };
         await handleUpdateSettings({ model: altModel });
-        await executeTurn(promptToRetry, nextSettings);
+        await executeTurn(promptToRetry, nextSettings, msg.id);
         return;
       }
       if (action === 'retry') {
-        await executeTurn(promptToRetry);
+        await executeTurn(promptToRetry, undefined, msg.id);
       }
     },
     [executeTurn, handleNewChat, handleUpdateSettings, settings]

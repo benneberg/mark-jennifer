@@ -266,7 +266,7 @@ test('MockProvider routes Strategist cleanly without colliding with Analyst and 
   assert.ok(strategistRes.content.includes('CHANNEL MIX:'));
 });
 
-test('humanizeAIError maps RATE_LIMIT with alternative model action', () => {
+test('humanizeAIError maps RATE_LIMIT with alternative model action and parses Groq retry-after text', () => {
   const err = new AIError({
     code: 'RATE_LIMIT',
     message: 'Too many requests',
@@ -281,4 +281,92 @@ test('humanizeAIError maps RATE_LIMIT with alternative model action', () => {
   assert.ok(h.message.includes('rate-limited'));
   assert.ok(h.actions.some((a) => a.type === 'try_alt_model' && a.altModelId === 'llama-3.1-8b-instant'));
 });
+
+test('detectMessageLanguage identifies Turn 3 Swedish and disables repeat clarifying loops', async () => {
+  const { detectMessageLanguage } = await import('../src/orchestration/context.ts');
+  const { mapHttpError } = await import('../src/providers/errors.ts');
+
+  assert.equal(
+    detectMessageLanguage(
+      'Kan vi göra en kampanj på Instagram för vintern? Fokus på bastu och isbad. Vi har inte så mycket pengar till annonser just nu.'
+    ),
+    'sv'
+  );
+  assert.equal(
+    detectMessageLanguage('ok now write the email version for our list'),
+    'en'
+  );
+
+  const experts = createSeedExperts();
+  const guardrails = createSeedGuardrails();
+  const settings: AppSettings = {
+    provider: 'mock',
+    model: 'hedetangen-demo-v1',
+    temperature: 0.5,
+    language: 'auto',
+    machinePrompt: '',
+    theme: 'light',
+    rememberKey: false,
+    strictMode: false,
+    debug: false,
+  };
+
+  const svPrompt = buildJenniferPrompt({
+    guardrails,
+    experts,
+    settings,
+    allowClarifying: false,
+    detectedLanguage: 'sv',
+  });
+  assert.ok(svPrompt.includes('CLARIFYING QUESTIONS ARE DISABLED FOR THIS TURN'));
+  assert.ok(svPrompt.includes('SWEDISH'));
+
+  // Simulate Turn 2 with prior Jennifer turn in history so Turn 2 always delegates rather than stalling
+  const priorHistory: ChatMessage[] = [
+    {
+      id: '00000000-0000-4000-8000-000000000001',
+      chatId: '11111111-1111-4111-8111-111111111111',
+      role: 'user',
+      content: 'we really need bookings for the winter, like now. what can you do',
+      timestamp: '2026-11-24T12:00:00.000Z',
+      status: 'complete',
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000002',
+      chatId: '11111111-1111-4111-8111-111111111111',
+      role: 'jennifer',
+      content: 'Could you share your budget and preferred channels?',
+      timestamp: '2026-11-24T12:00:10.000Z',
+      status: 'complete',
+    },
+  ];
+  const turn2 = await runJenniferTurn({
+    userMessage:
+      'ok so, its just us two running this. we have a 5 month old baby and i just got back from hospital so im only working half days. we have 200 previous guests. what would you actually do this week',
+    history: priorHistory,
+    settings,
+    guardrails,
+    experts,
+    signal: new AbortController().signal,
+    callbacks: {
+      onStatus: () => {},
+      onHandoff: () => {},
+      onExpertActive: () => {},
+      onToken: () => {},
+    },
+  });
+  assert.ok(turn2.delegatedExperts.length >= 1, 'Turn 2 must delegate when Turn 1 already clarified');
+
+  const groq429 = mapHttpError(
+    'groq',
+    429,
+    JSON.stringify({
+      error: { message: 'Rate limit reached for model llama-3.3-70b-versatile. Please try again in 4.32s.' },
+    }),
+    null
+  );
+  assert.equal(groq429.code, 'RATE_LIMIT');
+  assert.equal(groq429.retryAfterMs, 4320);
+});
+
 

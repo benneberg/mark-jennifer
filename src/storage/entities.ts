@@ -255,6 +255,10 @@ export async function saveMessage(msg: ChatMessage): Promise<void> {
   await idbPut('messages', msg);
 }
 
+export async function deleteMessage(id: string): Promise<void> {
+  await idbDelete('messages', id);
+}
+
 export async function clearChatMessages(chatId: string): Promise<void> {
   const existing = await idbGetAllByIndex<ChatMessage>('messages', 'chatId', chatId);
   for (const msg of existing) {

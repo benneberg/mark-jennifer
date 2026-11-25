@@ -61,6 +61,24 @@ export async function fetchWithTimeout(
   }
 }
 
+async function waitWithAbort(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    const timer = globalThis.setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      globalThis.clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 export async function runOpenAICompatibleChat(
   provider: ProviderId,
   baseUrl: string,
@@ -68,29 +86,45 @@ export async function runOpenAICompatibleChat(
   options: ChatRequestOptions
 ): Promise<ChatResult> {
   const stream = Boolean(options.onToken);
-  const res = await fetchWithTimeout(
-    provider,
-    `${baseUrl}/chat/completions`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers,
-      },
-      body: JSON.stringify({
-        model: options.model,
-        messages: options.messages,
-        temperature: options.temperature ?? 0.7,
-        max_tokens: options.maxTokens,
-        stream,
-      }),
-    },
-    options.signal
-  );
+  const maxRateLimitRetries = 2;
+  let res!: Response;
 
-  if (!res.ok) {
+  for (let attempt = 0; attempt <= maxRateLimitRetries; attempt++) {
+    res = await fetchWithTimeout(
+      provider,
+      `${baseUrl}/chat/completions`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify({
+          model: options.model,
+          messages: options.messages,
+          temperature: options.temperature ?? 0.7,
+          max_tokens: options.maxTokens,
+          stream,
+        }),
+      },
+      options.signal
+    );
+
+    if (res.ok) break;
+
     const text = await res.text().catch(() => '');
-    throw mapHttpError(provider, res.status, text, res.headers.get('retry-after'));
+    const mapped = mapHttpError(provider, res.status, text, res.headers.get('retry-after'));
+
+    if (mapped.code === 'RATE_LIMIT' && attempt < maxRateLimitRetries) {
+      const waitMs = Math.min(
+        Math.max(1200, (mapped.retryAfterMs ?? (attempt === 0 ? 3500 : 7500)) + 300),
+        12000
+      );
+      await waitWithAbort(waitMs, options.signal);
+      continue;
+    }
+
+    throw mapped;
   }
 
   if (!stream || !res.body) {

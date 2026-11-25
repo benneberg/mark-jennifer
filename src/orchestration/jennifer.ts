@@ -14,13 +14,15 @@ import type {
   SessionFacts,
 } from '../types';
 import {
+  detectMessageLanguage,
   extractDeterministicFacts,
+  isActionableMarketingRequest,
   mergeSessionFacts,
   resolveExpert,
   trimChatHistory,
   trimExpertHistory,
 } from './context';
-import { parseDelegation } from './delegation';
+import { type DelegationDirective, parseDelegation } from './delegation';
 import {
   buildExpertPrompt,
   buildJenniferPrompt,
@@ -52,6 +54,144 @@ function escapeXmlValue(value: string): string {
 
 function escapeXmlAttr(value: string): string {
   return escapeXmlValue(value).replace(/"/g, '&quot;');
+}
+
+function buildFallbackDirectives(
+  userMessage: string,
+  facts: SessionFacts,
+  experts: Expert[],
+  detectedLanguage: 'sv' | 'en' | 'unknown'
+): { response: string; delegates: DelegationDirective[] } {
+  const lower = userMessage.toLowerCase();
+  const pick = (name: string) => Boolean(resolveExpert(name, experts));
+  const delegates: DelegationDirective[] = [];
+  const isSwedish = detectedLanguage === 'sv';
+
+  const hasBudgetOrPricing = /(pricing|roi|price|budget|\d+\s*(?:kr|sek))/i.test(lower);
+  const hasAwardsOrSample = /(award|visit sweden|utmärkelse|sample)/i.test(lower);
+  const hasEmail = /\b(email|e-?mail|mejl|epost|nyhetsbrev|our list|guest list)\b/i.test(lower);
+  const hasShorten = /(shorter|kortare|less poetic|mindre poetisk|tighten|simplify)/i.test(lower);
+  const hasWeeklyOrPlan =
+    /(what would you actually do|this week|half days?|fte|calendar|content plan|veckoplan|innehållskalender)/i.test(
+      lower
+    );
+  const hasCampaign = /(campaign|kampanj|instagram|facebook|bastu|isbad|sauna|ice bath|winter|vinter)/i.test(
+    lower
+  );
+
+  if (hasEmail) {
+    if (pick('Copywriter')) {
+      delegates.push({
+        expert: 'Copywriter',
+        task: `Draft a ready-to-send email for Hedetangen's past-guest and inquiry list based on: ${userMessage}`,
+        context: `Use pinned session facts (${facts.audience?.join(', ') || '200 previous guests + inquiries'}; ${facts.awards?.join('; ') || 'Visit Sweden hidden island escapes'}). Do not mention personal family or health details.`,
+        constraints: 'Ready to paste into an email tool, one clear CTA, aurora/weather strictly conditional.',
+      });
+    }
+  } else if (hasShorten) {
+    if (pick('Copywriter')) {
+      delegates.push({
+        expert: 'Copywriter',
+        task: `Revise and shorten all prior Instagram caption variants per user feedback: ${userMessage}`,
+        context: 'See recent messages in conversation history and preserve verified proof points and conditional weather language.',
+        constraints: 'Bilingual SV: and EN: pairs, noticeably shorter and less poetic, one CTA each, atmosphere-only visual directions.',
+      });
+    }
+  } else if (hasBudgetOrPricing) {
+    if (pick('Marketing Strategist')) {
+      delegates.push({
+        expert: 'Marketing Strategist',
+        task: `Update the winter campaign plan using the budget and constraints: ${userMessage}`,
+        context: `Respect team capacity (${facts.constraints?.join('; ') || '1.5 FTE'}) and prioritize owned email list before paid ads.`,
+        constraints: 'Ranked channels (email first), realistic 2-week timeline.',
+      });
+    }
+    if (pick('Business & Pricing Analyst')) {
+      delegates.push({
+        expert: 'Business & Pricing Analyst',
+        task: `Calculate break-even booking math and a concrete spend more / stop threshold: ${userMessage}`,
+        context: `Budget: ${facts.budget ?? 'stated in user message'}. Capacity 2 guests/hut; summer anchor 1750 SEK/person/night.`,
+        constraints: 'State all assumptions explicitly, show step-by-step arithmetic, give one concrete stop/spend threshold.',
+      });
+    }
+    if (hasAwardsOrSample && pick('Copywriter')) {
+      delegates.push({
+        expert: 'Copywriter',
+        task: `Draft 3 bilingual SV/EN Instagram ad variants using verified trust proof: ${userMessage}`,
+        context: `Awards/press: ${facts.awards?.join('; ') || 'Visit Sweden hidden island escapes'}. Never invent fake awards; use [INSERT AWARD NAME] only if unnamed.`,
+        constraints: 'Bilingual SV: and EN: pairs, one CTA each, atmosphere-only visuals, conditional aurora/weather.',
+      });
+    }
+  } else if (hasAwardsOrSample) {
+    if (pick('Copywriter')) {
+      delegates.push({
+        expert: 'Copywriter',
+        task: `Draft 3 bilingual SV/EN Instagram variants using verified proof and placeholder if awards are unnamed: ${userMessage}`,
+        context: `Use verified Visit Sweden mention and clearly bracket [INSERT AWARD NAME] if user asked for sample award names — never invent real award names.`,
+        constraints: 'Bilingual SV: and EN: pairs, atmosphere-only visual direction, one CTA per variant.',
+      });
+    }
+  } else if (hasWeeklyOrPlan) {
+    if (pick('Marketing Strategist')) {
+      delegates.push({
+        expert: 'Marketing Strategist',
+        task: `Create a prioritized action plan for this week within the owner's operational constraints: ${userMessage}`,
+        context: `Team constraints: ${facts.constraints?.join('; ') || '1.5 FTE'}. Audience: ${facts.audience?.join('; ') || 'existing email list'}. Never use personal/health details as copy.`,
+        constraints: 'Prioritize owned email list #1, organic iPhone social #2, paid ads only after budget clarity.',
+      });
+    }
+    if (pick('Social Media Strategist')) {
+      delegates.push({
+        expert: 'Social Media Strategist',
+        task: 'Create a minimal 2-week iPhone-shootable content calendar matching ~1.5 FTE capacity.',
+        context: '1–2 posts/week maximum; winter sauna and ice bath focus; pure atmosphere unless reference photo supplied.',
+        constraints: 'Realistic 1.5 FTE cadence, atmosphere-only shoot notes, max 8 hashtags.',
+      });
+    }
+  } else if (hasCampaign) {
+    if (pick('Marketing Strategist')) {
+      delegates.push({
+        expert: 'Marketing Strategist',
+        task: `Build a focused winter campaign plan respecting tight budget and capacity: ${userMessage}`,
+        context: `Constraints: ${facts.constraints?.join('; ') || 'reduced capacity'}. Audience: ${facts.audience?.join('; ') || 'email list + Instagram'}.`,
+        constraints: 'Zero-budget-first owned channels ranked #1, practical 2-week scope.',
+      });
+    }
+    if (pick('Copywriter')) {
+      delegates.push({
+        expert: 'Copywriter',
+        task: `Draft 3 bilingual SV/EN Instagram campaign variants: ${userMessage}`,
+        context: `Focus: ${facts.focus ?? 'winter sauna and ice bath'}. Conditional aurora/weather language only.`,
+        constraints: 'Native SV: and EN: pairs, one CTA each, atmosphere-only visual direction.',
+      });
+    }
+    if (pick('Visual Director')) {
+      delegates.push({
+        expert: 'Visual Director',
+        task: 'Create 4 iPhone-shootable atmospheric visual briefs for winter sauna and ice bath.',
+        context: facts.referencePhoto ? `Confirmed reference: ${facts.referencePhoto}` : 'No reference photo supplied — atmosphere only (no invented structures).',
+        constraints: 'Single slow camera move or static frame, one sensory feeling per shot.',
+      });
+    }
+  }
+
+  if (delegates.length === 0) {
+    const fallbackExpert = resolveExpert('Copywriter', experts) ?? experts.find((e) => e.enabled);
+    if (fallbackExpert) {
+      delegates.push({
+        expert: fallbackExpert.name,
+        task: userMessage,
+        context: 'Use pinned session facts and Brand DNA guardrails; state assumptions for any missing details.',
+        constraints: 'Actionable, ready-to-use output honoring Honesty Rule.',
+      });
+    }
+  }
+
+  const response = isSwedish
+    ? 'Jag sätter specialisterna i arbete direkt utifrån er situation och era mål. Ett ögonblick.'
+    : 'I’m routing this straight to the right specialists with your constraints and Brand DNA intact. One moment.';
+
+  return { response, delegates: delegates.slice(0, 3) };
 }
 
 export async function runJenniferTurn(params: {
@@ -93,6 +233,9 @@ export async function runJenniferTurn(params: {
   const expertHistory = trimExpertHistory(history);
   const deterministicPatch = extractDeterministicFacts(userMessage, referencePhoto);
   const prePlanFacts = mergeSessionFacts(sessionFacts, deterministicPatch);
+  const hasPriorJennifer = history.some((m) => m.role === 'jennifer' && m.status !== 'error');
+  const detectedLanguage = detectMessageLanguage(userMessage);
+  const allowClarifying = !hasPriorJennifer;
 
   // Pass 1: Jennifer planning call (buffered)
   callbacks.onStatus('Jennifer is thinking…');
@@ -105,6 +248,8 @@ export async function runJenniferTurn(params: {
         settings,
         sessionFacts: prePlanFacts,
         referencePhoto,
+        allowClarifying,
+        detectedLanguage,
       }),
     },
     ...trimmedHistory,
@@ -126,6 +271,16 @@ export async function runJenniferTurn(params: {
   }
 
   const updatedFacts = mergeSessionFacts(prePlanFacts, plan.facts);
+
+  // Anti-loop safeguard: if Jennifer already replied earlier and the user asked an actionable question/task,
+  // never let the model stall in a repeated clarifying-question loop.
+  if (plan.delegates.length === 0 && hasPriorJennifer && isActionableMarketingRequest(userMessage)) {
+    const fallback = buildFallbackDirectives(userMessage, updatedFacts, experts, detectedLanguage);
+    if (fallback.delegates.length > 0) {
+      plan.response = fallback.response;
+      plan.delegates = fallback.delegates;
+    }
+  }
 
   // Direct answer (no delegation)
   if (plan.delegates.length === 0) {
@@ -233,6 +388,7 @@ export async function runJenniferTurn(params: {
         settings,
         sessionFacts: updatedFacts,
         referencePhoto,
+        detectedLanguage,
       }),
     },
     ...trimmedHistory,

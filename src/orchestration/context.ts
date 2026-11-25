@@ -121,7 +121,7 @@ export function extractDeterministicFacts(
       .replace(/\band we were in\b.*$/i, '')
       .replace(/\bthat we can mention\b/gi, '')
       .trim();
-    if (rawWon && !/^\[.*\]$/.test(rawWon)) {
+    if (rawWon && !/^\[.*\]/.test(rawWon) && !/the award names/i.test(rawWon)) {
       awards.push(`Award: ${rawWon}`);
     }
   }
@@ -144,6 +144,44 @@ export function extractDeterministicFacts(
   }
 
   return patch;
+}
+
+export function detectMessageLanguage(text: string): 'sv' | 'en' | 'unknown' {
+  const trimmed = text.trim();
+  if (!trimmed) return 'unknown';
+
+  const svDiacritics = (trimmed.match(/[åäöÅÄÖ]/g) ?? []).length;
+  const svWords = (
+    trimmed.match(
+      /\b(kan|vi|ska|och|för|med|till|inte|så|mycket|pengar|kampanj|bastu|isbad|vintern|vinter|kortare|mindre|mejl|epost|gäster|annonser|just nu|vad|gör|behöver|skriva|skriv|hej|tack)\b/gi
+    ) ?? []
+  ).length;
+  const enWords = (
+    trimmed.match(
+      /\b(the|and|we|what|would|you|can|make|shorter|write|email|for|our|list|winter|bookings|ads|budget|awards|use|that|ok|now|please|some|sample|how|this|week)\b/gi
+    ) ?? []
+  ).length;
+
+  const svScore = svDiacritics * 2 + svWords * 2;
+  const enScore = enWords * 2;
+
+  if (svScore >= 2 && svScore >= enScore) return 'sv';
+  if (enScore >= 2) return 'en';
+  return 'unknown';
+}
+
+export function isActionableMarketingRequest(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  const isSimpleGreeting =
+    /^(hej|hi|hello|hey|tack|thanks|thank you|who are you|vem är du|what can you do)[!.?\s]*$/i.test(
+      trimmed
+    );
+  if (isSimpleGreeting) return false;
+
+  return /(what would you|this week|plan|strategy|campaign|kampanj|caption|copy|rewrite|shorten|kortare|less poetic|email|mejl|epost|nyhetsbrev|newsletter|post|instagram|facebook|calendar|kalender|budget|3000|kr|sek|pricing|price|roi|break.?even|award|sample|visit sweden|visual|shot|video|photo|research|competitor|trend|sauna|bastu|ice bath|isbad|bookings|bokningar)/i.test(
+    trimmed
+  );
 }
 
 export function mergeSessionFacts(
