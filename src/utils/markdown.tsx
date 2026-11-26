@@ -28,7 +28,7 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
       nodes.push(
         <code
           key={key}
-          className="font-mono-tabular text-[0.875em] px-1.5 py-0.5 rounded bg-[var(--surface-muted)] text-[var(--text)]"
+          className="font-mono-tabular text-[0.85em] px-1.5 py-0.5 rounded-md bg-[var(--surface-muted)] text-[var(--text)]"
         >
           {token.slice(1, -1)}
         </code>
@@ -54,7 +54,7 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
             href={linkMatch[2].trim()}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline decoration-[var(--accent)] underline-offset-2 text-[var(--accent-text)] hover:text-[var(--accent)] transition-colors"
+            className="underline decoration-[var(--tangerine)] underline-offset-2 text-[var(--text)] hover:text-[var(--tangerine)] transition-colors"
           >
             {linkMatch[1]}
           </a>

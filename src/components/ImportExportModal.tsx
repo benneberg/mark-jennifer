@@ -62,7 +62,7 @@ export function ImportExportModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(24,24,23,0.52)] backdrop-blur-[4px]"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           setValidation(null);
@@ -74,10 +74,10 @@ export function ImportExportModal({
         role="dialog"
         aria-modal="true"
         aria-label="Export and Import Studio"
-        className="w-full max-w-lg rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-drawer)] p-5 space-y-5 text-[var(--text)] max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-lg rounded-[28px] bg-[var(--bg)] border border-[var(--border)] shadow-[var(--shadow-md)] p-5 sm:p-6 space-y-4 text-[var(--text)] max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold">Export &amp; Import Studio</h2>
+          <h2 className="text-lg font-light tracking-[-0.015em]">Export &amp; Import Studio</h2>
           <button
             type="button"
             onClick={() => {
@@ -85,14 +85,14 @@ export function ImportExportModal({
               onClose();
             }}
             aria-label="Close"
-            className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)]"
+            className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)]"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Export */}
-        <section className="p-4 rounded-xl bg-[var(--bg)] border border-[var(--border)] space-y-3">
+        <section className="p-4 rounded-[22px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] space-y-3">
           <h3 className="text-sm font-semibold">Export Workspace</h3>
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">
             Downloads one JSON file with your experts, Brand DNA guardrails, content library, and
@@ -103,14 +103,14 @@ export function ImportExportModal({
               type="checkbox"
               checked={includeChats}
               onChange={(e) => setIncludeChats(e.target.checked)}
-              className="w-4 h-4 accent-[var(--accent)]"
+              className="w-4 h-4 accent-[#181817] dark:accent-[#EBEE2C]"
             />
             <span>Include chat history</span>
           </label>
           <button
             type="button"
             onClick={handleExport}
-            className="min-h-[44px] inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg bg-[var(--accent)] text-white hover:opacity-90"
+            className="min-h-[42px] inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817]"
           >
             <Download className="w-4 h-4" />
             <span>Download JSON backup</span>
@@ -118,7 +118,7 @@ export function ImportExportModal({
         </section>
 
         {/* Import */}
-        <section className="p-4 rounded-xl bg-[var(--bg)] border border-[var(--border)] space-y-3">
+        <section className="p-4 rounded-[22px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] space-y-3">
           <h3 className="text-sm font-semibold">Import Workspace</h3>
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">
             Choose a previously exported studio JSON file to validate and preview before applying.
@@ -127,7 +127,7 @@ export function ImportExportModal({
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="min-h-[44px] inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-muted)]"
+            className="min-h-[42px] inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-full border border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text)] hover:border-[var(--border-strong)]"
           >
             <Upload className="w-4 h-4" />
             <span>Select JSON file</span>
@@ -141,7 +141,7 @@ export function ImportExportModal({
           />
 
           {validation && !validation.valid && (
-            <div className="p-3 rounded-lg bg-[var(--danger-soft)] border border-[var(--danger)] text-xs text-[var(--danger)] space-y-1">
+            <div className="p-3 rounded-[16px] bg-[var(--danger-soft)] border border-[var(--danger)] text-xs text-[var(--danger)] space-y-1">
               <div className="font-semibold">Import rejected — schema errors found:</div>
               {validation.errors.slice(0, 8).map((err, i) => (
                 <div key={i}>{err}</div>
@@ -150,7 +150,7 @@ export function ImportExportModal({
           )}
 
           {validation && validation.valid && validation.summary && (
-            <div className="p-3.5 rounded-lg bg-[var(--surface-muted)] border border-[var(--border)] space-y-3 text-xs">
+            <div className="p-3.5 rounded-[18px] bg-[var(--surface-muted)] border border-[var(--border)] space-y-3 text-xs">
               <div className="font-semibold text-[var(--text)]">Import Preview</div>
               <ul className="space-y-1 text-[var(--text-muted)]">
                 <li>Experts: {validation.summary.expertsCount}</li>
@@ -169,14 +169,14 @@ export function ImportExportModal({
                 <button
                   type="button"
                   onClick={() => handleApply('merge')}
-                  className="min-h-[40px] px-3.5 py-1.5 rounded-lg bg-[var(--accent)] text-white font-medium hover:opacity-90"
+                  className="min-h-[40px] px-4 py-1.5 rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] font-semibold"
                 >
                   Merge (newer wins)
                 </button>
                 <button
                   type="button"
                   onClick={() => handleApply('replace')}
-                  className="min-h-[40px] px-3.5 py-1.5 rounded-lg border border-[var(--danger)] text-[var(--danger)] font-medium hover:bg-[var(--danger-soft)]"
+                  className="min-h-[40px] px-4 py-1.5 rounded-full bg-[var(--tangerine)] text-[#181817] font-semibold hover:opacity-90"
                 >
                   Replace workspace
                 </button>

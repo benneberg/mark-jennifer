@@ -9,6 +9,7 @@ export interface ChatRequestOptions {
   maxTokens?: number;
   signal?: AbortSignal;
   onToken?: (delta: string) => void;
+  onRetryWait?: (waitMs: number, attempt: number) => void;
 }
 
 export interface AIProvider {
@@ -86,7 +87,7 @@ export async function runOpenAICompatibleChat(
   options: ChatRequestOptions
 ): Promise<ChatResult> {
   const stream = Boolean(options.onToken);
-  const maxRateLimitRetries = 2;
+  const maxRateLimitRetries = 3;
   let res!: Response;
 
   for (let attempt = 0; attempt <= maxRateLimitRetries; attempt++) {
@@ -116,10 +117,12 @@ export async function runOpenAICompatibleChat(
     const mapped = mapHttpError(provider, res.status, text, res.headers.get('retry-after'));
 
     if (mapped.code === 'RATE_LIMIT' && attempt < maxRateLimitRetries) {
+      const fallbackDelay = (attempt + 1) * 4000;
       const waitMs = Math.min(
-        Math.max(1200, (mapped.retryAfterMs ?? (attempt === 0 ? 3500 : 7500)) + 300),
-        12000
+        Math.max(1500, (mapped.retryAfterMs ?? fallbackDelay) + 400),
+        20000
       );
+      options.onRetryWait?.(waitMs, attempt + 1);
       await waitWithAbort(waitMs, options.signal);
       continue;
     }

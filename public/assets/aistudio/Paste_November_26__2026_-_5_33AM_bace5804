@@ -1,0 +1,2466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#F4EFE4" id="themeColor" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Lena — Campaign Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #F4EFE4;
+      --bg-gradient: radial-gradient(circle at 18% 12%, #F6F2E9 0%, #F1EAE0 48%, #E7DEC9 100%);
+      --surface: rgba(255, 255, 255, 0.58);
+      --surface-solid: #F3EBD8;
+      --surface-2: rgba(255, 255, 255, 0.45);
+      --border: rgba(24, 24, 23, 0.09);
+      --border-strong: rgba(24, 24, 23, 0.18);
+      --text: #181817;
+      --text-muted: #6B665C;
+      --text-faint: #8E887C;
+      --primary: #181817;
+      --primary-hover: #2C2C2A;
+      --primary-soft: rgba(235, 238, 44, 0.35);
+      --lime: #EBEE2C;
+      --lime-hover: #E0E322;
+      --tangerine: #F27D42;
+      --sand: #F3EBD8;
+      --obsidian: #181817;
+      --accent: #F27D42;
+      --accent-soft: rgba(242, 125, 66, 0.18);
+      --success: #181817;
+      --success-soft: #EBEE2C;
+      --danger: #991B1B;
+      --danger-soft: rgba(242, 125, 66, 0.28);
+      --warning: #92400E;
+      --warning-soft: #FEF3C7;
+      --radius: 26px;
+      --radius-sm: 18px;
+      --radius-lg: 32px;
+      --radius-pill: 9999px;
+      --shadow: 0 4px 20px -4px rgba(24, 24, 23, 0.06);
+      --shadow-md: 0 14px 38px -8px rgba(24, 24, 23, 0.14);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --nav-h: 64px;
+      --header-h: 64px;
+    }
+    [data-theme="dark"] {
+      --bg: #111110;
+      --bg-gradient: radial-gradient(circle at 20% 10%, #191917 0%, #111110 60%, #0A0A09 100%);
+      --surface: rgba(28, 28, 26, 0.72);
+      --surface-solid: #181817;
+      --surface-2: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.11);
+      --border-strong: rgba(255, 255, 255, 0.22);
+      --text: #F4EFE4;
+      --text-muted: #A8A296;
+      --text-faint: #787368;
+      --primary: #EBEE2C;
+      --primary-hover: #E0E322;
+      --primary-soft: rgba(235, 238, 44, 0.16);
+      --accent: #F27D42;
+      --accent-soft: rgba(242, 125, 66, 0.2);
+      --success: #181817;
+      --success-soft: #EBEE2C;
+      --danger: #F27D42;
+      --danger-soft: rgba(242, 125, 66, 0.22);
+      --warning: #FBBF24;
+      --warning-soft: #78350F;
+      --shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.45);
+      --shadow-md: 0 18px 42px -8px rgba(0, 0, 0, 0.65);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      background-image: var(--bg-gradient);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    }
+    ::selection { background: #EBEE2C; color: #181817; }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 960px;
+      margin: 0 auto;
+      background: transparent;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    .header {
+      height: var(--header-h);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px 0 16px;
+      background: var(--surface);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      z-index: 20;
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-width: 0;
+      cursor: pointer;
+    }
+    /* Interactive Eye Emblem */
+    .lena-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #181817;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(24, 24, 23, 0.16);
+      user-select: none;
+    }
+    [data-theme="dark"] .lena-avatar {
+      background: #F3EBD8;
+    }
+    .eye-sclera {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.18);
+    }
+    .eye-pupil {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #181817;
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding: 1.5px;
+      transform: translate3d(0px, 0px, 0px);
+      transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: transform;
+    }
+    .eye-pupil::after {
+      content: "";
+      width: 3.5px;
+      height: 3.5px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .eye-pupil {
+        transform: translate3d(0px, 0px, 0px) !important;
+        transition: none !important;
+      }
+    }
+
+    .header-title {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .header-sub {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 160px;
+    }
+    .header-actions { display: flex; align-items: center; gap: 6px; }
+    .icon-btn {
+      width: 40px; height: 40px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-radius: var(--radius-pill);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text); cursor: pointer;
+      transition: transform .15s, background .15s, border-color .15s;
+    }
+    .icon-btn:hover, .icon-btn:focus-visible {
+      transform: scale(1.04);
+      border-color: var(--border-strong);
+      outline: none;
+    }
+    .icon-btn:active { transform: scale(0.96); }
+    .icon-btn.active { background: var(--lime); color: #181817; border-color: transparent; }
+
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+    .tab-panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .tab-panel.active { display: flex; }
+
+    /* Project Banner */
+    .project-banner {
+      margin: 10px 14px 0;
+      background: var(--sand);
+      color: #181817;
+      border: 1px solid rgba(24, 24, 23, 0.1);
+      border-radius: var(--radius-pill);
+      padding: 8px 10px 8px 16px;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      box-shadow: var(--shadow);
+    }
+    [data-theme="dark"] .project-banner {
+      background: #1C1C1A;
+      color: #F4EFE4;
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+    .project-banner.visible { display: flex; }
+    .project-banner .info { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .project-banner .name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .project-banner .status { font-size: 11px; color: var(--text-muted); }
+    #btnExport {
+      background: #181817 !important;
+      color: #F4EFE4 !important;
+      border-radius: var(--radius-pill) !important;
+      font-weight: 600 !important;
+      padding: 6px 14px !important;
+    }
+    [data-theme="dark"] #btnExport {
+      background: var(--lime) !important;
+      color: #181817 !important;
+    }
+
+    /* Chat */
+    .chat-messages {
+      flex: 1; overflow-y: auto;
+      padding: 16px 16px 12px;
+      display: flex; flex-direction: column; gap: 14px;
+      scroll-behavior: smooth;
+    }
+    .msg { max-width: 88%; display: flex; flex-direction: column; gap: 5px; }
+    .msg.user { align-self: flex-end; }
+    .msg.assistant { align-self: flex-start; }
+    .msg-bubble {
+      padding: 13px 17px;
+      border-radius: 24px;
+      font-size: 14.5px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg.user .msg-bubble {
+      background: #181817;
+      color: #F4EFE4;
+      border-bottom-right-radius: 6px;
+      box-shadow: var(--shadow);
+    }
+    [data-theme="dark"] .msg.user .msg-bubble {
+      background: var(--lime);
+      color: #181817;
+      font-weight: 500;
+    }
+    .msg.assistant .msg-bubble {
+      background: var(--surface);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 6px;
+      box-shadow: var(--shadow);
+    }
+    .msg-meta { font-size: 11px; color: var(--text-faint); padding: 0 8px; font-weight: 500; }
+    .msg.user .msg-meta { text-align: right; }
+    .msg-images { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+    .msg-images img {
+      max-width: 120px; max-height: 120px;
+      border-radius: 16px; object-fit: cover;
+      border: 1px solid var(--border);
+    }
+    .typing-indicator {
+      display: flex; gap: 5px; padding: 14px 18px;
+      background: var(--surface);
+      backdrop-filter: blur(18px);
+      border: 1px solid var(--border);
+      border-radius: 24px; border-bottom-left-radius: 6px; width: fit-content;
+    }
+    .typing-indicator span {
+      width: 7px; height: 7px; background: var(--text-muted);
+      border-radius: 50%; animation: bounce 1.2s infinite;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: .15s; }
+    .typing-indicator span:nth-child(3) { animation-delay: .3s; }
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: .4; }
+      30% { transform: translateY(-4px); opacity: 1; }
+    }
+    .stream-cursor::after {
+      content: '▋';
+      animation: blink 1s step-end infinite;
+      color: var(--tangerine);
+      margin-left: 2px;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .suggestions {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      padding: 0 16px 10px;
+      justify-content: center;
+    }
+    .chip {
+      padding: 9px 15px;
+      background: var(--surface);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .chip:hover {
+      background: var(--lime);
+      color: #181817;
+      border-color: transparent;
+      transform: translateY(-1px);
+    }
+
+    /* Composer (padded for floating pill dock below) */
+    .composer {
+      padding: 10px 14px calc(86px + var(--safe-bottom));
+      background: transparent;
+      flex-shrink: 0;
+    }
+    .composer-row { display: flex; align-items: flex-end; gap: 8px; }
+    .composer-input-wrap {
+      flex: 1;
+      background: var(--surface);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-radius: 26px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      display: flex; align-items: flex-end;
+      padding: 6px 6px 6px 16px; min-height: 48px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .composer-input-wrap:focus-within {
+      border-color: var(--text);
+    }
+    .composer-input {
+      flex: 1; border: none; background: transparent; resize: none;
+      font-family: inherit; font-size: 14.5px; line-height: 1.4;
+      max-height: 120px; padding: 7px 0; color: var(--text); outline: none;
+    }
+    .composer-input::placeholder { color: var(--text-faint); }
+    .composer-actions { display: flex; gap: 3px; align-items: center; }
+    .composer-btn {
+      width: 36px; height: 36px; border: none; background: transparent;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); cursor: pointer; transition: all .15s;
+    }
+    .composer-btn:hover { background: var(--surface-2); color: var(--text); }
+    .composer-btn.send {
+      width: 48px; height: 48px;
+      background: var(--lime);
+      color: #181817;
+      box-shadow: var(--shadow);
+      flex-shrink: 0;
+    }
+    .composer-btn.send:hover { background: var(--lime-hover); transform: scale(1.03); }
+    .composer-btn.send:disabled {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-faint);
+      box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .composer-btn.recording {
+      background: var(--tangerine);
+      color: #181817;
+      animation: pulse 1.2s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .65; } }
+    .attachment-preview { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 4px 8px; }
+    .attach-chip {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 12px 4px 4px;
+      background: var(--surface);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      font-size: 12px; font-weight: 500; color: var(--text);
+    }
+    .attach-chip img {
+      width: 28px; height: 28px; border-radius: 50%; object-fit: cover;
+    }
+    .attach-chip button {
+      border: none; background: none; color: var(--text-muted);
+      cursor: pointer; font-size: 15px; line-height: 1; padding-left: 2px;
+    }
+
+    /* Floating Tactile Bottom Pill Dock */
+    .bottom-nav {
+      position: fixed;
+      bottom: calc(14px + var(--safe-bottom));
+      left: 50%;
+      transform: translateX(-50%);
+      height: 58px;
+      padding: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.74);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(24, 24, 23, 0.1);
+      border-radius: var(--radius-pill);
+      box-shadow: var(--shadow-md);
+      z-index: 25;
+      width: auto;
+      max-width: calc(100vw - 28px);
+    }
+    [data-theme="dark"] .bottom-nav {
+      background: rgba(24, 24, 23, 0.86);
+      border-color: rgba(255, 255, 255, 0.13);
+    }
+    .nav-item {
+      position: relative;
+      height: 44px;
+      padding: 0 18px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .18s ease;
+      white-space: nowrap;
+    }
+    .nav-item:hover {
+      color: var(--text);
+      background: rgba(24, 24, 23, 0.05);
+    }
+    [data-theme="dark"] .nav-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .nav-item.active {
+      background: var(--lime);
+      color: #181817;
+      box-shadow: 0 2px 10px rgba(235, 238, 44, 0.35);
+    }
+    .nav-item svg { width: 19px; height: 19px; flex-shrink: 0; }
+    .nav-badge {
+      background: #181817;
+      color: #F4EFE4;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      min-width: 18px;
+      height: 18px;
+      border-radius: var(--radius-pill);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 5px;
+    }
+    .nav-item.active .nav-badge {
+      background: #181817;
+      color: var(--lime);
+    }
+
+    /* Showroom */
+    .showroom { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+    .showroom-toolbar {
+      padding: 14px 16px;
+      background: var(--surface);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 10px; flex-shrink: 0;
+    }
+    .showroom-toolbar h2 {
+      font-size: 24px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+    }
+    .artifact-select {
+      width: 100%;
+      padding: 11px 36px 11px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      background: var(--surface-2);
+      font-family: inherit;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text);
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236B665C' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      cursor: pointer;
+    }
+    .showroom-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      padding: 9px 16px;
+      border-radius: var(--radius-pill);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all .15s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn:active:not(:disabled) { transform: scale(0.97); }
+    .btn-primary {
+      background: var(--lime);
+      color: #181817;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--lime-hover); }
+    .btn-secondary {
+      background: var(--surface);
+      backdrop-filter: blur(12px);
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .btn-secondary:hover:not(:disabled) { border-color: var(--border-strong); }
+    .btn-ghost { background: transparent; color: var(--text-muted); }
+    .btn-ghost:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+    .btn-danger {
+      background: var(--tangerine);
+      color: #181817;
+    }
+    .btn-danger:hover:not(:disabled) { opacity: 0.9; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    .showroom-preview {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 16px calc(92px + var(--safe-bottom));
+      background: transparent;
+    }
+    .preview-empty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; height: 100%; text-align: center;
+      color: var(--text-muted); gap: 12px; padding: 32px;
+      font-size: 14px;
+    }
+    .preview-empty svg { width: 44px; height: 44px; opacity: .45; }
+    .artifact-card {
+      background: var(--surface);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .artifact-card h3 {
+      font-size: 19px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+    }
+    .artifact-card .meta {
+      font-size: 12px; color: var(--text-muted); margin-bottom: 14px;
+      display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    }
+    .artifact-body { font-size: 14.5px; line-height: 1.65; white-space: pre-wrap; }
+    .artifact-body h1, .artifact-body h2, .artifact-body h3 { margin: 16px 0 8px; }
+    .artifact-body ul, .artifact-body ol { padding-left: 20px; margin: 8px 0; }
+    .artifact-body li { margin: 4px 0; }
+    .artifact-edit-title {
+      width: 100%; padding: 10px 14px; margin-bottom: 10px;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface-2); font-family: inherit; font-size: 16px;
+      font-weight: 600; color: var(--text); outline: none;
+    }
+    .artifact-edit-title:focus { border-color: var(--text); }
+    .artifact-edit-area {
+      width: 100%; min-height: 220px; padding: 14px;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface-2); font-family: 'JetBrains Mono', monospace; font-size: 13px;
+      line-height: 1.6; color: var(--text); resize: vertical; outline: none;
+    }
+    .artifact-edit-area:focus { border-color: var(--text); }
+    .artifact-edit-actions {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;
+    }
+    .edit-hint {
+      font-size: 12px; color: var(--text-muted); margin-bottom: 8px;
+    }
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: var(--radius-pill);
+      font-size: 11px; font-weight: 600;
+    }
+    .status-badge.draft { background: var(--sand); color: #181817; border: 1px solid rgba(24,24,23,0.1); }
+    .status-badge.ready { background: var(--lime); color: #181817; }
+    .status-badge.scheduled { background: var(--tangerine); color: #181817; }
+
+    /* Calendar view */
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px; margin-top: 12px;
+    }
+    .cal-day {
+      background: var(--sand);
+      color: #181817;
+      border-radius: 20px;
+      padding: 12px;
+      border: 1px solid rgba(24, 24, 23, 0.08);
+    }
+    [data-theme="dark"] .cal-day {
+      background: #1C1C1A;
+      color: #F4EFE4;
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+    .cal-day-date {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px; font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .cal-item {
+      font-size: 12px; padding: 5px 0; border-top: 1px solid var(--border);
+    }
+    .cal-item:first-of-type { border-top: none; }
+    .cal-channel {
+      display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px;
+      border-radius: var(--radius-pill); background: var(--lime); color: #181817;
+      margin-right: 4px;
+    }
+
+    /* Projects tab — Color-blocked editorial cards */
+    .projects-list {
+      padding: 16px 16px calc(92px + var(--safe-bottom));
+      overflow-y: auto;
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      align-content: start;
+    }
+    @media (min-width: 640px) {
+      .projects-list { grid-template-columns: repeat(2, 1fr); }
+    }
+    .project-card {
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+      background: var(--sand);
+      color: #181817;
+      border: 1px solid rgba(24, 24, 23, 0.09);
+    }
+    .project-card:nth-child(4n+2) {
+      background: var(--tangerine);
+      color: #181817;
+    }
+    .project-card:nth-child(4n+3) {
+      background: #181817;
+      color: #F4EFE4;
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+    .project-card:nth-child(4n+4) {
+      background: var(--lime);
+      color: #181817;
+    }
+    .project-card.active {
+      background: var(--lime);
+      color: #181817;
+      box-shadow: 0 0 0 2.5px #181817, var(--shadow-md);
+    }
+    [data-theme="dark"] .project-card.active {
+      box-shadow: 0 0 0 2.5px #F4EFE4, var(--shadow-md);
+    }
+    .project-card:hover { transform: translateY(-2px); }
+    .project-card h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 6px; }
+    .project-card .meta {
+      font-size: 12px; opacity: 0.78;
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .project-card-actions {
+      display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap;
+    }
+    .project-card .btn {
+      padding: 6px 12px;
+      font-size: 12px;
+      background: rgba(24, 24, 23, 0.1);
+      color: inherit;
+      border: none;
+    }
+    .project-card:nth-child(4n+3):not(.active) .btn {
+      background: rgba(255, 255, 255, 0.14);
+    }
+    .project-card .btn-danger {
+      background: rgba(24, 24, 23, 0.18);
+    }
+
+    /* Overlay (Settings & Skills) */
+    .overlay {
+      position: absolute; inset: 0;
+      background: var(--bg);
+      background-image: var(--bg-gradient);
+      z-index: 35; display: none; flex-direction: column; overflow: hidden;
+    }
+    .overlay.open { display: flex; }
+    .overlay-header {
+      height: var(--header-h); display: flex; align-items: center; gap: 12px;
+      padding: 0 16px;
+      background: var(--surface);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .overlay-header h2 { font-size: 20px; font-weight: 400; letter-spacing: -0.01em; flex: 1; }
+    .overlay-body { flex: 1; overflow-y: auto; padding: 16px 16px 32px; }
+    .section {
+      background: var(--surface);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+    }
+    .section-title {
+      font-size: 11px; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .06em; margin-bottom: 14px;
+    }
+    .form-group { margin-bottom: 14px; }
+    .form-group:last-child { margin-bottom: 0; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+    .form-hint { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; padding: 11px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+      font-family: inherit; font-size: 14px;
+      color: var(--text); outline: none; transition: border-color .15s;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--text); }
+    .form-textarea { min-height: 80px; resize: vertical; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .toggle {
+      position: relative; width: 46px; height: 28px;
+      background: var(--border-strong); border-radius: var(--radius-pill); cursor: pointer;
+      transition: background .2s; flex-shrink: 0;
+    }
+    .toggle.on { background: var(--lime); }
+    .toggle::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 22px; height: 22px; background: #181817; border-radius: 50%;
+      transition: transform .2s;
+    }
+    .toggle.on::after { transform: translateX(18px); }
+    .key-status { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 500; margin-top: 8px; }
+    .key-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); }
+    .key-status.connected .dot { background: #16A34A; }
+
+    .skill-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      margin-bottom: 8px;
+    }
+    .skill-item:last-child { margin-bottom: 0; }
+    .skill-info { flex: 1; min-width: 0; }
+    .skill-name { font-size: 14px; font-weight: 600; }
+    .skill-desc {
+      font-size: 12px; color: var(--text-muted); margin-top: 3px;
+      display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .skill-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    .toast {
+      position: fixed;
+      bottom: calc(86px + var(--safe-bottom));
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: #181817;
+      color: #F4EFE4;
+      padding: 10px 18px;
+      border-radius: var(--radius-pill);
+      font-size: 12.5px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: all .25s;
+      z-index: 100;
+      max-width: 90%;
+      text-align: center;
+      box-shadow: var(--shadow-md);
+    }
+    [data-theme="dark"] .toast {
+      background: var(--sand);
+      color: #181817;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(24, 24, 23, 0.55);
+      backdrop-filter: blur(4px);
+      z-index: 50; display: none; align-items: flex-end; justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: var(--bg);
+      background-image: var(--bg-gradient);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      width: 100%; max-width: 520px; max-height: 86vh; overflow-y: auto;
+      padding: 22px 18px calc(22px + var(--safe-bottom));
+      box-shadow: var(--shadow-md);
+      animation: slideUp .25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal-title { font-size: 20px; font-weight: 400; letter-spacing: -0.01em; margin-bottom: 16px; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 18px; justify-content: flex-end; }
+
+    /* Welcome card */
+    .welcome {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 28px 20px; gap: 10px;
+      max-width: 400px; margin: 0 auto;
+    }
+    .welcome .lena-avatar {
+      width: 64px; height: 64px;
+      margin-bottom: 6px;
+    }
+    .welcome .eye-sclera {
+      width: 38px; height: 38px;
+    }
+    .welcome .eye-pupil {
+      width: 15px; height: 15px;
+      padding: 2.5px;
+    }
+    .welcome .eye-pupil::after {
+      width: 5px; height: 5px;
+    }
+    .welcome h1 {
+      font-size: 32px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+    }
+    .welcome p {
+      font-size: 14px;
+      color: var(--text-muted);
+      max-width: 310px;
+      line-height: 1.55;
+    }
+
+    .msg-bubble strong { font-weight: 600; }
+    .msg-bubble em { font-style: italic; }
+    .msg-bubble code {
+      background: rgba(24, 24, 23, 0.08);
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    [data-theme="dark"] .msg-bubble code { background: rgba(255, 255, 255, 0.12); }
+    .msg.user .msg-bubble code { background: rgba(255, 255, 255, 0.18); }
+    [data-theme="dark"] .msg.user .msg-bubble code { background: rgba(24, 24, 23, 0.15); }
+    .msg-bubble a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+    input[type="range"] { width: 100%; accent-color: #181817; }
+    [data-theme="dark"] input[type="range"] { accent-color: var(--lime); }
+    .hidden { display: none !important; }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); border: 0;
+    }
+    .view-toggle {
+      display: flex; gap: 6px; margin-bottom: 10px;
+    }
+    .view-toggle .btn { padding: 6px 12px; font-size: 12px; }
+    .view-toggle .btn.active {
+      background: var(--lime); color: #181817; border-color: transparent;
+    }
+
+    @media (min-width: 640px) {
+      .modal-backdrop { align-items: center; }
+      .modal { border-radius: var(--radius-lg); margin: 16px; }
+      .msg { max-width: 75%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <div class="header-brand" id="headerBrand" title="Projects">
+        <div class="lena-avatar" id="lenaEyeBadge" aria-hidden="true">
+          <div class="eye-sclera">
+            <div class="eye-pupil" data-eye-pupil></div>
+          </div>
+        </div>
+        <div>
+          <div class="header-title">Lena</div>
+          <div class="header-sub" id="headerStatus">Campaign Studio</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="btnTheme" title="Toggle theme" aria-label="Theme">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24" id="iconSun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24" id="iconMoon" class="hidden"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+        <button class="icon-btn" id="btnSkills" title="Skills" aria-label="Skills">
+          <svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+        </button>
+        <button class="icon-btn" id="btnSettings" title="Settings" aria-label="Settings">
+          <svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="project-banner" id="projectBanner">
+      <div class="info">
+        <div class="name" id="projectName">—</div>
+        <div class="status" id="projectStatus">Active project</div>
+      </div>
+      <button class="btn btn-ghost" id="btnExport" style="font-size:12px;padding:6px 10px;">Export</button>
+    </div>
+
+    <div class="main">
+      <!-- Chat -->
+      <div class="tab-panel active" id="tabChat">
+        <div class="chat-messages" id="chatMessages">
+          <div class="welcome" id="welcome">
+            <div class="lena-avatar" aria-hidden="true">
+              <div class="eye-sclera">
+                <div class="eye-pupil" data-eye-pupil></div>
+              </div>
+            </div>
+            <h1>Hi, I'm Lena</h1>
+            <p>Your campaign strategist. Tell me about your business and goals — I'll plan, create content, and organize delivery.</p>
+          </div>
+        </div>
+        <div class="suggestions" id="suggestions">
+          <button class="chip" data-prompt="I run a glamping hut and want more bookings from December to March. What can we do?">Glamping winter bookings</button>
+          <button class="chip" data-prompt="Help me plan a product launch campaign for a new SaaS feature.">SaaS product launch</button>
+          <button class="chip" data-prompt="I need social media content for a local café this month.">Café social content</button>
+        </div>
+        <div class="composer">
+          <div class="attachment-preview" id="attachPreview"></div>
+          <div class="composer-row">
+            <div class="composer-input-wrap">
+              <textarea class="composer-input" id="chatInput" rows="1" placeholder="Message Lena…" enterkeyhint="send"></textarea>
+              <div class="composer-actions">
+                <button class="composer-btn" id="btnAttach" title="Attach image" aria-label="Attach">
+                  <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                </button>
+                <button class="composer-btn" id="btnMic" title="Voice input" aria-label="Voice">
+                  <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+                </button>
+              </div>
+            </div>
+            <button class="composer-btn send" id="btnSend" title="Send" aria-label="Send" disabled>
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            </button>
+          </div>
+          <input type="file" id="fileInput" class="sr-only" accept="image/*" multiple />
+        </div>
+      </div>
+
+      <!-- Showroom -->
+      <div class="tab-panel" id="tabShowroom">
+        <div class="showroom">
+          <div class="showroom-toolbar">
+            <h2>Artifacts</h2>
+            <select class="artifact-select" id="artifactSelect">
+              <option value="">No artifacts yet</option>
+            </select>
+            <div class="showroom-actions" id="showroomActionsView">
+              <button class="btn btn-secondary" id="btnCopyArtifact" disabled>Copy</button>
+              <button class="btn btn-secondary" id="btnInlineEdit" disabled>Edit</button>
+              <button class="btn btn-secondary" id="btnAskLena" disabled>Ask Lena</button>
+              <button class="btn btn-primary" id="btnAcceptArtifact" disabled>Accept</button>
+            </div>
+            <div class="showroom-actions hidden" id="showroomActionsEdit">
+              <button class="btn btn-primary" id="btnSaveArtifact">Save</button>
+              <button class="btn btn-secondary" id="btnCancelEdit">Cancel</button>
+            </div>
+          </div>
+          <div class="showroom-preview" id="showroomPreview">
+            <div class="preview-empty">
+              <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <div>Artifacts from Lena appear here.<br/>Start a conversation to generate campaign materials.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Projects -->
+      <div class="tab-panel" id="tabProjects">
+        <div class="showroom-toolbar">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <h2>Projects</h2>
+            <button class="btn btn-primary" id="btnNewProject">+ New project</button>
+          </div>
+        </div>
+        <div class="projects-list" id="projectsList"></div>
+      </div>
+    </div>
+
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-tab="chat">
+        <svg fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        Chat
+      </button>
+      <button class="nav-item" data-tab="showroom">
+        <svg fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        Showroom
+        <span class="nav-badge hidden" id="artifactBadge">0</span>
+      </button>
+      <button class="nav-item" data-tab="projects">
+        <svg fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+        Projects
+      </button>
+    </nav>
+
+    <!-- Settings -->
+    <div class="overlay" id="settingsOverlay">
+      <div class="overlay-header">
+        <button class="icon-btn" id="btnCloseSettings" aria-label="Close">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <h2>Settings</h2>
+      </div>
+      <div class="overlay-body">
+        <div class="section">
+          <div class="section-title">API Key (BYOK)</div>
+          <div class="form-group">
+            <label class="form-label" for="apiKey">Groq API Key</label>
+            <input type="password" class="form-input" id="apiKey" placeholder="gsk_…" autocomplete="off" />
+            <div class="form-hint">Stored only in this browser. Get a key at console.groq.com</div>
+            <div class="key-status" id="keyStatus"><span class="dot"></span> <span>Not connected</span></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="modelSelect">Model</label>
+            <select class="form-select" id="modelSelect">
+              <option value="openai/gpt-oss-20b">GPT-OSS 20B (fast)</option>
+              <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
+              <option value="qwen/qwen3.8-27b">Qwen 3.8 27B (vision)</option>
+            </select>
+            <div class="form-hint">Qwen supports images. Prefer it when you attach photos.</div>
+          </div>
+          <button class="btn btn-primary" id="btnSaveKey" style="width:100%;margin-top:8px;">Save &amp; connect</button>
+        </div>
+        <div class="section">
+          <div class="section-title">Generation</div>
+          <div class="form-group">
+            <div class="toggle-row">
+              <label class="form-label" style="margin:0">Temperature</label>
+              <span id="tempValue" style="font-size:13px;color:var(--text-muted)">0.7</span>
+            </div>
+            <input type="range" id="temperature" min="0" max="1.5" step="0.1" value="0.7" />
+            <div class="form-hint">Lower = focused · Higher = creative</div>
+          </div>
+          <div class="form-group">
+            <div class="toggle-row">
+              <label class="form-label" style="margin:0">Stream responses</label>
+              <div class="toggle on" id="toggleStream" role="switch" aria-checked="true"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="systemPrompt">Extra system prompt (optional)</label>
+            <textarea class="form-textarea" id="systemPrompt" placeholder="Brand voice, constraints, extra rules…"></textarea>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Appearance</div>
+          <div class="form-group">
+            <div class="toggle-row">
+              <label class="form-label" style="margin:0">Dark mode</label>
+              <div class="toggle" id="toggleDark" role="switch" aria-checked="false"></div>
+            </div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Data</div>
+          <button class="btn btn-secondary" id="btnClearChat" style="width:100%;margin-bottom:8px;">Clear current conversation</button>
+          <button class="btn btn-danger" id="btnResetAll" style="width:100%;">Reset all data</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Skills -->
+    <div class="overlay" id="skillsOverlay">
+      <div class="overlay-header">
+        <button class="icon-btn" id="btnCloseSkills" aria-label="Close">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <h2>Skills</h2>
+        <button class="btn btn-primary" id="btnNewSkill" style="padding:7px 14px;font-size:13px;">+ New</button>
+      </div>
+      <div class="overlay-body">
+        <div class="form-hint" style="margin-bottom:12px;">Reusable capabilities Lena can use when building campaigns.</div>
+        <div id="skillsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="skillModal">
+    <div class="modal">
+      <div class="modal-title" id="skillModalTitle">New skill</div>
+      <div class="form-group">
+        <label class="form-label" for="skillName">Name</label>
+        <input type="text" class="form-input" id="skillName" placeholder="e.g. Instagram carousel" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="skillDesc">Description</label>
+        <textarea class="form-textarea" id="skillDesc" placeholder="What this skill does…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="skillPrompt">Instructions for Lena</label>
+        <textarea class="form-textarea" id="skillPrompt" style="min-height:120px" placeholder="When using this skill…"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="btnCancelSkill">Cancel</button>
+        <button class="btn btn-primary" id="btnSaveSkill">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="projectModal">
+    <div class="modal">
+      <div class="modal-title" id="projectModalTitle">New project</div>
+      <div class="form-group">
+        <label class="form-label" for="projName">Name</label>
+        <input type="text" class="form-input" id="projName" placeholder="e.g. Winter Glamping 2026" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="projGoal">Goal (optional)</label>
+        <textarea class="form-textarea" id="projGoal" placeholder="Increase bookings Dec–Mar…"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="btnCancelProject">Cancel</button>
+        <button class="btn btn-primary" id="btnSaveProject">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="exportModal">
+    <div class="modal">
+      <div class="modal-title">Export campaign</div>
+      <p class="form-hint" style="margin-bottom:14px;">Download a package of the active project: conversation, artifacts, and a readable HTML report.</p>
+      <button class="btn btn-primary" id="btnExportJson" style="width:100%;margin-bottom:8px;">Download JSON package</button>
+      <button class="btn btn-secondary" id="btnExportHtml" style="width:100%;margin-bottom:8px;">Download HTML report</button>
+      <button class="btn btn-secondary" id="btnExportMd" style="width:100%;">Download Markdown</button>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="btnCloseExport">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = 'lena_campaign_v2';
+    const GROQ_BASE = 'https://api.groq.com/openai/v1';
+    const VISION_MODELS = ['qwen/qwen3.8-27b'];
+
+    const defaultSkills = [
+      { id: 'skill_social', name: 'Social media posts', description: 'Platform-ready posts for Instagram, Facebook, LinkedIn, TikTok.', prompt: 'Write engaging social posts. Include captions, hashtags, and suggested visuals. Format clearly per platform.' },
+      { id: 'skill_email', name: 'Email sequence', description: 'Multi-email nurture or promo sequences with subject lines.', prompt: 'Create a short email sequence (3–5 emails). Include subject lines, preview text, and body.' },
+      { id: 'skill_ads', name: 'Ad copy', description: 'Paid ads — headlines, primary text, CTAs.', prompt: 'Write ad variants: headlines, primary text, CTAs. Provide 3 options where useful.' },
+      { id: 'skill_landing', name: 'Landing page copy', description: 'Hero, benefits, FAQ, CTA sections.', prompt: 'Draft landing page sections: hero, benefits, social proof placeholders, FAQ, CTA.' },
+      { id: 'skill_calendar', name: 'Content calendar', description: 'Schedule posts and sends across channels.', prompt: 'Build a practical content calendar. Use lines like: DATE | CHANNEL | ASSET | NOTES so it can be parsed into a calendar view. Cover the full campaign window.' }
+    ];
+
+    const defaultSystem = `You are Lena, a friendly expert campaign strategist and content creator.
+You help small businesses plan marketing campaigns, produce content and assets, and organize delivery.
+
+Personality: warm, clear, proactive, practical. Ask focused follow-up questions. Prefer concrete plans.
+
+When the user accepts a plan:
+1. Confirm project name and goals.
+2. Outline a short project plan (phases, channels, timeline).
+3. Use relevant skills to produce concrete artifacts.
+4. Present artifacts so the user can review them in the Showroom.
+5. Invite edits or acceptance. When ready, offer export.
+
+When producing an artifact, wrap content in:
+[[ARTIFACT:type|title]]
+...content...
+[[/ARTIFACT]]
+Types: plan, social, email, ad, landing, calendar, other.
+
+For calendar artifacts, use structured lines: YYYY-MM-DD | Channel | Asset type | Notes
+so the app can render a calendar view.
+
+Do not invent live posting. Focus on drafts the user can use.`;
+
+    let state = {
+      apiKey: '',
+      model: 'openai/gpt-oss-20b',
+      temperature: 0.7,
+      systemPrompt: '',
+      stream: true,
+      theme: 'light',
+      skills: [...defaultSkills],
+      projects: [],
+      activeProjectId: null,
+      // transient
+      attachments: [] // { name, type, dataUrl }
+    };
+
+    let editingSkillId = null;
+    let isGenerating = false;
+    let recognition = null;
+    let abortController = null;
+    let editingArtifactId = null; // inline edit mode
+
+    // ─── Active project helpers ──────────────────────────────
+    function activeProject() {
+      return state.projects.find(p => p.id === state.activeProjectId) || null;
+    }
+    function ensureProject() {
+      let p = activeProject();
+      if (!p) {
+        p = {
+          id: 'proj_' + Date.now(),
+          name: 'Untitled campaign',
+          goal: '',
+          status: 'In progress',
+          messages: [],
+          artifacts: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        state.projects.unshift(p);
+        state.activeProjectId = p.id;
+      }
+      return p;
+    }
+
+    // ─── Persistence ─────────────────────────────────────────
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const saved = JSON.parse(raw);
+          state = { ...state, ...saved, attachments: [] };
+        }
+        // migrate v1 if present
+        const v1 = localStorage.getItem('lena_campaign_v1');
+        if (v1 && state.projects.length === 0) {
+          try {
+            const old = JSON.parse(v1);
+            if (old.messages?.length || old.artifacts?.length) {
+              const p = {
+                id: 'proj_migrated',
+                name: old.project?.name || 'Migrated campaign',
+                goal: '',
+                status: old.project?.status || 'In progress',
+                messages: old.messages || [],
+                artifacts: old.artifacts || [],
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+              };
+              state.projects = [p];
+              state.activeProjectId = p.id;
+              if (old.apiKey) state.apiKey = old.apiKey;
+              if (old.model) state.model = old.model;
+              if (old.skills?.length) state.skills = old.skills;
+            }
+          } catch (_) {}
+        }
+      } catch (e) { console.warn(e); }
+      applyTheme(state.theme || 'light');
+    }
+
+    function saveState() {
+      try {
+        const { attachments, ...rest } = state;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+      } catch (e) { console.warn(e); }
+    }
+
+    // ─── Theme ───────────────────────────────────────────────
+    function applyTheme(theme) {
+      state.theme = theme;
+      document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
+      document.getElementById('themeColor').content = theme === 'dark' ? '#111110' : '#F4EFE4';
+      document.getElementById('iconSun').classList.toggle('hidden', theme === 'dark');
+      document.getElementById('iconMoon').classList.toggle('hidden', theme !== 'dark');
+      const t = document.getElementById('toggleDark');
+      if (t) {
+        t.classList.toggle('on', theme === 'dark');
+        t.setAttribute('aria-checked', theme === 'dark');
+      }
+    }
+
+    // ─── Interactive Gaze-Tracking Eye Emblem ────────────────
+    function initLenaEyeTracker() {
+      const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let idleTimer = null;
+      let nudgePhase = 0;
+
+      const setPupilOffset = (dx, dy) => {
+        document.querySelectorAll('[data-eye-pupil]').forEach(pupil => {
+          if (reducedMotion) {
+            pupil.style.transform = 'translate3d(0px, 0px, 0px)';
+            return;
+          }
+          const isLarge = pupil.closest('.welcome');
+          const scale = isLarge ? 1.55 : 1;
+          pupil.style.transform = `translate3d(${(dx * scale).toFixed(2)}px, ${(dy * scale).toFixed(2)}px, 0px)`;
+        });
+      };
+
+      const resetIdleTimer = () => {
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => setPupilOffset(0, 0), 6500);
+      };
+
+      const lookAtPoint = (x, y) => {
+        const badge = document.getElementById('lenaEyeBadge');
+        if (!badge) return;
+        const rect = badge.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const angle = Math.atan2(y - cy, x - cx);
+        const maxOffset = 4.5;
+        const dist = Math.min(maxOffset, Math.hypot(x - cx, y - cy) / 90);
+        setPupilOffset(Math.cos(angle) * dist, Math.sin(angle) * dist);
+        resetIdleTimer();
+      };
+
+      const lookAtElement = (el) => {
+        if (!el || typeof el.getBoundingClientRect !== 'function') return;
+        const r = el.getBoundingClientRect();
+        nudgePhase = (nudgePhase + 1) % 4;
+        const caretBias = (nudgePhase - 1.5) * 18;
+        lookAtPoint(r.left + Math.min(r.width * 0.65, 60 + Math.abs(caretBias)), r.top + r.height / 2);
+      };
+
+      document.addEventListener('pointerdown', (e) => lookAtPoint(e.clientX, e.clientY), { passive: true });
+      document.addEventListener('pointermove', (e) => {
+        if (e.pointerType === 'mouse') lookAtPoint(e.clientX, e.clientY);
+      }, { passive: true });
+      document.addEventListener('focusin', (e) => lookAtElement(e.target), true);
+      document.addEventListener('keydown', () => {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+          lookAtElement(active);
+        } else {
+          const badge = document.getElementById('lenaEyeBadge');
+          if (!badge) return;
+          const r = badge.getBoundingClientRect();
+          nudgePhase = (nudgePhase + 1) % 6;
+          lookAtPoint(r.left + 80 + Math.cos(nudgePhase) * 40, r.top + 120 + Math.sin(nudgePhase) * 30);
+        }
+      });
+      document.addEventListener('scroll', () => {
+        const badge = document.getElementById('lenaEyeBadge');
+        if (!badge) return;
+        const r = badge.getBoundingClientRect();
+        nudgePhase = (nudgePhase + 1) % 6;
+        lookAtPoint(r.left + 60, r.top + 140 + Math.sin(nudgePhase) * 25);
+      }, { passive: true, capture: true });
+    }
+
+    // ─── UI helpers ──────────────────────────────────────────
+    function toast(msg, ms = 2400) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(el._t);
+      el._t = setTimeout(() => el.classList.remove('show'), ms);
+    }
+    function autoResize(ta) {
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+    }
+    function formatTime(ts) {
+      return new Date(ts || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    function formatDate(ts) {
+      return new Date(ts || Date.now()).toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function simpleMarkdown(text) {
+      return escapeHtml(text)
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    }
+
+    // ─── Chat rendering ──────────────────────────────────────
+    function renderMessages() {
+      const container = document.getElementById('chatMessages');
+      const welcome = document.getElementById('welcome');
+      const p = activeProject();
+      const messages = p?.messages || [];
+      if (messages.length === 0) {
+        container.innerHTML = '';
+        container.appendChild(welcome);
+        welcome.classList.remove('hidden');
+        document.getElementById('suggestions').classList.remove('hidden');
+        return;
+      }
+      welcome.classList.add('hidden');
+      document.getElementById('suggestions').classList.add('hidden');
+      container.innerHTML = messages.map(m => {
+        if (m.role === 'system') return '';
+        const cls = m.role === 'user' ? 'user' : 'assistant';
+        let imgs = '';
+        if (m.images?.length) {
+          imgs = `<div class="msg-images">${m.images.map(src => `<img src="${src}" alt="attachment" />`).join('')}</div>`;
+        }
+        return `<div class="msg ${cls}">
+          ${imgs}
+          <div class="msg-bubble">${simpleMarkdown(m.content)}</div>
+          <div class="msg-meta">${m.role === 'assistant' ? 'Lena' : 'You'} · ${formatTime(m.ts)}</div>
+        </div>`;
+      }).join('');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function showTyping(show) {
+      const container = document.getElementById('chatMessages');
+      let el = document.getElementById('typing');
+      if (show) {
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'typing';
+          el.className = 'msg assistant';
+          el.innerHTML = `<div class="typing-indicator"><span></span><span></span><span></span></div>`;
+          container.appendChild(el);
+        }
+        container.scrollTop = container.scrollHeight;
+      } else if (el) el.remove();
+    }
+
+    function startStreamBubble() {
+      showTyping(false);
+      const container = document.getElementById('chatMessages');
+      const el = document.createElement('div');
+      el.id = 'streamMsg';
+      el.className = 'msg assistant';
+      el.innerHTML = `<div class="msg-bubble stream-cursor"></div><div class="msg-meta">Lena · …</div>`;
+      container.appendChild(el);
+      container.scrollTop = container.scrollHeight;
+      return el.querySelector('.msg-bubble');
+    }
+
+    // ─── Artifacts ───────────────────────────────────────────
+    function extractArtifacts(text) {
+      const re = /\[\[ARTIFACT:([^|\]]+)\|([^\]]+)\]\]([\s\S]*?)\[\[\/ARTIFACT\]\]/g;
+      const found = [];
+      let match;
+      while ((match = re.exec(text)) !== null) {
+        found.push({
+          id: 'art_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+          type: match[1].trim().toLowerCase(),
+          title: match[2].trim(),
+          content: match[3].trim(),
+          status: 'draft',
+          createdAt: Date.now()
+        });
+      }
+      return found;
+    }
+    function stripArtifactMarkers(text) {
+      return text.replace(/\[\[ARTIFACT:[^\]]+\]\]/g, '').replace(/\[\[\/ARTIFACT\]\]/g, '').trim();
+    }
+
+    function parseCalendar(content) {
+      const lines = content.split('\n').map(l => l.trim()).filter(Boolean);
+      const items = [];
+      for (const line of lines) {
+        const parts = line.split('|').map(p => p.trim());
+        if (parts.length >= 3 && /^\d{4}-\d{2}-\d{2}/.test(parts[0])) {
+          items.push({ date: parts[0], channel: parts[1], asset: parts[2], notes: parts[3] || '' });
+        }
+      }
+      return items;
+    }
+
+    function renderCalendar(items) {
+      if (!items.length) return '';
+      const byDate = {};
+      items.forEach(i => {
+        if (!byDate[i.date]) byDate[i.date] = [];
+        byDate[i.date].push(i);
+      });
+      const dates = Object.keys(byDate).sort();
+      return `<div class="cal-grid">${dates.map(d => `
+        <div class="cal-day">
+          <div class="cal-day-date">${d}</div>
+          ${byDate[d].map(i => `
+            <div class="cal-item">
+              <span class="cal-channel">${escapeHtml(i.channel)}</span>
+              ${escapeHtml(i.asset)}${i.notes ? ' · ' + escapeHtml(i.notes) : ''}
+            </div>
+          `).join('')}
+        </div>
+      `).join('')}</div>`;
+    }
+
+    function renderArtifactSelect() {
+      const sel = document.getElementById('artifactSelect');
+      const p = activeProject();
+      const arts = p?.artifacts || [];
+      const badge = document.getElementById('artifactBadge');
+      if (arts.length) {
+        badge.textContent = arts.length;
+        badge.classList.remove('hidden');
+      } else badge.classList.add('hidden');
+
+      if (!arts.length) {
+        sel.innerHTML = '<option value="">No artifacts yet</option>';
+        setShowroomButtonsEnabled(false);
+        exitArtifactEditMode();
+        document.getElementById('showroomPreview').innerHTML = `<div class="preview-empty">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <div>Artifacts from Lena appear here.</div>
+        </div>`;
+        return;
+      }
+      sel.innerHTML = arts.map(a =>
+        `<option value="${a.id}">${escapeHtml(a.title)} (${a.type}) — ${a.status}</option>`
+      ).join('');
+      if (editingArtifactId && arts.some(a => a.id === editingArtifactId)) {
+        sel.value = editingArtifactId;
+      } else if (!arts.some(a => a.id === sel.value)) {
+        sel.value = arts[arts.length - 1].id;
+      }
+      updatePreview();
+    }
+
+    function setShowroomButtonsEnabled(has, art) {
+      document.getElementById('btnCopyArtifact').disabled = !has;
+      document.getElementById('btnInlineEdit').disabled = !has;
+      document.getElementById('btnAskLena').disabled = !has;
+      document.getElementById('btnAcceptArtifact').disabled = !has || art?.status === 'ready';
+    }
+
+    function setShowroomMode(edit) {
+      document.getElementById('showroomActionsView').classList.toggle('hidden', edit);
+      document.getElementById('showroomActionsEdit').classList.toggle('hidden', !edit);
+      document.getElementById('artifactSelect').disabled = edit;
+    }
+
+    function exitArtifactEditMode() {
+      editingArtifactId = null;
+      setShowroomMode(false);
+    }
+
+    function enterArtifactEditMode(art) {
+      if (!art) return;
+      editingArtifactId = art.id;
+      setShowroomMode(true);
+      updatePreview();
+      const area = document.getElementById('artifactEditArea');
+      if (area) {
+        area.focus();
+        area.setSelectionRange(area.value.length, area.value.length);
+      }
+    }
+
+    function saveArtifactEdit() {
+      const p = activeProject();
+      if (!p || !editingArtifactId) return;
+      const art = p.artifacts.find(a => a.id === editingArtifactId);
+      if (!art) return;
+      const titleEl = document.getElementById('artifactEditTitle');
+      const area = document.getElementById('artifactEditArea');
+      const newTitle = (titleEl?.value || '').trim();
+      const newContent = area?.value ?? '';
+      if (!newTitle) {
+        toast('Title is required');
+        titleEl?.focus();
+        return;
+      }
+      art.title = newTitle;
+      art.content = newContent;
+      if (art.status === 'ready') art.status = 'draft';
+      art.updatedAt = Date.now();
+      p.updatedAt = Date.now();
+      exitArtifactEditMode();
+      saveState();
+      renderArtifactSelect();
+      updateProjectBanner();
+      toast('Artifact saved');
+    }
+
+    function updatePreview() {
+      const id = document.getElementById('artifactSelect').value;
+      const preview = document.getElementById('showroomPreview');
+      const p = activeProject();
+      const art = p?.artifacts.find(a => a.id === id);
+      const has = !!art;
+      const isEditing = has && editingArtifactId === art.id;
+
+      if (!isEditing) {
+        setShowroomButtonsEnabled(has, art);
+        setShowroomMode(false);
+      }
+
+      if (!art) {
+        exitArtifactEditMode();
+        preview.innerHTML = `<div class="preview-empty"><div>Select an artifact.</div></div>`;
+        return;
+      }
+
+      if (isEditing) {
+        preview.innerHTML = `<div class="artifact-card">
+          <p class="edit-hint">Editing · changes save locally. Status resets to draft if it was accepted.</p>
+          <input type="text" class="artifact-edit-title" id="artifactEditTitle" value="${escapeHtml(art.title)}" maxlength="120" />
+          <div class="meta" style="margin-bottom:10px">
+            <span class="status-badge draft">editing</span>
+            <span>${escapeHtml(art.type)}</span>
+          </div>
+          <textarea class="artifact-edit-area" id="artifactEditArea" spellcheck="true">${escapeHtml(art.content)}</textarea>
+          <div class="artifact-edit-actions">
+            <button class="btn btn-primary" id="btnSaveArtifactInline">Save</button>
+            <button class="btn btn-secondary" id="btnCancelEditInline">Cancel</button>
+          </div>
+        </div>`;
+        document.getElementById('btnSaveArtifactInline')?.addEventListener('click', saveArtifactEdit);
+        document.getElementById('btnCancelEditInline')?.addEventListener('click', () => {
+          exitArtifactEditMode();
+          updatePreview();
+        });
+        const area = document.getElementById('artifactEditArea');
+        area?.addEventListener('keydown', (e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+            e.preventDefault();
+            saveArtifactEdit();
+          }
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            exitArtifactEditMode();
+            updatePreview();
+          }
+        });
+        return;
+      }
+
+      const statusClass = art.status === 'ready' ? 'ready' : art.status === 'scheduled' ? 'scheduled' : 'draft';
+      let bodyHtml = simpleMarkdown(art.content);
+      let calToggle = '';
+      if (art.type === 'calendar') {
+        const items = parseCalendar(art.content);
+        if (items.length) {
+          calToggle = `<div class="view-toggle">
+            <button class="btn btn-secondary active" data-view="cal">Calendar</button>
+            <button class="btn btn-secondary" data-view="text">Text</button>
+          </div>
+          <div id="calView">${renderCalendar(items)}</div>
+          <div id="textView" class="artifact-body hidden">${bodyHtml}</div>`;
+          bodyHtml = '';
+        }
+      }
+      const updated = art.updatedAt ? ` · edited ${formatTime(art.updatedAt)}` : '';
+      preview.innerHTML = `<div class="artifact-card">
+        <h3>${escapeHtml(art.title)}</h3>
+        <div class="meta">
+          <span class="status-badge ${statusClass}">${art.status}</span>
+          <span>${escapeHtml(art.type)}</span>
+          <span>${formatTime(art.createdAt)}${updated}</span>
+        </div>
+        ${calToggle}
+        <div class="artifact-body">${bodyHtml}</div>
+      </div>`;
+
+      preview.querySelectorAll('[data-view]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          preview.querySelectorAll('[data-view]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const isCal = btn.dataset.view === 'cal';
+          document.getElementById('calView')?.classList.toggle('hidden', !isCal);
+          document.getElementById('textView')?.classList.toggle('hidden', isCal);
+        });
+      });
+    }
+
+    // ─── Projects list ───────────────────────────────────────
+    function renderProjects() {
+      const list = document.getElementById('projectsList');
+      if (!state.projects.length) {
+        list.innerHTML = `<div class="preview-empty" style="grid-column:1/-1;"><div>No projects yet.<br/>Chat with Lena or create one.</div></div>`;
+        return;
+      }
+      list.innerHTML = state.projects.map(p => `
+        <div class="project-card ${p.id === state.activeProjectId ? 'active' : ''}" data-id="${p.id}">
+          <h3>${escapeHtml(p.name)}</h3>
+          <div class="meta">
+            <span>${p.artifacts?.length || 0} artifacts</span>
+            <span>${p.messages?.length || 0} messages</span>
+            <span>${formatDate(p.updatedAt || p.createdAt)}</span>
+            <span>${escapeHtml(p.status || 'In progress')}</span>
+          </div>
+          <div class="project-card-actions">
+            <button class="btn btn-secondary" data-open="${p.id}">Open</button>
+            <button class="btn btn-ghost" data-rename="${p.id}">Rename</button>
+            <button class="btn btn-danger" data-del-proj="${p.id}">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateProjectBanner() {
+      const banner = document.getElementById('projectBanner');
+      const p = activeProject();
+      if (p) {
+        banner.classList.add('visible');
+        document.getElementById('projectName').textContent = p.name;
+        document.getElementById('projectStatus').textContent =
+          `${p.artifacts?.length || 0} artifact${(p.artifacts?.length || 0) !== 1 ? 's' : ''} · ${p.status || 'In progress'}`;
+        document.getElementById('headerStatus').textContent = p.name;
+      } else {
+        banner.classList.remove('visible');
+        document.getElementById('headerStatus').textContent = state.apiKey ? 'Ready' : 'Add API key';
+      }
+    }
+
+    // ─── Skills ──────────────────────────────────────────────
+    function renderSkills() {
+      const list = document.getElementById('skillsList');
+      if (!state.skills.length) {
+        list.innerHTML = '<div class="form-hint">No skills yet.</div>';
+        return;
+      }
+      list.innerHTML = state.skills.map(s => `
+        <div class="skill-item">
+          <div class="skill-info">
+            <div class="skill-name">${escapeHtml(s.name)}</div>
+            <div class="skill-desc">${escapeHtml(s.description || '')}</div>
+          </div>
+          <div class="skill-actions">
+            <button class="icon-btn" data-edit="${s.id}" title="Edit"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+            <button class="icon-btn" data-del="${s.id}" title="Delete"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ─── Groq API (streaming + multimodal) ───────────────────
+    function buildMessagesForApi(projectMessages) {
+      const skillsBlock = state.skills.length
+        ? '\n\nAvailable skills:\n' + state.skills.map(s => `- ${s.name}: ${s.description}\n  Instructions: ${s.prompt}`).join('\n')
+        : '';
+      const systemContent = (state.systemPrompt || defaultSystem) + skillsBlock;
+
+      const apiMessages = [{ role: 'system', content: systemContent }];
+      for (const m of projectMessages) {
+        if (m.role === 'system') continue;
+        if (m.images?.length && VISION_MODELS.includes(state.model)) {
+          const content = [];
+          m.images.forEach(dataUrl => {
+            content.push({ type: 'image_url', image_url: { url: dataUrl } });
+          });
+          content.push({ type: 'text', text: m.content || '(see image)' });
+          apiMessages.push({ role: m.role, content });
+        } else {
+          let text = m.content;
+          if (m.images?.length) text = (text || '') + '\n[User attached image(s); switch to Qwen 3.8 27B for vision.]';
+          apiMessages.push({ role: m.role, content: text });
+        }
+      }
+      return apiMessages;
+    }
+
+    async function callGroqStream(projectMessages, onDelta) {
+      if (!state.apiKey) throw new Error('Add your Groq API key in Settings.');
+      const payload = {
+        model: state.model,
+        temperature: state.temperature,
+        messages: buildMessagesForApi(projectMessages),
+        max_tokens: 4096,
+        stream: true
+      };
+      abortController = new AbortController();
+      const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${state.apiKey}`
+        },
+        body: JSON.stringify(payload),
+        signal: abortController.signal
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || res.statusText || 'API error');
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let full = '';
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data:')) continue;
+          const data = trimmed.slice(5).trim();
+          if (data === '[DONE]') continue;
+          try {
+            const json = JSON.parse(data);
+            const delta = json.choices?.[0]?.delta?.content || '';
+            if (delta) {
+              full += delta;
+              onDelta(full, delta);
+            }
+          } catch (_) {}
+        }
+      }
+      return full;
+    }
+
+    async function callGroqOnce(projectMessages) {
+      if (!state.apiKey) throw new Error('Add your Groq API key in Settings.');
+      const payload = {
+        model: state.model,
+        temperature: state.temperature,
+        messages: buildMessagesForApi(projectMessages),
+        max_tokens: 4096,
+        stream: false
+      };
+      const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${state.apiKey}`
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || res.statusText || 'API error');
+      }
+      const data = await res.json();
+      return data.choices?.[0]?.message?.content || '';
+    }
+
+    async function sendMessage(text) {
+      if ((!text.trim() && !state.attachments.length) || isGenerating) return;
+      const p = ensureProject();
+      const images = state.attachments.filter(a => a.dataUrl).map(a => a.dataUrl);
+      const userMsg = {
+        role: 'user',
+        content: text.trim() || (images.length ? 'Please review the attached image(s).' : ''),
+        images: images.length ? images : undefined,
+        ts: Date.now()
+      };
+      p.messages.push(userMsg);
+      p.updatedAt = Date.now();
+      if (images.length && !VISION_MODELS.includes(state.model)) {
+        toast('Tip: switch to Qwen 3.8 27B in Settings for image understanding');
+      }
+      renderMessages();
+      document.getElementById('chatInput').value = '';
+      autoResize(document.getElementById('chatInput'));
+      updateSendBtn();
+      clearAttachments();
+      saveState();
+      updateProjectBanner();
+
+      isGenerating = true;
+      document.getElementById('headerStatus').textContent = 'Thinking…';
+      showTyping(true);
+
+      try {
+        let reply;
+        if (state.stream) {
+          const bubble = startStreamBubble();
+          reply = await callGroqStream(p.messages, (full) => {
+            bubble.textContent = stripArtifactMarkers(full) || full;
+            bubble.classList.add('stream-cursor');
+            document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+          });
+          bubble.classList.remove('stream-cursor');
+          document.getElementById('streamMsg')?.remove();
+        } else {
+          reply = await callGroqOnce(p.messages);
+        }
+
+        const artifacts = extractArtifacts(reply);
+        const displayText = stripArtifactMarkers(reply) || reply;
+        p.messages.push({ role: 'assistant', content: displayText, ts: Date.now() });
+        if (artifacts.length) {
+          p.artifacts.push(...artifacts);
+          if (p.name === 'Untitled campaign') {
+            const plan = artifacts.find(a => a.type === 'plan');
+            if (plan) p.name = plan.title.slice(0, 60);
+          }
+          renderArtifactSelect();
+          toast(`${artifacts.length} artifact${artifacts.length > 1 ? 's' : ''} → Showroom`);
+        }
+        p.updatedAt = Date.now();
+        saveState();
+        renderMessages();
+        updateProjectBanner();
+        renderProjects();
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          toast('Cancelled');
+        } else {
+          p.messages.push({
+            role: 'assistant',
+            content: `I couldn't reach the model: ${err.message}\n\nCheck your API key and model in Settings.`,
+            ts: Date.now()
+          });
+          renderMessages();
+          toast(err.message);
+        }
+      } finally {
+        isGenerating = false;
+        showTyping(false);
+        document.getElementById('streamMsg')?.remove();
+        updateProjectBanner();
+        abortController = null;
+      }
+    }
+
+    // ─── Attachments (images as data URLs) ───────────────────
+    function clearAttachments() {
+      state.attachments = [];
+      document.getElementById('attachPreview').innerHTML = '';
+    }
+    function renderAttachments() {
+      const prev = document.getElementById('attachPreview');
+      prev.innerHTML = state.attachments.map((a, i) => `
+        <div class="attach-chip">
+          ${a.dataUrl ? `<img src="${a.dataUrl}" alt="" />` : ''}
+          <span>${escapeHtml(a.name)}</span>
+          <button data-rm="${i}" aria-label="Remove">×</button>
+        </div>
+      `).join('');
+    }
+    function readFileAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+    async function addAttachments(files) {
+      for (const f of files) {
+        if (!f.type.startsWith('image/')) continue;
+        if (f.size > 4 * 1024 * 1024) {
+          toast(`${f.name} too large (max 4MB)`);
+          continue;
+        }
+        try {
+          const dataUrl = await readFileAsDataURL(f);
+          state.attachments.push({ name: f.name, type: f.type, dataUrl });
+        } catch (_) {
+          toast('Could not read ' + f.name);
+        }
+      }
+      renderAttachments();
+      updateSendBtn();
+    }
+
+    // ─── Voice ───────────────────────────────────────────────
+    function initSpeech() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return;
+      recognition = new SR();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = navigator.language || 'en-US';
+      recognition.onresult = (e) => {
+        const t = e.results[0][0].transcript;
+        const input = document.getElementById('chatInput');
+        input.value = (input.value + ' ' + t).trim();
+        autoResize(input);
+        updateSendBtn();
+      };
+      recognition.onend = () => document.getElementById('btnMic').classList.remove('recording');
+      recognition.onerror = () => {
+        document.getElementById('btnMic').classList.remove('recording');
+        toast('Voice input failed');
+      };
+    }
+
+    // ─── Export ──────────────────────────────────────────────
+    function getExportPack() {
+      const p = activeProject();
+      if (!p) return null;
+      return {
+        exportedAt: new Date().toISOString(),
+        project: { id: p.id, name: p.name, goal: p.goal, status: p.status },
+        conversation: p.messages.map(m => ({ role: m.role, content: m.content, ts: m.ts })),
+        artifacts: p.artifacts,
+        skills: state.skills.map(s => s.name)
+      };
+    }
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    function exportJson() {
+      const pack = getExportPack();
+      if (!pack) { toast('No project'); return; }
+      const name = (pack.project.name || 'campaign').replace(/\s+/g, '-').toLowerCase();
+      downloadBlob(new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' }), `lena-${name}.json`);
+      toast('JSON downloaded');
+    }
+    function exportMarkdown() {
+      const pack = getExportPack();
+      if (!pack) { toast('No project'); return; }
+      let md = `# ${pack.project.name}\n\n**Status:** ${pack.project.status}\n**Exported:** ${pack.exportedAt}\n\n`;
+      if (pack.project.goal) md += `## Goal\n${pack.project.goal}\n\n`;
+      md += `## Artifacts\n\n`;
+      pack.artifacts.forEach(a => {
+        md += `### ${a.title} (${a.type}) — ${a.status}\n\n${a.content}\n\n---\n\n`;
+      });
+      md += `## Conversation\n\n`;
+      pack.conversation.forEach(m => {
+        md += `**${m.role === 'assistant' ? 'Lena' : 'You'}:** ${m.content}\n\n`;
+      });
+      const name = (pack.project.name || 'campaign').replace(/\s+/g, '-').toLowerCase();
+      downloadBlob(new Blob([md], { type: 'text/markdown' }), `lena-${name}.md`);
+      toast('Markdown downloaded');
+    }
+    function exportHtml() {
+      const pack = getExportPack();
+      if (!pack) { toast('No project'); return; }
+      const arts = pack.artifacts.map(a => `
+        <section style="margin-bottom:2rem;padding:1.25rem;border:1px solid #e2e8f0;border-radius:12px;">
+          <h2 style="margin:0 0 .5rem;font-size:1.15rem;">${escapeHtml(a.title)}</h2>
+          <p style="margin:0 0 1rem;font-size:.85rem;color:#64748b;">${a.type} · ${a.status}</p>
+          <div style="white-space:pre-wrap;line-height:1.6;">${escapeHtml(a.content)}</div>
+        </section>`).join('');
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(pack.project.name)}</title>
+        <style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;color:#0f172a;line-height:1.5}
+        h1{font-size:1.5rem} .meta{color:#64748b;font-size:.9rem;margin-bottom:2rem}</style></head>
+        <body><h1>${escapeHtml(pack.project.name)}</h1>
+        <p class="meta">Exported ${escapeHtml(pack.exportedAt)} · ${pack.artifacts.length} artifacts</p>
+        ${pack.project.goal ? `<p><strong>Goal:</strong> ${escapeHtml(pack.project.goal)}</p>` : ''}
+        ${arts}
+        <hr/><h2>Conversation</h2>
+        ${pack.conversation.map(m => `<p><strong>${m.role === 'assistant' ? 'Lena' : 'You'}:</strong> ${escapeHtml(m.content)}</p>`).join('')}
+        </body></html>`;
+      const name = (pack.project.name || 'campaign').replace(/\s+/g, '-').toLowerCase();
+      downloadBlob(new Blob([html], { type: 'text/html' }), `lena-${name}.html`);
+      toast('HTML report downloaded');
+    }
+
+    // ─── Settings sync ───────────────────────────────────────
+    function syncSettingsUI() {
+      document.getElementById('apiKey').value = state.apiKey || '';
+      document.getElementById('modelSelect').value = state.model;
+      document.getElementById('temperature').value = state.temperature;
+      document.getElementById('tempValue').textContent = state.temperature;
+      document.getElementById('systemPrompt').value = state.systemPrompt || '';
+      const streamT = document.getElementById('toggleStream');
+      streamT.classList.toggle('on', state.stream !== false);
+      streamT.setAttribute('aria-checked', state.stream !== false);
+      const status = document.getElementById('keyStatus');
+      if (state.apiKey) {
+        status.className = 'key-status connected';
+        status.innerHTML = '<span class="dot"></span> <span>Key saved</span>';
+      } else {
+        status.className = 'key-status';
+        status.innerHTML = '<span class="dot"></span> <span>Not connected</span>';
+      }
+      applyTheme(state.theme);
+    }
+    function updateSendBtn() {
+      const has = document.getElementById('chatInput').value.trim().length > 0 || state.attachments.length > 0;
+      document.getElementById('btnSend').disabled = !has || isGenerating;
+    }
+
+    // ─── Events ──────────────────────────────────────────────
+    function bindEvents() {
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+          btn.classList.add('active');
+          const tab = btn.dataset.tab;
+          const map = { chat: 'tabChat', showroom: 'tabShowroom', projects: 'tabProjects' };
+          document.getElementById(map[tab]).classList.add('active');
+          if (tab === 'projects') renderProjects();
+          if (tab === 'showroom') renderArtifactSelect();
+        });
+      });
+
+      document.getElementById('headerBrand').addEventListener('click', () => {
+        document.querySelector('[data-tab="projects"]')?.click();
+      });
+
+      document.getElementById('btnTheme').addEventListener('click', () => {
+        applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+        saveState();
+      });
+
+      document.getElementById('btnSettings').addEventListener('click', () => {
+        syncSettingsUI();
+        document.getElementById('settingsOverlay').classList.add('open');
+      });
+      document.getElementById('btnCloseSettings').addEventListener('click', () => {
+        document.getElementById('settingsOverlay').classList.remove('open');
+      });
+      document.getElementById('temperature').addEventListener('input', e => {
+        document.getElementById('tempValue').textContent = e.target.value;
+      });
+      document.getElementById('toggleStream').addEventListener('click', function () {
+        this.classList.toggle('on');
+        this.setAttribute('aria-checked', this.classList.contains('on'));
+      });
+      document.getElementById('toggleDark').addEventListener('click', function () {
+        const on = !this.classList.contains('on');
+        applyTheme(on ? 'dark' : 'light');
+      });
+      document.getElementById('btnSaveKey').addEventListener('click', () => {
+        state.apiKey = document.getElementById('apiKey').value.trim();
+        state.model = document.getElementById('modelSelect').value;
+        state.temperature = parseFloat(document.getElementById('temperature').value);
+        state.systemPrompt = document.getElementById('systemPrompt').value.trim();
+        state.stream = document.getElementById('toggleStream').classList.contains('on');
+        saveState();
+        syncSettingsUI();
+        updateProjectBanner();
+        toast(state.apiKey ? 'Settings saved' : 'Key cleared');
+      });
+      document.getElementById('btnClearChat').addEventListener('click', () => {
+        const p = activeProject();
+        if (!p || !confirm('Clear conversation for this project? Artifacts are kept.')) return;
+        p.messages = [];
+        p.updatedAt = Date.now();
+        saveState();
+        renderMessages();
+        toast('Conversation cleared');
+      });
+      document.getElementById('btnResetAll').addEventListener('click', () => {
+        if (!confirm('Reset everything including projects, skills, and API key?')) return;
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem('lena_campaign_v1');
+        state = {
+          apiKey: '', model: 'openai/gpt-oss-20b', temperature: 0.7, systemPrompt: '',
+          stream: true, theme: state.theme, skills: [...defaultSkills],
+          projects: [], activeProjectId: null, attachments: []
+        };
+        saveState();
+        renderMessages();
+        renderSkills();
+        renderArtifactSelect();
+        renderProjects();
+        updateProjectBanner();
+        syncSettingsUI();
+        toast('All data reset');
+      });
+
+      // Skills
+      document.getElementById('btnSkills').addEventListener('click', () => {
+        renderSkills();
+        document.getElementById('skillsOverlay').classList.add('open');
+      });
+      document.getElementById('btnCloseSkills').addEventListener('click', () => {
+        document.getElementById('skillsOverlay').classList.remove('open');
+      });
+      document.getElementById('btnNewSkill').addEventListener('click', () => {
+        editingSkillId = null;
+        document.getElementById('skillModalTitle').textContent = 'New skill';
+        document.getElementById('skillName').value = '';
+        document.getElementById('skillDesc').value = '';
+        document.getElementById('skillPrompt').value = '';
+        document.getElementById('skillModal').classList.add('open');
+      });
+      document.getElementById('btnCancelSkill').addEventListener('click', () => {
+        document.getElementById('skillModal').classList.remove('open');
+      });
+      document.getElementById('btnSaveSkill').addEventListener('click', () => {
+        const name = document.getElementById('skillName').value.trim();
+        if (!name) { toast('Name required'); return; }
+        const skill = {
+          id: editingSkillId || ('skill_' + Date.now()),
+          name,
+          description: document.getElementById('skillDesc').value.trim(),
+          prompt: document.getElementById('skillPrompt').value.trim()
+        };
+        if (editingSkillId) {
+          const i = state.skills.findIndex(s => s.id === editingSkillId);
+          if (i >= 0) state.skills[i] = skill;
+        } else state.skills.push(skill);
+        saveState();
+        renderSkills();
+        document.getElementById('skillModal').classList.remove('open');
+        toast('Skill saved');
+      });
+      document.getElementById('skillsList').addEventListener('click', e => {
+        const edit = e.target.closest('[data-edit]');
+        const del = e.target.closest('[data-del]');
+        if (edit) {
+          const s = state.skills.find(x => x.id === edit.dataset.edit);
+          if (!s) return;
+          editingSkillId = s.id;
+          document.getElementById('skillModalTitle').textContent = 'Edit skill';
+          document.getElementById('skillName').value = s.name;
+          document.getElementById('skillDesc').value = s.description || '';
+          document.getElementById('skillPrompt').value = s.prompt || '';
+          document.getElementById('skillModal').classList.add('open');
+        }
+        if (del) {
+          if (!confirm('Delete this skill?')) return;
+          state.skills = state.skills.filter(s => s.id !== del.dataset.del);
+          saveState();
+          renderSkills();
+          toast('Deleted');
+        }
+      });
+
+      // Projects
+      document.getElementById('btnNewProject').addEventListener('click', () => {
+        document.getElementById('projectModalTitle').textContent = 'New project';
+        document.getElementById('projName').value = '';
+        document.getElementById('projGoal').value = '';
+        document.getElementById('projectModal').classList.add('open');
+      });
+      document.getElementById('btnCancelProject').addEventListener('click', () => {
+        document.getElementById('projectModal').classList.remove('open');
+      });
+      document.getElementById('btnSaveProject').addEventListener('click', () => {
+        const name = document.getElementById('projName').value.trim() || 'Untitled campaign';
+        const p = {
+          id: 'proj_' + Date.now(),
+          name,
+          goal: document.getElementById('projGoal').value.trim(),
+          status: 'In progress',
+          messages: [],
+          artifacts: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        state.projects.unshift(p);
+        state.activeProjectId = p.id;
+        saveState();
+        document.getElementById('projectModal').classList.remove('open');
+        renderProjects();
+        renderMessages();
+        renderArtifactSelect();
+        updateProjectBanner();
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.querySelector('[data-tab="chat"]').classList.add('active');
+        document.getElementById('tabChat').classList.add('active');
+        toast('Project created');
+      });
+      document.getElementById('projectsList').addEventListener('click', e => {
+        const open = e.target.closest('[data-open]');
+        const del = e.target.closest('[data-del-proj]');
+        const rename = e.target.closest('[data-rename]');
+        if (open) {
+          state.activeProjectId = open.dataset.open;
+          saveState();
+          renderMessages();
+          renderArtifactSelect();
+          updateProjectBanner();
+          renderProjects();
+          document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+          document.querySelector('[data-tab="chat"]').classList.add('active');
+          document.getElementById('tabChat').classList.add('active');
+        }
+        if (del) {
+          if (!confirm('Delete this project and all its data?')) return;
+          state.projects = state.projects.filter(p => p.id !== del.dataset.delProj);
+          if (state.activeProjectId === del.dataset.delProj) {
+            state.activeProjectId = state.projects[0]?.id || null;
+          }
+          saveState();
+          renderProjects();
+          renderMessages();
+          renderArtifactSelect();
+          updateProjectBanner();
+          toast('Project deleted');
+        }
+        if (rename) {
+          const p = state.projects.find(x => x.id === rename.dataset.rename);
+          if (!p) return;
+          const n = prompt('Rename project', p.name);
+          if (n?.trim()) {
+            p.name = n.trim();
+            p.updatedAt = Date.now();
+            saveState();
+            renderProjects();
+            updateProjectBanner();
+          }
+        }
+      });
+
+      // Chat
+      const input = document.getElementById('chatInput');
+      input.addEventListener('input', () => { autoResize(input); updateSendBtn(); });
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage(input.value);
+        }
+      });
+      document.getElementById('btnSend').addEventListener('click', () => sendMessage(input.value));
+      document.getElementById('suggestions').addEventListener('click', e => {
+        const chip = e.target.closest('.chip');
+        if (chip) sendMessage(chip.dataset.prompt);
+      });
+
+      document.getElementById('btnAttach').addEventListener('click', () => document.getElementById('fileInput').click());
+      document.getElementById('fileInput').addEventListener('change', e => {
+        if (e.target.files?.length) addAttachments([...e.target.files]);
+        e.target.value = '';
+      });
+      document.getElementById('attachPreview').addEventListener('click', e => {
+        const btn = e.target.closest('[data-rm]');
+        if (btn) {
+          state.attachments.splice(+btn.dataset.rm, 1);
+          renderAttachments();
+          updateSendBtn();
+        }
+      });
+
+      document.getElementById('btnMic').addEventListener('click', () => {
+        if (!recognition) { toast('Speech not supported in this browser'); return; }
+        const btn = document.getElementById('btnMic');
+        if (btn.classList.contains('recording')) { recognition.stop(); return; }
+        btn.classList.add('recording');
+        recognition.start();
+      });
+
+      // Showroom
+      document.getElementById('artifactSelect').addEventListener('change', () => {
+        if (editingArtifactId) {
+          exitArtifactEditMode();
+        }
+        updatePreview();
+      });
+      document.getElementById('btnCopyArtifact').addEventListener('click', () => {
+        const p = activeProject();
+        const art = p?.artifacts.find(a => a.id === document.getElementById('artifactSelect').value);
+        if (art) navigator.clipboard.writeText(art.content).then(() => toast('Copied')).catch(() => toast('Copy failed'));
+      });
+      document.getElementById('btnInlineEdit').addEventListener('click', () => {
+        const p = activeProject();
+        const art = p?.artifacts.find(a => a.id === document.getElementById('artifactSelect').value);
+        if (art) enterArtifactEditMode(art);
+      });
+      document.getElementById('btnAskLena').addEventListener('click', () => {
+        const p = activeProject();
+        const art = p?.artifacts.find(a => a.id === document.getElementById('artifactSelect').value);
+        if (!art) return;
+        if (editingArtifactId) exitArtifactEditMode();
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+        document.querySelector('[data-tab="chat"]').classList.add('active');
+        document.getElementById('tabChat').classList.add('active');
+        input.value = `Please revise the artifact "${art.title}" (${art.type}). Changes I want: `;
+        autoResize(input);
+        updateSendBtn();
+        input.focus();
+      });
+      document.getElementById('btnAcceptArtifact').addEventListener('click', () => {
+        const p = activeProject();
+        const art = p?.artifacts.find(a => a.id === document.getElementById('artifactSelect').value);
+        if (art) {
+          art.status = 'ready';
+          p.updatedAt = Date.now();
+          saveState();
+          renderArtifactSelect();
+          toast('Accepted');
+        }
+      });
+      document.getElementById('btnSaveArtifact').addEventListener('click', saveArtifactEdit);
+      document.getElementById('btnCancelEdit').addEventListener('click', () => {
+        exitArtifactEditMode();
+        updatePreview();
+      });
+
+      document.getElementById('btnExport').addEventListener('click', () => {
+        document.getElementById('exportModal').classList.add('open');
+      });
+      document.getElementById('btnCloseExport').addEventListener('click', () => {
+        document.getElementById('exportModal').classList.remove('open');
+      });
+      document.getElementById('btnExportJson').addEventListener('click', exportJson);
+      document.getElementById('btnExportHtml').addEventListener('click', exportHtml);
+      document.getElementById('btnExportMd').addEventListener('click', exportMarkdown);
+
+      ['skillModal', 'projectModal', 'exportModal'].forEach(id => {
+        document.getElementById(id).addEventListener('click', e => {
+          if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+        });
+      });
+    }
+
+    // ─── Init ────────────────────────────────────────────────
+    loadState();
+    initLenaEyeTracker();
+    bindEvents();
+    initSpeech();
+    renderMessages();
+    renderSkills();
+    renderArtifactSelect();
+    renderProjects();
+    updateProjectBanner();
+    syncSettingsUI();
+    updateSendBtn();
+  </script>
+</body>
+</html>

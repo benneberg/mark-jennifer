@@ -97,18 +97,18 @@ export function LibraryPanel({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search saved copy, briefs, tags…"
-          className="w-full min-h-[42px] px-3 py-2 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
+          className="w-full min-h-[42px] px-4 py-2 text-sm rounded-full glass-surface border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none"
         />
 
-        <div className="flex flex-wrap gap-1 p-1 rounded-lg bg-[var(--surface-muted)]">
+        <div className="flex flex-wrap gap-1 p-1 rounded-[20px] bg-[var(--surface-muted)] border border-[var(--border)]">
           {TYPE_FILTERS.map((tf) => (
             <button
               key={tf.id}
               type="button"
               onClick={() => setTypeFilter(tf.id)}
-              className={`min-h-[36px] px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+              className={`min-h-[34px] px-3 py-1 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
                 typeFilter === tf.id
-                  ? 'bg-[var(--surface)] text-[var(--text)] border border-[var(--border)]'
+                  ? 'bg-[var(--lime)] text-[#181817] shadow-sm'
                   : 'text-[var(--text-muted)] hover:text-[var(--text)]'
               }`}
             >
@@ -123,7 +123,7 @@ export function LibraryPanel({
               value={tagFilter}
               onChange={(e) => setTagFilter(e.target.value)}
               aria-label="Filter by tag"
-              className="min-h-[38px] px-2.5 py-1 text-xs rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
+              className="min-h-[38px] px-3.5 py-1 text-xs font-medium rounded-full glass-surface border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none"
             >
               <option value="all">All tags</option>
               {allTags.map((t) => (
@@ -143,7 +143,11 @@ export function LibraryPanel({
                 setSelectMode((s) => !s);
                 setSelectedIds([]);
               }}
-              className="min-h-[38px] px-3 py-1 text-xs font-medium rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
+              className={`min-h-[38px] px-4 py-1 text-xs font-semibold rounded-full border transition-colors ${
+                selectMode
+                  ? 'bg-[var(--obsidian)] text-[#F4EFE4] dark:bg-[var(--lime)] dark:text-[#181817] border-transparent'
+                  : 'glass-surface border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}
             >
               {selectMode ? 'Done selecting' : 'Select'}
             </button>
@@ -152,9 +156,9 @@ export function LibraryPanel({
       </div>
 
       {selectMode && selectedIds.length > 0 && (
-        <div className="p-2.5 rounded-lg bg-[var(--surface-muted)] border border-[var(--border)] flex flex-wrap items-center justify-between gap-2 text-xs">
-          <span className="font-medium text-[var(--text)]">{selectedIds.length} selected</span>
-          <div className="flex items-center gap-2">
+        <div className="p-3 rounded-[20px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] flex flex-wrap items-center justify-between gap-2 text-xs">
+          <span className="font-semibold text-[var(--text)]">{selectedIds.length} selected</span>
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() =>
@@ -163,7 +167,7 @@ export function LibraryPanel({
                   'json'
                 )
               }
-              className="px-2.5 py-1.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
+              className="px-3 py-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text)] font-medium"
             >
               Export JSON
             </button>
@@ -175,7 +179,7 @@ export function LibraryPanel({
                   'md'
                 )
               }
-              className="px-2.5 py-1.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
+              className="px-3 py-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text)] font-medium"
             >
               Export MD
             </button>
@@ -186,7 +190,7 @@ export function LibraryPanel({
                 setSelectedIds([]);
                 setSelectMode(false);
               }}
-              className="px-2.5 py-1.5 rounded-md bg-[var(--danger)] text-white"
+              className="px-3 py-1.5 rounded-full bg-[var(--tangerine)] text-[#181817] font-semibold"
             >
               Delete
             </button>
@@ -195,7 +199,7 @@ export function LibraryPanel({
       )}
 
       {filtered.length === 0 ? (
-        <div className="p-6 rounded-xl bg-[var(--bg)] border border-[var(--border)] text-center text-sm text-[var(--text-muted)]">
+        <div className="p-6 rounded-[24px] glass-surface border border-[var(--border)] text-center text-sm text-[var(--text-muted)]">
           {items.length === 0
             ? "Nothing saved yet. Tap 'Save to library' under any reply from Jennifer."
             : 'No saved items match your current filter.'}
@@ -207,7 +211,7 @@ export function LibraryPanel({
             return (
               <div
                 key={item.id}
-                className="p-3.5 rounded-xl bg-[var(--bg)] border border-[var(--border)] space-y-2"
+                className="p-4 rounded-[22px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] space-y-2.5"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2.5 min-w-0">
@@ -217,7 +221,7 @@ export function LibraryPanel({
                         checked={isSelected}
                         onChange={() => toggleSelect(item.id)}
                         aria-label={`Select ${item.title}`}
-                        className="mt-1 w-4 h-4 accent-[var(--accent)]"
+                        className="mt-1 w-4 h-4 accent-[#181817] dark:accent-[#EBEE2C]"
                       />
                     )}
                     <div className="min-w-0">
@@ -243,7 +247,7 @@ export function LibraryPanel({
                   {item.content}
                 </p>
 
-                <div className="flex items-center gap-1 pt-1">
+                <div className="flex items-center gap-1.5 pt-1">
                   <button
                     type="button"
                     onClick={() => {
@@ -251,7 +255,7 @@ export function LibraryPanel({
                       setCopiedId(item.id);
                       window.setTimeout(() => setCopiedId((c) => (c === item.id ? null : c)), 1500);
                     }}
-                    className="min-h-[36px] inline-flex items-center gap-1 px-2.5 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text)] rounded-md hover:bg-[var(--surface-muted)]"
+                    className="min-h-[36px] inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text)] rounded-full hover:bg-[var(--surface-muted)]"
                   >
                     {copiedId === item.id ? (
                       <>
@@ -268,7 +272,7 @@ export function LibraryPanel({
                   <button
                     type="button"
                     onClick={() => exportItems([item], 'md')}
-                    className="min-h-[36px] inline-flex items-center gap-1 px-2.5 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text)] rounded-md hover:bg-[var(--surface-muted)]"
+                    className="min-h-[36px] inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text)] rounded-full hover:bg-[var(--surface-muted)]"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>Export</span>
@@ -277,7 +281,7 @@ export function LibraryPanel({
                     type="button"
                     onClick={() => onDeleteItem(item.id)}
                     aria-label={`Delete ${item.title}`}
-                    className="min-h-[36px] inline-flex items-center gap-1 px-2.5 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--danger)] rounded-md hover:bg-[var(--danger-soft)] ml-auto"
+                    className="min-h-[36px] inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--danger)] rounded-full hover:bg-[var(--danger-soft)] ml-auto"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Delete</span>

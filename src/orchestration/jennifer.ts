@@ -263,6 +263,8 @@ export async function runJenniferTurn(params: {
     temperature: 0.4,
     maxTokens: PLANNER_MAX_TOKENS,
     signal,
+    onRetryWait: (waitMs) =>
+      callbacks.onStatus(`Rate-limit pause — resuming in ${Math.ceil(waitMs / 1000)}s…`),
   });
 
   const plan = parseDelegation(firstPass.content);
@@ -356,6 +358,10 @@ export async function runJenniferTurn(params: {
       temperature: expert.temperature ?? settings.temperature,
       maxTokens: EXPERT_MAX_TOKENS,
       signal,
+      onRetryWait: (waitMs) =>
+        callbacks.onStatus(
+          `${expert.name}: rate-limit pause — resuming in ${Math.ceil(waitMs / 1000)}s…`
+        ),
     });
 
     expertOutputs.push({
@@ -409,6 +415,8 @@ export async function runJenniferTurn(params: {
     maxTokens: SYNTHESIS_MAX_TOKENS,
     signal,
     onToken: callbacks.onToken,
+    onRetryWait: (waitMs) =>
+      callbacks.onStatus(`Rate-limit pause — finalizing in ${Math.ceil(waitMs / 1000)}s…`),
   });
 
   callbacks.onStatus(null);

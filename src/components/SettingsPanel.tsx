@@ -6,7 +6,6 @@ import {
   RefreshCw,
   ShieldCheck,
   Trash2,
-  Upload,
 } from 'lucide-react';
 import { APP_VERSION, PRIVACY_NOTICE } from '../constants';
 import { isWebCryptoAvailable, loadApiKey, saveApiKey } from '../storage/crypto';
@@ -159,26 +158,26 @@ export function SettingsPanel({
         : 'Creative';
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-5 pb-8">
       {savedNotice && (
-        <div className="flex items-center gap-1.5 text-xs text-[var(--success)]">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--lime)] text-[#181817] text-xs font-semibold">
           <Check className="w-3.5 h-3.5" />
           <span>{savedNotice} saved</span>
         </div>
       )}
 
       {/* 1. Provider */}
-      <section className="space-y-2.5">
+      <section className="p-4 rounded-[22px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] space-y-3">
         <h3 className="text-xs font-semibold text-[var(--text-muted)]">1. AI Provider</h3>
-        <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-[var(--surface-muted)]">
+        <div className="grid grid-cols-4 gap-1 p-1 rounded-full bg-[var(--surface-muted)] border border-[var(--border)]">
           {PROVIDERS.map((p) => (
             <button
               key={p.id}
               type="button"
               onClick={() => handleProviderChange(p.id)}
-              className={`min-h-[40px] px-2 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+              className={`min-h-[38px] px-2 py-1 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
                 settings.provider === p.id
-                  ? 'bg-[var(--surface)] text-[var(--text)] border border-[var(--border)]'
+                  ? 'bg-[var(--lime)] text-[#181817] shadow-sm'
                   : 'text-[var(--text-muted)] hover:text-[var(--text)]'
               }`}
             >
@@ -188,14 +187,14 @@ export function SettingsPanel({
         </div>
 
         {settings.provider === 'openai' && (
-          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-[var(--surface-muted)] border border-[var(--border)] text-xs text-[var(--text)]">
-            <AlertTriangle className="w-4 h-4 text-[var(--accent)] shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2.5 p-3 rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] text-xs text-[var(--text)]">
+            <AlertTriangle className="w-4 h-4 text-[var(--tangerine)] shrink-0 mt-0.5" />
             <span>Paid provider — API usage is billed directly by OpenAI to your account.</span>
           </div>
         )}
 
         {settings.provider === 'mock' && (
-          <div className="p-3 rounded-lg bg-[var(--surface-muted)] border border-[var(--border)] text-xs text-[var(--text-muted)]">
+          <div className="p-3 rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] text-xs text-[var(--text-muted)]">
             Demo Mode runs offline in your browser with simulated Hedetangen Brand DNA responses.
           </div>
         )}
@@ -203,11 +202,11 @@ export function SettingsPanel({
 
       {/* 2. API Key */}
       {settings.provider !== 'mock' && (
-        <section className="space-y-2.5">
+        <section className="p-4 rounded-[22px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold text-[var(--text-muted)]">2. API Key</h3>
             {hasStoredKey && keyStatus === 'valid' && (
-              <span className="inline-flex items-center gap-1 text-xs text-[var(--success)]">
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--success)]">
                 <Check className="w-3.5 h-3.5" />
                 <span>Saved encrypted</span>
               </span>
@@ -220,20 +219,20 @@ export function SettingsPanel({
             </p>
           )}
 
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col gap-2">
             <input
               type="password"
               value={keyInput}
               onChange={(e) => setKeyInput(e.target.value)}
               placeholder={hasStoredKey ? '•••••••••••••••• (key stored)' : 'Paste your API key'}
               autoComplete="off"
-              className="flex-1 min-h-[44px] px-3 py-2 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
+              className="w-full min-h-[44px] px-3.5 py-2 text-sm rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none"
             />
             <button
               type="button"
               onClick={handleValidateClick}
               disabled={keyStatus === 'validating'}
-              className="min-h-[44px] px-4 py-2 text-xs font-medium rounded-lg bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-50 whitespace-nowrap"
+              className="min-h-[42px] px-4 py-2 text-xs font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] disabled:opacity-50 transition-colors whitespace-nowrap"
             >
               {keyStatus === 'validating' ? 'Validating…' : 'Validate & load models'}
             </button>
@@ -243,7 +242,7 @@ export function SettingsPanel({
             <p className="text-xs text-[var(--danger)]">{keyError}</p>
           )}
 
-          <label className="flex items-center gap-2.5 text-xs text-[var(--text-muted)] cursor-pointer select-none pt-1">
+          <label className="flex items-center gap-2.5 text-xs text-[var(--text-muted)] cursor-pointer select-none pt-0.5">
             <input
               type="checkbox"
               checked={settings.rememberKey}
@@ -251,7 +250,7 @@ export function SettingsPanel({
                 await onUpdateSettings({ rememberKey: e.target.checked });
                 flashSaved('Key preference');
               }}
-              className="w-4 h-4 accent-[var(--accent)]"
+              className="w-4 h-4 accent-[#181817] dark:accent-[#EBEE2C]"
             />
             <span>Remember key on this device (AES-GCM encrypted in browser)</span>
           </label>
@@ -260,13 +259,13 @@ export function SettingsPanel({
 
       {/* 3. Model */}
       {settings.provider !== 'mock' && (
-        <section className="space-y-2.5">
+        <section className="p-4 rounded-[22px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold text-[var(--text-muted)]">3. Model</h3>
             <button
               type="button"
               onClick={onRefreshModels}
-              className="inline-flex items-center gap-1 text-xs text-[var(--accent-text)] hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-medium text-[var(--text)] hover:text-[var(--tangerine)] transition-colors"
             >
               <RefreshCw className="w-3 h-3" />
               <span>Refresh</span>
@@ -278,7 +277,7 @@ export function SettingsPanel({
             value={modelSearch}
             onChange={(e) => setModelSearch(e.target.value)}
             placeholder="Filter models…"
-            className="w-full min-h-[40px] px-3 py-2 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
+            className="w-full min-h-[40px] px-3.5 py-2 text-sm rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none"
           />
 
           <select
@@ -288,7 +287,7 @@ export function SettingsPanel({
               flashSaved('Model');
             }}
             aria-label="Select model"
-            className="w-full min-h-[44px] px-3 py-2 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
+            className="w-full min-h-[44px] px-3.5 py-2 text-sm rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none"
           >
             <option value="">— Select a model —</option>
             {freeModels.length > 0 && (
@@ -314,7 +313,7 @@ export function SettingsPanel({
           </select>
 
           {selectedModelMeta && (
-            <div className="p-2.5 rounded-lg bg-[var(--surface-muted)] border border-[var(--border)] text-xs text-[var(--text-muted)] space-y-1">
+            <div className="p-3 rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] text-xs text-[var(--text-muted)] space-y-1">
               <div className="font-mono-tabular text-[var(--text)]">
                 {selectedModelMeta.free ? 'Free tier' : 'Paid'}
                 {selectedModelMeta.contextWindow
@@ -333,7 +332,7 @@ export function SettingsPanel({
               value={manualModel}
               onChange={(e) => setManualModel(e.target.value)}
               placeholder="Or enter model ID manually…"
-              className="flex-1 min-h-[40px] px-3 py-1.5 text-xs rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
+              className="flex-1 min-h-[40px] px-3.5 py-1.5 text-xs rounded-[14px] bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none"
             />
             <button
               type="button"
@@ -343,7 +342,7 @@ export function SettingsPanel({
                 setManualModel('');
                 flashSaved('Model');
               }}
-              className="min-h-[40px] px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-muted)] disabled:opacity-40"
+              className="min-h-[40px] px-3.5 py-1.5 text-xs font-semibold rounded-full border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-muted)] disabled:opacity-40"
             >
               Use ID
             </button>
@@ -359,7 +358,7 @@ export function SettingsPanel({
       )}
 
       {/* 4. Temperature */}
-      <section className="space-y-2">
+      <section className="p-4 rounded-[22px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] space-y-2.5">
         <div className="flex items-center justify-between text-xs">
           <h3 className="font-semibold text-[var(--text-muted)]">4. Temperature</h3>
           <span className="font-mono-tabular text-[var(--text)]">
@@ -377,15 +376,15 @@ export function SettingsPanel({
             flashSaved('Temperature');
           }}
           aria-label="Temperature"
-          className="w-full accent-[var(--accent)]"
+          className="w-full accent-[#181817] dark:accent-[#EBEE2C]"
         />
       </section>
 
       {/* 5. Language & Theme */}
-      <section className="space-y-3">
+      <section className="p-4 rounded-[22px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] space-y-4">
         <div className="space-y-2">
           <h3 className="text-xs font-semibold text-[var(--text-muted)]">5. Output Language</h3>
-          <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-[var(--surface-muted)]">
+          <div className="grid grid-cols-4 gap-1 p-1 rounded-full bg-[var(--surface-muted)] border border-[var(--border)]">
             {LANGUAGES.map((l) => (
               <button
                 key={l.id}
@@ -394,9 +393,9 @@ export function SettingsPanel({
                   await onUpdateSettings({ language: l.id });
                   flashSaved('Language');
                 }}
-                className={`min-h-[40px] px-2 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                className={`min-h-[38px] px-2 py-1 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
                   settings.language === l.id
-                    ? 'bg-[var(--surface)] text-[var(--text)] border border-[var(--border)]'
+                    ? 'bg-[var(--lime)] text-[#181817] shadow-sm'
                     : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                 }`}
               >
@@ -408,7 +407,7 @@ export function SettingsPanel({
 
         <div className="space-y-2">
           <h3 className="text-xs font-semibold text-[var(--text-muted)]">Appearance</h3>
-          <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-[var(--surface-muted)]">
+          <div className="grid grid-cols-2 gap-1 p-1 rounded-full bg-[var(--surface-muted)] border border-[var(--border)]">
             {(['light', 'dark'] as ThemeMode[]).map((t) => (
               <button
                 key={t}
@@ -417,9 +416,9 @@ export function SettingsPanel({
                   await onUpdateSettings({ theme: t });
                   flashSaved('Theme');
                 }}
-                className={`min-h-[40px] px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${
+                className={`min-h-[38px] px-3 py-1 text-xs font-semibold rounded-full capitalize transition-all ${
                   settings.theme === t
-                    ? 'bg-[var(--surface)] text-[var(--text)] border border-[var(--border)]'
+                    ? 'bg-[var(--lime)] text-[#181817] shadow-sm'
                     : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                 }`}
               >
@@ -431,24 +430,24 @@ export function SettingsPanel({
       </section>
 
       {/* 6. Machine Prompt */}
-      <section className="space-y-2">
+      <section className="p-4 rounded-[22px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] space-y-2.5">
         <button
           type="button"
           onClick={() => setMachineOpen((o) => !o)}
-          className="text-xs font-semibold text-[var(--accent-text)] hover:underline"
+          className="text-xs font-semibold text-[var(--text)] hover:text-[var(--tangerine)] transition-colors"
         >
           {machineOpen ? 'Hide seasonal context prompt' : 'Add seasonal context (machine prompt)'}
         </button>
 
         {machineOpen && (
-          <div className="space-y-2">
+          <div className="space-y-2.5 pt-1">
             <textarea
               rows={3}
               maxLength={4000}
               value={machineDraft}
               onChange={(e) => setMachineDraft(e.target.value)}
               placeholder="Optional seasonal context, e.g. 'Summer 2026 campaign, bookings open in March.'"
-              className="w-full p-3 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
+              className="w-full p-3 text-sm rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none"
             />
             <div className="flex items-center justify-between gap-2">
               <span className="text-[11px] text-[var(--text-faint)]">
@@ -460,7 +459,7 @@ export function SettingsPanel({
                   await onUpdateSettings({ machinePrompt: machineDraft });
                   flashSaved('Seasonal context');
                 }}
-                className="min-h-[38px] px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-muted)]"
+                className="min-h-[36px] px-4 py-1 text-xs font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817]"
               >
                 Apply
               </button>
@@ -470,20 +469,20 @@ export function SettingsPanel({
       </section>
 
       {/* Studio Shortcuts */}
-      <section className="space-y-2 pt-2 border-t border-[var(--border)]">
+      <section className="p-4 rounded-[22px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] space-y-2.5">
         <h3 className="text-xs font-semibold text-[var(--text-muted)]">Studio Configuration</h3>
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={onOpenGuardrails}
-            className="min-h-[44px] px-3 py-2 text-xs font-medium rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] hover:bg-[var(--surface-muted)]"
+            className="min-h-[42px] px-3 py-2 text-xs font-semibold rounded-full border border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text)] hover:border-[var(--border-strong)]"
           >
             Brand Guardrails
           </button>
           <button
             type="button"
             onClick={onOpenExperts}
-            className="min-h-[44px] px-3 py-2 text-xs font-medium rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] hover:bg-[var(--surface-muted)]"
+            className="min-h-[42px] px-3 py-2 text-xs font-semibold rounded-full border border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text)] hover:border-[var(--border-strong)]"
           >
             Manage Experts
           </button>
@@ -491,13 +490,13 @@ export function SettingsPanel({
       </section>
 
       {/* 7. Data */}
-      <section className="space-y-2.5 pt-2 border-t border-[var(--border)]">
-        <h3 className="text-xs font-semibold text-[var(--text-muted)]">7. Backup & Data</h3>
+      <section className="p-4 rounded-[22px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] space-y-2.5">
+        <h3 className="text-xs font-semibold text-[var(--text-muted)]">7. Backup &amp; Data</h3>
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={onOpenImportExport}
-            className="min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] hover:bg-[var(--surface-muted)]"
+            className="min-h-[42px] inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-full border border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text)] hover:border-[var(--border-strong)]"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export / Import</span>
@@ -505,7 +504,7 @@ export function SettingsPanel({
           <button
             type="button"
             onClick={() => setClearModalOpen(true)}
-            className="min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-[var(--danger)] text-[var(--danger)] hover:bg-[var(--danger-soft)]"
+            className="min-h-[42px] inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-full bg-[var(--tangerine)] text-[#181817] hover:opacity-90"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Clear all data</span>
@@ -514,9 +513,9 @@ export function SettingsPanel({
       </section>
 
       {/* 8. About & Privacy */}
-      <section className="space-y-2 pt-2 border-t border-[var(--border)] text-xs text-[var(--text-muted)]">
+      <section className="px-1 space-y-2 text-xs text-[var(--text-muted)]">
         <div className="flex items-start gap-2">
-          <ShieldCheck className="w-4 h-4 text-[var(--accent)] shrink-0 mt-0.5" />
+          <ShieldCheck className="w-4 h-4 text-[var(--tangerine)] shrink-0 mt-0.5" />
           <p className="leading-relaxed">{PRIVACY_NOTICE}</p>
         </div>
         <button

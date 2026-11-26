@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Menu, PanelRightClose, PanelRightOpen, X } from 'lucide-react';
+import { Menu, Moon, PanelRightClose, PanelRightOpen, Sun, X } from 'lucide-react';
 import { ChatList } from './components/ChatList';
 import { Composer } from './components/Composer';
 import { ConfirmModal } from './components/ConfirmModal';
 import { DebugDrawer } from './components/DebugDrawer';
 import { ExpertEditor } from './components/ExpertEditor';
+import { EyeEmblem, useGlobalEyeTracker } from './components/EyeEmblem';
 import { GuardrailsEditor } from './components/GuardrailsEditor';
 import { ImportExportModal } from './components/ImportExportModal';
 import { LibraryPanel } from './components/LibraryPanel';
@@ -12,6 +13,7 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { ToastContainer } from './components/ToastContainer';
 import { Wizard } from './components/Wizard';
 import { LS_KEYS } from './constants';
+import { MODEL_METADATA } from './data/model-metadata';
 import { createSeedGuardrails } from './data/seed-guardrails';
 import { runJenniferTurn } from './orchestration/jennifer';
 import { createProvider, fetchAndCacheModels } from './providers';
@@ -104,6 +106,8 @@ export default function App() {
   const delegatedExpertsRef = useRef<string[]>([]);
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
 
+  useGlobalEyeTracker('studioEyeBadge');
+
   const pushToast = useCallback(
     (message: string, variant: ToastItem['variant'] = 'info') => {
       const id = generateId();
@@ -121,7 +125,7 @@ export default function App() {
     );
   }, []);
 
-  // Sync theme to <html>
+  // Sync theme to <html> and mobile theme-color meta
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute('data-theme', settings.theme);
@@ -129,6 +133,10 @@ export default function App() {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
+    }
+    const metaTheme = document.getElementById('themeColor');
+    if (metaTheme) {
+      metaTheme.setAttribute('content', settings.theme === 'dark' ? '#111110' : '#F4EFE4');
     }
   }, [settings.theme]);
 
@@ -223,6 +231,11 @@ export default function App() {
     [settings, pushToast]
   );
 
+  const handleToggleTheme = useCallback(() => {
+    const nextTheme = settings.theme === 'dark' ? 'light' : 'dark';
+    handleUpdateSettings({ theme: nextTheme });
+  }, [handleUpdateSettings, settings.theme]);
+
   const handleEnableDemoMode = useCallback(async () => {
     await handleUpdateSettings({
       provider: 'mock',
@@ -276,8 +289,15 @@ export default function App() {
   }, [settings.provider, settings.model, hasKey]);
 
   const altModelId = useMemo(() => {
-    const candidates = models.filter((m) => m.id !== settings.model && (settings.provider === 'openai' || m.free));
-    return candidates[0]?.id;
+    const preferredOrder = Object.keys(MODEL_METADATA[settings.provider] ?? {});
+    const candidates = models.filter(
+      (m) =>
+        m.id !== settings.model &&
+        (settings.provider === 'openai' || m.free) &&
+        !m.id.toLowerCase().includes('allam')
+    );
+    const curated = preferredOrder.find((id) => candidates.some((c) => c.id === id));
+    return curated ?? candidates[0]?.id;
   }, [models, settings.model, settings.provider]);
 
   const executeTurn = useCallback(
@@ -612,29 +632,41 @@ export default function App() {
 
   if (!ready) {
     return (
-      <div className="min-h-dvh flex items-center justify-center bg-[var(--bg)] text-[var(--text-muted)] text-sm">
-        Opening Hedetangen AI Studio…
+      <div className="relative z-[1] min-h-dvh flex flex-col items-center justify-center gap-3 text-[var(--text-muted)] text-sm">
+        <EyeEmblem size="lg" />
+        <span>Opening Hedetangen Studio…</span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-dvh h-dvh flex flex-col bg-[var(--bg)] text-[var(--text)] overflow-hidden">
-      {/* Top Bar — 3-zone single-row contract */}
-      <header className="sticky top-0 z-30 shrink-0 h-14 pt-[env(safe-area-inset-top)] bg-[var(--surface)] border-b border-[var(--border)] px-3 sm:px-6 flex items-center justify-between gap-4 md:gap-8">
-        {/* Zone 1: Brand Title */}
+    <div className="relative z-[1] min-h-dvh h-dvh flex flex-col text-[var(--text)] overflow-hidden">
+      {/* Top Bar — glassmorphic bar with interactive top-left Eye Emblem */}
+      <header className="sticky top-0 z-30 shrink-0 h-16 pt-[env(safe-area-inset-top)] glass-surface border-b border-[var(--border)] px-3 sm:px-6 flex items-center justify-between gap-4 md:gap-8">
+        {/* Zone 1: Interactive Eye Emblem + Brand Title */}
         <div className="flex items-center gap-2 min-w-0">
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
             aria-label="Open menu"
-            className="md:hidden min-h-[44px] min-w-[44px] -ml-2 flex items-center justify-center rounded-lg text-[var(--text)] hover:bg-[var(--surface-muted)]"
+            className="md:hidden min-h-[44px] min-w-[44px] -ml-1 flex items-center justify-center rounded-full text-[var(--text)] hover:bg-[var(--surface-muted)] transition-colors"
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="text-lg font-semibold tracking-tight text-[var(--text)] whitespace-nowrap shrink-0">
-            Hedetangen
-          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setActivePanel(null);
+              composerInputRef.current?.focus();
+            }}
+            className="flex items-center gap-2.5 min-w-0 text-left rounded-full pr-1 focus-visible:outline-none"
+            title="Return to chat"
+          >
+            <EyeEmblem size="sm" badgeId="studioEyeBadge" />
+            <span className="text-[17px] font-semibold tracking-[-0.02em] text-[var(--text)] whitespace-nowrap shrink-0">
+              Hedetangen
+            </span>
+          </button>
         </div>
 
         {/* Zone 2: Clean single-line text links (desktop) */}
@@ -677,19 +709,38 @@ export default function App() {
           </button>
         </nav>
 
-        {/* Zone 3: Primary action */}
+        {/* Zone 3: Theme quick toggle + Settings */}
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
+            onClick={handleToggleTheme}
+            aria-label={settings.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            title={settings.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            className="w-10 h-10 rounded-full glass-surface border border-[var(--border)] hover:border-[var(--border-strong)] flex items-center justify-center text-[var(--text)] transition-transform hover:scale-[1.04] active:scale-[0.96]"
+          >
+            {settings.theme === 'dark' ? (
+              <Sun className="w-[18px] h-[18px]" />
+            ) : (
+              <Moon className="w-[18px] h-[18px]" />
+            )}
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActivePanel((p) => (p === 'library' ? null : 'library'))}
-            className="md:hidden min-h-[40px] px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] whitespace-nowrap shrink-0"
+            className="md:hidden min-h-[40px] px-3.5 py-1.5 text-xs font-semibold rounded-full glass-surface border border-[var(--border)] text-[var(--text)] whitespace-nowrap shrink-0"
           >
             Library
           </button>
+
           <button
             type="button"
             onClick={() => setActivePanel((p) => (p === 'settings' ? null : 'settings'))}
-            className="min-h-[40px] px-3.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg bg-[var(--accent)] text-white hover:opacity-90 transition-opacity whitespace-nowrap shrink-0"
+            className={`min-h-[40px] px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-full transition-all whitespace-nowrap shrink-0 ${
+              activePanel === 'settings'
+                ? 'bg-[var(--obsidian)] text-[#F4EFE4] dark:bg-[var(--sand)] dark:text-[#181817]'
+                : 'bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] shadow-[var(--shadow)]'
+            }`}
           >
             Settings
           </button>
@@ -753,13 +804,13 @@ export default function App() {
         {activePanel && (
           <aside
             aria-label={panelTitles[activePanel]}
-            className="fixed inset-0 z-40 md:static md:inset-auto md:z-20 md:w-[380px] xl:w-[400px] shrink-0 bg-[var(--surface)] md:border-l border-[var(--border)] flex flex-col shadow-[var(--shadow-drawer)] md:shadow-none"
+            className="fixed inset-0 z-40 md:static md:inset-auto md:z-20 md:w-[390px] xl:w-[420px] shrink-0 bg-[var(--bg)] md:bg-[var(--surface)] md:backdrop-blur-xl md:border-l border-[var(--border)] flex flex-col shadow-[var(--shadow-drawer)] md:shadow-none"
           >
-            <div className="h-14 px-4 border-b border-[var(--border)] flex items-center justify-between gap-2 shrink-0">
-              <h2 className="text-sm font-semibold text-[var(--text)] truncate">
+            <div className="h-16 px-5 glass-surface md:bg-transparent border-b border-[var(--border)] flex items-center justify-between gap-2 shrink-0">
+              <h2 className="text-lg font-light tracking-[-0.015em] text-[var(--text)] truncate">
                 {panelTitles[activePanel]}
               </h2>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
                   onClick={() => {
@@ -769,7 +820,7 @@ export default function App() {
                   }}
                   title={railPinned ? 'Unpin panel' : 'Pin panel on desktop'}
                   aria-label={railPinned ? 'Unpin panel' : 'Pin panel'}
-                  className="hidden xl:flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-muted)]"
+                  className="hidden xl:flex min-h-[38px] min-w-[38px] items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)] transition-colors"
                 >
                   {railPinned ? (
                     <PanelRightClose className="w-4 h-4" />
@@ -781,14 +832,14 @@ export default function App() {
                   type="button"
                   onClick={() => setActivePanel(null)}
                   aria-label="Close panel"
-                  className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-muted)]"
+                  className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)] transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5">
               {activePanel === 'settings' && (
                 <SettingsPanel
                   settings={settings}
@@ -876,19 +927,23 @@ export default function App() {
       {/* Mobile Navigation Sheet */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-50 md:hidden bg-black/45 flex flex-col justify-end"
+          className="fixed inset-0 z-50 md:hidden bg-[rgba(24,24,23,0.5)] backdrop-blur-[4px] flex flex-col justify-end"
           onClick={(e) => {
             if (e.target === e.currentTarget) setMobileMenuOpen(false);
           }}
         >
-          <div className="bg-[var(--surface)] border-t border-[var(--border)] rounded-t-2xl p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-2">
-            <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
-              <span className="text-sm font-semibold">Hedetangen Studio</span>
+          <div className="bg-[var(--bg)] border-t border-[var(--border)] rounded-t-[32px] px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-2 shadow-[var(--shadow-md)]">
+            <div className="w-10 h-1 rounded-full bg-[var(--border-strong)] mx-auto mb-2" />
+            <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border)]">
+              <div className="flex items-center gap-2.5">
+                <EyeEmblem size="sm" />
+                <span className="text-sm font-semibold">Hedetangen Studio</span>
+              </div>
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
                 aria-label="Close menu"
-                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-[var(--text-muted)]"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--surface-muted)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -900,7 +955,7 @@ export default function App() {
                 setMobileMenuOpen(false);
                 if (messages.length > 0) setNewChatModalOpen(true);
               }}
-              className="w-full min-h-[48px] px-3 text-left text-sm font-medium rounded-lg hover:bg-[var(--surface-muted)]"
+              className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
             >
               New chat
             </button>
@@ -910,7 +965,7 @@ export default function App() {
                 setMobileMenuOpen(false);
                 setActivePanel('guardrails');
               }}
-              className="w-full min-h-[48px] px-3 text-left text-sm font-medium rounded-lg hover:bg-[var(--surface-muted)]"
+              className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
             >
               Brand DNA Guardrails
             </button>
@@ -920,7 +975,7 @@ export default function App() {
                 setMobileMenuOpen(false);
                 setActivePanel('experts');
               }}
-              className="w-full min-h-[48px] px-3 text-left text-sm font-medium rounded-lg hover:bg-[var(--surface-muted)]"
+              className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
             >
               Specialist Experts
             </button>
@@ -930,7 +985,7 @@ export default function App() {
                 setMobileMenuOpen(false);
                 setActivePanel('library');
               }}
-              className="w-full min-h-[48px] px-3 text-left text-sm font-medium rounded-lg hover:bg-[var(--surface-muted)]"
+              className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
             >
               Content Library ({library.length})
             </button>
@@ -940,7 +995,7 @@ export default function App() {
                 setMobileMenuOpen(false);
                 setActivePanel('settings');
               }}
-              className="w-full min-h-[48px] px-3 text-left text-sm font-medium rounded-lg hover:bg-[var(--surface-muted)]"
+              className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
             >
               Settings
             </button>

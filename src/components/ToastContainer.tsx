@@ -16,27 +16,27 @@ export function ToastContainer({
       className="fixed z-50 bottom-20 left-4 right-4 md:left-auto md:right-6 md:bottom-6 md:w-88 flex flex-col gap-2 pointer-events-none"
     >
       {toasts.slice(0, 3).map((toast) => {
-        const borderClass =
+        const accentClass =
           toast.variant === 'danger'
-            ? 'border-[var(--danger)]'
+            ? 'border-[var(--tangerine)]'
             : toast.variant === 'success'
-              ? 'border-[var(--success)]'
-              : 'border-[var(--border-strong)]';
+              ? 'border-[var(--lime)]'
+              : 'border-transparent';
 
         return (
           <div
             key={toast.id}
             role="status"
-            className={`pointer-events-auto flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-[var(--surface)] border ${borderClass} shadow-[var(--shadow-drawer)] text-sm text-[var(--text)]`}
+            className={`pointer-events-auto flex items-center justify-between gap-3 px-4 py-2.5 rounded-full bg-[#181817] text-[#F4EFE4] dark:bg-[var(--sand)] dark:text-[#181817] border ${accentClass} shadow-[var(--shadow-md)] text-xs font-semibold`}
           >
-            <span className="leading-snug">{toast.message}</span>
+            <span className="leading-snug pl-1">{toast.message}</span>
             <button
               type="button"
               onClick={() => onDismiss(toast.id)}
               aria-label="Dismiss notification"
-              className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-muted)] transition-colors shrink-0"
+              className="min-h-[32px] min-w-[32px] flex items-center justify-center rounded-full opacity-70 hover:opacity-100 transition-opacity shrink-0"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         );

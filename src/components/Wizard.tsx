@@ -68,11 +68,13 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
   };
 
   return (
-    <div className="sticky bottom-0 z-20 bg-[var(--bg)] border-t border-[var(--border)] px-3 sm:px-6 py-4">
-      <div className="max-w-[760px] mx-auto rounded-xl bg-[var(--surface)] border border-[var(--border)] p-4 sm:p-5">
+    <div className="sticky bottom-0 z-20 px-3 sm:px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">
+      <div className="max-w-[780px] mx-auto rounded-[28px] glass-surface border border-[var(--border)] shadow-[var(--shadow-md)] p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
           <div>
-            <h2 className="text-sm font-semibold text-[var(--text)]">Campaign Builder</h2>
+            <h2 className="text-base font-semibold tracking-tight text-[var(--text)]">
+              Campaign Builder
+            </h2>
             <p className="text-xs text-[var(--text-muted)]">Step {step} of 3</p>
           </div>
           <div className="flex items-center gap-3">
@@ -81,7 +83,7 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
                 <span
                   key={dot}
                   className={`h-2 w-2 rounded-full transition-colors ${
-                    dot <= step ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'
+                    dot <= step ? 'bg-[var(--tangerine)]' : 'bg-[var(--border-strong)]'
                   }`}
                 />
               ))}
@@ -90,7 +92,7 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
               type="button"
               onClick={onCancel}
               aria-label="Close Campaign Builder"
-              className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-muted)]"
+              className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)]"
             >
               <X className="w-4 h-4" />
             </button>
@@ -100,18 +102,18 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
         {step === 1 && (
           <div className="mt-4 space-y-4">
             <div>
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-2">
+              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
                 Primary goal
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-lg bg-[var(--surface-muted)]">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 rounded-full bg-[var(--surface-muted)] border border-[var(--border)]">
                 {GOALS.map((g) => (
                   <button
                     key={g}
                     type="button"
                     onClick={() => setGoal(g)}
-                    className={`min-h-[40px] px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                    className={`min-h-[38px] px-3 py-1 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
                       goal === g
-                        ? 'bg-[var(--surface)] text-[var(--text)] border border-[var(--border)]'
+                        ? 'bg-[var(--lime)] text-[#181817] shadow-sm'
                         : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                     }`}
                   >
@@ -122,7 +124,7 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-2">
+              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
                 Audience occasion
               </label>
               <div className="flex flex-wrap gap-2">
@@ -133,10 +135,10 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
                       key={a}
                       type="button"
                       onClick={() => toggleItem(audiences, setAudiences, a)}
-                      className={`min-h-[40px] px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                      className={`min-h-[38px] px-3.5 py-1.5 text-xs font-semibold rounded-full border transition-all ${
                         active
-                          ? 'bg-[var(--accent-soft)] border-[var(--accent)] text-[var(--accent-text)]'
-                          : 'bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                          ? 'bg-[var(--lime)] border-transparent text-[#181817]'
+                          : 'bg-[var(--surface-muted)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
                       }`}
                     >
                       {a}
@@ -147,18 +149,18 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-2">
+              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
                 Language
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-lg bg-[var(--surface-muted)]">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 rounded-full bg-[var(--surface-muted)] border border-[var(--border)]">
                 {LANGUAGES.map((l) => (
                   <button
                     key={l.id}
                     type="button"
                     onClick={() => setLanguage(l.id)}
-                    className={`min-h-[40px] px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                    className={`min-h-[38px] px-3 py-1 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
                       language === l.id
-                        ? 'bg-[var(--surface)] text-[var(--text)] border border-[var(--border)]'
+                        ? 'bg-[var(--lime)] text-[#181817] shadow-sm'
                         : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                     }`}
                   >
@@ -173,7 +175,7 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
         {step === 2 && (
           <div className="mt-4 space-y-4">
             <div>
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-2">
+              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
                 Channels
               </label>
               <div className="flex flex-wrap gap-2">
@@ -184,10 +186,10 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
                       key={ch}
                       type="button"
                       onClick={() => toggleItem(channels, setChannels, ch)}
-                      className={`min-h-[40px] px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                      className={`min-h-[38px] px-3.5 py-1.5 text-xs font-semibold rounded-full border transition-all ${
                         active
-                          ? 'bg-[var(--accent-soft)] border-[var(--accent)] text-[var(--accent-text)]'
-                          : 'bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                          ? 'bg-[var(--lime)] border-transparent text-[#181817]'
+                          : 'bg-[var(--surface-muted)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
                       }`}
                     >
                       {ch}
@@ -198,7 +200,7 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-2">
+              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
                 Deliverables
               </label>
               <div className="flex flex-wrap gap-2">
@@ -209,10 +211,10 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
                       key={out}
                       type="button"
                       onClick={() => toggleItem(outputs, setOutputs, out)}
-                      className={`min-h-[40px] px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                      className={`min-h-[38px] px-3.5 py-1.5 text-xs font-semibold rounded-full border transition-all ${
                         active
-                          ? 'bg-[var(--accent-soft)] border-[var(--accent)] text-[var(--accent-text)]'
-                          : 'bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                          ? 'bg-[var(--lime)] border-transparent text-[#181817]'
+                          : 'bg-[var(--surface-muted)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
                       }`}
                     >
                       {out}
@@ -223,7 +225,7 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">
+              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
                 Seasonal focus or dates (optional)
               </label>
               <input
@@ -231,7 +233,7 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="e.g. Late August weekends, 1750 SEK/person"
-                className="w-full px-3 py-2.5 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
+                className="w-full px-3.5 py-2.5 text-sm rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none"
               />
             </div>
           </div>
@@ -239,8 +241,8 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
 
         {step === 3 && (
           <div className="mt-4 space-y-3">
-            <div className="p-3 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs space-y-1.5">
-              <div className="font-medium text-[var(--text)]">Campaign Summary</div>
+            <div className="p-3.5 rounded-[18px] bg-[var(--surface-muted)] border border-[var(--border)] text-xs space-y-1.5">
+              <div className="font-semibold text-[var(--text)]">Campaign Summary</div>
               <p className="text-[var(--text-muted)]">
                 {goal} · {audiences.join(', ')} · {channels.join(', ')}
               </p>
@@ -248,13 +250,13 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
               {notes.trim() && <p className="text-[var(--text-muted)]">Notes: {notes.trim()}</p>}
             </div>
 
-            <div className="p-3 rounded-lg bg-[var(--surface-muted)] border border-[var(--border)] text-xs space-y-1.5">
-              <div className="flex items-center gap-1.5 font-medium text-[var(--text)]">
-                <Lock className="w-3.5 h-3.5 text-[var(--accent)]" />
+            <div className="p-3.5 rounded-[18px] bg-[var(--sand)] dark:bg-[#1C1C1A] border border-[var(--border)] text-xs space-y-1.5 text-[#181817] dark:text-[#F4EFE4]">
+              <div className="flex items-center gap-1.5 font-semibold">
+                <Lock className="w-3.5 h-3.5 text-[var(--tangerine)]" />
                 <span>Brand Guardrails (always applied)</span>
               </div>
-              <p className="text-[var(--text-muted)] leading-relaxed">{guardrails.honestyRule}</p>
-              <p className="text-[var(--text-faint)]">
+              <p className="leading-relaxed opacity-85">{guardrails.honestyRule}</p>
+              <p className="opacity-65">
                 Avoid: {guardrails.editable.avoid.slice(0, 4).join(' · ')}
               </p>
             </div>
@@ -265,7 +267,7 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
           <button
             type="button"
             onClick={step === 1 ? onCancel : () => setStep((s) => (s === 3 ? 2 : 1))}
-            className="min-h-[44px] px-4 py-2 text-sm font-medium rounded-lg border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-muted)] transition-colors"
+            className="min-h-[42px] px-4 py-2 text-sm font-medium rounded-full border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-muted)] transition-colors"
           >
             {step === 1 ? 'Cancel' : 'Back'}
           </button>
@@ -275,7 +277,7 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
               type="button"
               disabled={(step === 1 && !canNextStep1) || (step === 2 && !canNextStep2)}
               onClick={() => setStep((s) => (s === 1 ? 2 : 3))}
-              className="min-h-[44px] px-5 py-2 text-sm font-medium rounded-lg bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 transition-opacity"
+              className="min-h-[42px] px-5 py-2 text-sm font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] disabled:opacity-40 transition-colors"
             >
               Next
             </button>
@@ -283,7 +285,7 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
             <button
               type="button"
               onClick={handleSubmit}
-              className="min-h-[44px] px-5 py-2 text-sm font-medium rounded-lg bg-[var(--accent)] text-white hover:opacity-90 transition-opacity"
+              className="min-h-[42px] px-5 py-2 text-sm font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] transition-colors"
             >
               Generate
             </button>

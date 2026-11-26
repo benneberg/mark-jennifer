@@ -160,7 +160,7 @@ test('trimExpertHistory bounds expert history to HISTORY_MAX_EXPERT_MESSAGES', (
   }));
   const trimmed = trimExpertHistory(msgs);
   assert.equal(trimmed.length, HISTORY_MAX_EXPERT_MESSAGES);
-  assert.equal(trimmed[0].content, 'Message 7');
+  assert.equal(trimmed[0].content, 'Message 11');
   assert.equal(trimmed[trimmed.length - 1].content, 'Message 12');
 });
 
@@ -182,6 +182,7 @@ test('prompts enforce sensitivity rules, bilingual SV/EN preservation, and sessi
 
   const jPrompt = buildJenniferPrompt({ guardrails, experts, settings, sessionFacts: facts, referencePhoto: '' });
   assert.ok(jPrompt.includes('<tone_and_sensitivity>'));
+  assert.ok(jPrompt.includes('NEVER address or greet the user as "Jennifer"'));
   assert.ok(!jPrompt.includes('<confirmed_reference>Lantern on frozen dock</confirmed_reference>'));
 
   const sPrompt = buildSynthesisPrompt({ guardrails, settings, sessionFacts: facts });
@@ -210,9 +211,9 @@ test('MockProvider routes Strategist cleanly without colliding with Analyst and 
     debug: false,
   };
 
-  assert.equal(PLANNER_MAX_TOKENS, 600);
-  assert.equal(EXPERT_MAX_TOKENS, 1400);
-  assert.equal(SYNTHESIS_MAX_TOKENS, 2000);
+  assert.equal(PLANNER_MAX_TOKENS, 420);
+  assert.equal(EXPERT_MAX_TOKENS, 950);
+  assert.equal(SYNTHESIS_MAX_TOKENS, 1350);
 
   // Underspecified Turn 1 should ask a clarifying question directly (1 call)
   const turn1 = await runJenniferTurn({

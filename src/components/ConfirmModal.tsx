@@ -54,7 +54,7 @@ export function ConfirmModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(24,24,23,0.52)] backdrop-blur-[4px]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}
@@ -65,17 +65,17 @@ export function ConfirmModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-modal-title"
-        className="w-full max-w-md rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-drawer)] p-5 text-[var(--text)]"
+        className="w-full max-w-md rounded-[28px] bg-[var(--bg)] border border-[var(--border)] shadow-[var(--shadow-md)] p-5 sm:p-6 text-[var(--text)]"
       >
         <div className="flex items-start justify-between gap-3">
-          <h2 id="confirm-modal-title" className="text-base font-semibold">
+          <h2 id="confirm-modal-title" className="text-lg font-light tracking-[-0.015em]">
             {title}
           </h2>
           <button
             type="button"
             onClick={onCancel}
             aria-label="Close dialog"
-            className="min-h-[40px] min-w-[40px] -mr-2 -mt-2 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-muted)]"
+            className="min-h-[38px] min-w-[38px] -mr-1 -mt-1 flex items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)]"
           >
             <X className="w-4 h-4" />
           </button>
@@ -87,15 +87,15 @@ export function ConfirmModal({
 
         {requireTypedText && (
           <div className="mt-4">
-            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">
-              Type <span className="font-mono-tabular font-semibold text-[var(--text)]">{requireTypedText}</span> to confirm
+            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
+              Type <span className="font-mono-tabular text-[var(--text)]">{requireTypedText}</span> to confirm
             </label>
             <input
               type="text"
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
               placeholder={requireTypedText}
-              className="w-full px-3 py-2.5 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
+              className="w-full px-3.5 py-2.5 text-sm rounded-[16px] glass-surface border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none"
             />
           </div>
         )}
@@ -104,7 +104,7 @@ export function ConfirmModal({
           <button
             type="button"
             onClick={onCancel}
-            className="min-h-[44px] px-4 py-2 text-sm font-medium rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-muted)] transition-colors whitespace-nowrap"
+            className="min-h-[42px] px-4 py-2 text-sm font-medium rounded-full border border-[var(--border)] glass-surface text-[var(--text)] hover:border-[var(--border-strong)] transition-colors whitespace-nowrap"
           >
             Cancel
           </button>
@@ -112,10 +112,10 @@ export function ConfirmModal({
             type="button"
             disabled={!canConfirm}
             onClick={onConfirm}
-            className={`min-h-[44px] px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap disabled:opacity-45 disabled:cursor-not-allowed ${
+            className={`min-h-[42px] px-5 py-2 text-sm font-semibold rounded-full transition-colors whitespace-nowrap disabled:opacity-45 disabled:cursor-not-allowed ${
               danger
-                ? 'bg-[var(--danger)] text-white hover:opacity-90'
-                : 'bg-[var(--accent)] text-white hover:opacity-90'
+                ? 'bg-[var(--tangerine)] text-[#181817] hover:opacity-90'
+                : 'bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817]'
             }`}
           >
             {confirmLabel}

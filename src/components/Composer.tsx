@@ -37,7 +37,7 @@ export function Composer({
     const el = inputRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    const maxHeight = 132; // ~5 rows
+    const maxHeight = 128; // ~5 rows
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
   }, [draft, inputRef]);
 
@@ -50,27 +50,29 @@ export function Composer({
     }
   };
 
+  const canSend = isConfigured && Boolean(draft.trim());
+
   return (
     <div
       ref={containerRef}
-      className="sticky bottom-0 z-20 bg-[var(--bg)] border-t border-[var(--border)] px-3 sm:px-6 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      className="sticky bottom-0 z-20 px-3 sm:px-6 pt-2 pb-[max(0.875rem,env(safe-area-inset-bottom))]"
     >
-      <div className="max-w-[760px] mx-auto">
+      <div className="max-w-[780px] mx-auto">
         {!isConfigured && (
-          <div className="mb-2 px-3 py-2 rounded-lg bg-[var(--surface)] border border-[var(--border)] flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+          <div className="mb-2.5 px-4 py-2.5 rounded-[20px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
             <span>Add an API key in Settings to start, or try Demo Mode offline.</span>
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2.5 shrink-0">
               <button
                 type="button"
                 onClick={onEnableDemoMode}
-                className="font-medium text-[var(--accent-text)] hover:underline whitespace-nowrap"
+                className="min-h-[34px] px-3 py-1 rounded-full font-medium text-[var(--text)] hover:bg-[var(--surface-muted)] transition-colors whitespace-nowrap"
               >
                 Try demo mode
               </button>
               <button
                 type="button"
                 onClick={onOpenSettings}
-                className="px-3 py-1.5 rounded-md bg-[var(--accent)] text-white font-medium hover:opacity-90 whitespace-nowrap"
+                className="min-h-[34px] px-3.5 py-1 rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] font-semibold transition-colors whitespace-nowrap"
               >
                 Open Settings
               </button>
@@ -79,8 +81,8 @@ export function Composer({
         )}
 
         {(refOpen || referencePhoto.trim()) && (
-          <div className="mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
-            <Camera className="w-4 h-4 text-[var(--accent)] shrink-0" />
+          <div className="mb-2 flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-surface border border-[var(--border)] shadow-[var(--shadow)]">
+            <Camera className="w-4 h-4 text-[var(--tangerine)] shrink-0" />
             <input
               type="text"
               value={referencePhoto}
@@ -98,56 +100,58 @@ export function Composer({
                 setRefOpen(false);
               }}
               aria-label="Clear reference photo description"
-              className="min-h-[32px] min-w-[32px] flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text)]"
+              className="min-h-[32px] min-w-[32px] flex items-center justify-center rounded-full text-[var(--text-muted)] hover:text-[var(--text)]"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
-        <div className="flex items-end gap-1.5 p-1.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] focus-within:border-[var(--accent)] transition-colors">
-          <button
-            type="button"
-            onClick={onOpenWizard}
-            disabled={isStreaming}
-            aria-label="Open Guided Campaign Builder"
-            title="Guided Campaign Builder"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-muted)] disabled:opacity-40 transition-colors shrink-0"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
+        <div className="flex items-end gap-2">
+          <div className="flex-1 min-h-[48px] flex items-end gap-1 pl-2 pr-2 py-1.5 rounded-[26px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] focus-within:border-[var(--text)] transition-colors">
+            <button
+              type="button"
+              onClick={onOpenWizard}
+              disabled={isStreaming}
+              aria-label="Open Guided Campaign Builder"
+              title="Guided Campaign Builder"
+              className="w-9 h-9 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-full text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-muted)] disabled:opacity-40 transition-colors shrink-0"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setRefOpen((o) => !o)}
-            disabled={isStreaming}
-            aria-label="Add reference photo description"
-            aria-pressed={refOpen || Boolean(referencePhoto.trim())}
-            title="Reference photo description (for Visual Director)"
-            className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg transition-colors shrink-0 disabled:opacity-40 ${
-              referencePhoto.trim()
-                ? 'bg-[var(--accent-soft)] text-[var(--accent-text)]'
-                : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-muted)]'
-            }`}
-          >
-            <Camera className="w-4 h-4" />
-          </button>
+            <button
+              type="button"
+              onClick={() => setRefOpen((o) => !o)}
+              disabled={isStreaming}
+              aria-label="Add reference photo description"
+              aria-pressed={refOpen || Boolean(referencePhoto.trim())}
+              title="Reference photo description (for Visual Director)"
+              className={`w-9 h-9 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-full transition-colors shrink-0 disabled:opacity-40 ${
+                referencePhoto.trim()
+                  ? 'bg-[var(--lime)] text-[#181817]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-muted)]'
+              }`}
+            >
+              <Camera className="w-4 h-4" />
+            </button>
 
-          <textarea
-            ref={inputRef}
-            rows={1}
-            value={draft}
-            disabled={isStreaming || !isConfigured}
-            onChange={(e) => onDraftChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              isConfigured
-                ? 'Ask Jennifer anything about marketing, copy, campaigns, or pricing…'
-                : 'Configure an API key or Demo Mode above to begin…'
-            }
-            aria-label="Message Jennifer"
-            className="flex-1 resize-none bg-transparent py-2.5 px-1 text-base text-[var(--text)] placeholder:text-[var(--text-faint)] focus:outline-none disabled:opacity-60 max-h-[132px]"
-          />
+            <textarea
+              ref={inputRef}
+              rows={1}
+              value={draft}
+              disabled={isStreaming || !isConfigured}
+              onChange={(e) => onDraftChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                isConfigured
+                  ? 'Message Jennifer…'
+                  : 'Configure an API key or Demo Mode above to begin…'
+              }
+              aria-label="Message Jennifer"
+              className="flex-1 resize-none bg-transparent py-2 px-1.5 text-[14.5px] leading-snug text-[var(--text)] placeholder:text-[var(--text-faint)] focus:outline-none disabled:opacity-60 max-h-[128px]"
+            />
+          </div>
 
           {isStreaming ? (
             <button
@@ -155,7 +159,7 @@ export function Composer({
               onClick={onStop}
               aria-label="Stop"
               title="Stop generating"
-              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-[var(--danger)] text-white hover:opacity-90 transition-opacity shrink-0"
+              className="w-12 h-12 min-h-[48px] min-w-[48px] flex items-center justify-center rounded-full bg-[var(--tangerine)] text-[#181817] shadow-[var(--shadow)] hover:opacity-90 active:scale-95 transition-all shrink-0"
             >
               <Square className="w-4 h-4 fill-current" />
             </button>
@@ -163,18 +167,22 @@ export function Composer({
             <button
               type="button"
               onClick={onSend}
-              disabled={!isConfigured || !draft.trim()}
+              disabled={!canSend}
               aria-label="Send"
               title="Send message"
-              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-35 disabled:cursor-not-allowed transition-opacity shrink-0"
+              className={`w-12 h-12 min-h-[48px] min-w-[48px] flex items-center justify-center rounded-full transition-all shrink-0 ${
+                canSend
+                  ? 'bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] shadow-[var(--shadow)] hover:scale-[1.03] active:scale-95'
+                  : 'glass-surface border border-[var(--border)] text-[var(--text-faint)] cursor-not-allowed'
+              }`}
             >
-              <ArrowUp className="w-5 h-5" />
+              <ArrowUp className="w-5 h-5 stroke-[2.2]" />
             </button>
           )}
         </div>
 
         {isStreaming && (
-          <p className="mt-1.5 text-xs text-[var(--text-muted)] px-1">
+          <p className="mt-1.5 text-xs text-[var(--text-muted)] px-2">
             Jennifer is working — tap Stop to cancel.
           </p>
         )}

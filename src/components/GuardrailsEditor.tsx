@@ -89,121 +89,126 @@ export function GuardrailsEditor({
     onNotify('Reset Brand DNA to canonical v4 defaults.', 'info');
   };
 
+  const fieldCls =
+    'w-full p-3 text-sm rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none';
+
   return (
-    <form onSubmit={handleSave} className="space-y-5 pb-8">
+    <form onSubmit={handleSave} className="space-y-4 pb-8">
       {/* Immutable Honesty Rule */}
-      <div className="p-3.5 rounded-xl bg-[var(--surface-muted)] border border-[var(--border)] space-y-1.5">
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text)]">
-          <Lock className="w-3.5 h-3.5 text-[var(--accent)]" />
+      <div className="p-4 rounded-[22px] bg-[var(--sand)] dark:bg-[#1C1C1A] border border-[var(--border)] shadow-[var(--shadow)] space-y-1.5 text-[#181817] dark:text-[#F4EFE4]">
+        <div className="flex items-center gap-1.5 text-xs font-semibold">
+          <Lock className="w-3.5 h-3.5 text-[var(--tangerine)]" />
           <span>Honesty Rule (Immutable)</span>
         </div>
-        <p className="text-xs text-[var(--text)] leading-relaxed">{guardrails.honestyRule}</p>
-        <p className="text-[11px] text-[var(--text-faint)]">
+        <p className="text-xs leading-relaxed opacity-90">{guardrails.honestyRule}</p>
+        <p className="text-[11px] opacity-70">
           This rule is always applied and cannot be edited. It protects your brand from AI
           inventing places or structures.
         </p>
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Essence</label>
-        <textarea
-          rows={2}
-          maxLength={400}
-          value={draft.essence}
-          onChange={(e) => setDraft({ ...draft, essence: e.target.value })}
-          className="w-full p-2.5 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
-        />
+      <div className="p-4 rounded-[22px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">Essence</label>
+          <textarea
+            rows={2}
+            maxLength={400}
+            value={draft.essence}
+            onChange={(e) => setDraft({ ...draft, essence: e.target.value })}
+            className={fieldCls}
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
+            Materials (one per line)
+          </label>
+          <textarea
+            rows={4}
+            value={materialsText}
+            onChange={(e) => setMaterialsText(e.target.value)}
+            className={fieldCls}
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
+            Colour &amp; Light (one per line)
+          </label>
+          <textarea
+            rows={4}
+            value={colourText}
+            onChange={(e) => setColourText(e.target.value)}
+            className={fieldCls}
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">People</label>
+          <textarea
+            rows={2}
+            maxLength={400}
+            value={draft.people}
+            onChange={(e) => setDraft({ ...draft, people: e.target.value })}
+            className={fieldCls}
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
+            Cinematography
+          </label>
+          <textarea
+            rows={3}
+            maxLength={600}
+            value={draft.cinema}
+            onChange={(e) => setDraft({ ...draft, cinema: e.target.value })}
+            className={fieldCls}
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">Emotion</label>
+          <input
+            type="text"
+            maxLength={300}
+            value={draft.emotion}
+            onChange={(e) => setDraft({ ...draft, emotion: e.target.value })}
+            className={`min-h-[44px] ${fieldCls}`}
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
+            Avoid list (one per line)
+          </label>
+          <textarea
+            rows={4}
+            value={avoidText}
+            onChange={(e) => setAvoidText(e.target.value)}
+            className={fieldCls}
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
+            Extra notes (optional)
+          </label>
+          <textarea
+            rows={2}
+            maxLength={2000}
+            value={draft.extraNotes ?? ''}
+            onChange={(e) => setDraft({ ...draft, extraNotes: e.target.value })}
+            className={fieldCls}
+          />
+        </div>
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">
-          Materials (one per line)
-        </label>
-        <textarea
-          rows={4}
-          value={materialsText}
-          onChange={(e) => setMaterialsText(e.target.value)}
-          className="w-full p-2.5 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
-        />
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">
-          Colour &amp; Light (one per line)
-        </label>
-        <textarea
-          rows={4}
-          value={colourText}
-          onChange={(e) => setColourText(e.target.value)}
-          className="w-full p-2.5 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
-        />
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">People</label>
-        <textarea
-          rows={2}
-          maxLength={400}
-          value={draft.people}
-          onChange={(e) => setDraft({ ...draft, people: e.target.value })}
-          className="w-full p-2.5 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
-        />
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">
-          Cinematography
-        </label>
-        <textarea
-          rows={3}
-          maxLength={600}
-          value={draft.cinema}
-          onChange={(e) => setDraft({ ...draft, cinema: e.target.value })}
-          className="w-full p-2.5 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
-        />
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Emotion</label>
-        <input
-          type="text"
-          maxLength={300}
-          value={draft.emotion}
-          onChange={(e) => setDraft({ ...draft, emotion: e.target.value })}
-          className="w-full min-h-[44px] px-3 py-2 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
-        />
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">
-          Avoid list (one per line)
-        </label>
-        <textarea
-          rows={4}
-          value={avoidText}
-          onChange={(e) => setAvoidText(e.target.value)}
-          className="w-full p-2.5 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
-        />
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">
-          Extra notes (optional)
-        </label>
-        <textarea
-          rows={2}
-          maxLength={2000}
-          value={draft.extraNotes ?? ''}
-          onChange={(e) => setDraft({ ...draft, extraNotes: e.target.value })}
-          className="w-full p-2.5 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
-        />
-      </div>
-
-      <div className="flex items-center justify-between gap-2 pt-2">
+      <div className="flex items-center justify-between gap-2 pt-1">
         <button
           type="button"
           onClick={() => setResetOpen(true)}
-          className="min-h-[44px] inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
+          className="min-h-[44px] inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-full glass-surface border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           <span>Reset to default</span>
@@ -211,7 +216,7 @@ export function GuardrailsEditor({
 
         <button
           type="submit"
-          className="min-h-[44px] px-5 py-2 text-sm font-medium rounded-lg bg-[var(--accent)] text-white hover:opacity-90"
+          className="min-h-[44px] px-5 py-2 text-sm font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] shadow-[var(--shadow)]"
         >
           Save Brand DNA
         </button>
@@ -226,7 +231,7 @@ export function GuardrailsEditor({
             {guardrails.history.map((snap, idx) => (
               <div
                 key={`${snap.savedAt}-${idx}`}
-                className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
+                className="flex items-center justify-between gap-2 px-3.5 py-2 rounded-full glass-surface border border-[var(--border)] text-xs"
               >
                 <span className="font-mono-tabular text-[var(--text-muted)]">
                   {formatDateTime(snap.savedAt)}
@@ -234,7 +239,7 @@ export function GuardrailsEditor({
                 <button
                   type="button"
                   onClick={() => handleRestoreSnapshot(snap.snapshot)}
-                  className="text-[var(--accent-text)] font-medium hover:underline"
+                  className="font-semibold text-[var(--text)] hover:text-[var(--tangerine)]"
                 >
                   Restore
                 </button>

@@ -151,14 +151,14 @@ export function ExpertEditor({
           <button
             type="button"
             onClick={() => setEditing(null)}
-            className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]"
+            className="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
           >
             Back to list
           </button>
         </div>
 
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-[var(--surface-muted)] border border-[var(--border)] text-xs text-[var(--text-muted)]">
-          <Lock className="w-3.5 h-3.5 text-[var(--accent)] shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2 p-3.5 rounded-[18px] glass-surface border border-[var(--border)] text-xs text-[var(--text-muted)]">
+          <Lock className="w-3.5 h-3.5 text-[var(--tangerine)] shrink-0 mt-0.5" />
           <span>
             Hedetangen Brand DNA &amp; Honesty Rule are injected automatically at call time — you do
             not need to paste them here.
@@ -166,7 +166,7 @@ export function ExpertEditor({
         </div>
 
         {formErrors.length > 0 && (
-          <div className="p-3 rounded-lg bg-[var(--danger-soft)] border border-[var(--danger)] text-xs text-[var(--danger)] space-y-1">
+          <div className="p-3 rounded-[16px] bg-[var(--danger-soft)] border border-[var(--danger)] text-xs text-[var(--danger)] space-y-1">
             {formErrors.map((err) => (
               <div key={err}>{err}</div>
             ))}
@@ -174,19 +174,19 @@ export function ExpertEditor({
         )}
 
         <div>
-          <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Name</label>
+          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">Name</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={60}
             required
-            className="w-full min-h-[44px] px-3 py-2 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
+            className="w-full min-h-[44px] px-3.5 py-2 text-sm rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">
+          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
             Short role description
           </label>
           <input
@@ -195,12 +195,12 @@ export function ExpertEditor({
             onChange={(e) => setRole(e.target.value)}
             maxLength={200}
             required
-            className="w-full min-h-[44px] px-3 py-2 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
+            className="w-full min-h-[44px] px-3.5 py-2 text-sm rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">
+          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
             System prompt (min 20 chars)
           </label>
           <textarea
@@ -209,13 +209,13 @@ export function ExpertEditor({
             onChange={(e) => setSystemPrompt(e.target.value)}
             maxLength={8000}
             required
-            className="w-full p-3 text-xs font-mono-tabular rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] leading-relaxed"
+            className="w-full p-3.5 text-xs font-mono-tabular rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--text)] leading-relaxed focus:border-[var(--text)] focus:outline-none"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">
+            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
               Temperature (0–1.5)
             </label>
             <input
@@ -225,11 +225,11 @@ export function ExpertEditor({
               max="1.5"
               value={temperature}
               onChange={(e) => setTemperature(e.target.value)}
-              className="w-full min-h-[44px] px-3 py-2 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
+              className="w-full min-h-[44px] px-3.5 py-2 text-sm rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">
+            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
               Tags (comma-separated)
             </label>
             <input
@@ -237,7 +237,7 @@ export function ExpertEditor({
               value={tagsText}
               onChange={(e) => setTagsText(e.target.value)}
               placeholder="copy, social"
-              className="w-full min-h-[44px] px-3 py-2 text-sm rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[var(--text)]"
+              className="w-full min-h-[44px] px-3.5 py-2 text-sm rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none"
             />
           </div>
         </div>
@@ -247,7 +247,7 @@ export function ExpertEditor({
             type="checkbox"
             checked={enabled}
             onChange={(e) => setEnabled(e.target.checked)}
-            className="w-4 h-4 accent-[var(--accent)]"
+            className="w-4 h-4 accent-[#181817] dark:accent-[#EBEE2C]"
           />
           <span>Enabled for Jennifer delegation</span>
         </label>
@@ -256,13 +256,13 @@ export function ExpertEditor({
           <button
             type="button"
             onClick={() => setEditing(null)}
-            className="min-h-[44px] px-4 py-2 text-sm font-medium rounded-lg border border-[var(--border)] text-[var(--text)]"
+            className="min-h-[44px] px-4 py-2 text-sm font-medium rounded-full border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-muted)]"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="min-h-[44px] px-5 py-2 text-sm font-medium rounded-lg bg-[var(--accent)] text-white hover:opacity-90"
+            className="min-h-[44px] px-5 py-2 text-sm font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817]"
           >
             Save Expert
           </button>
@@ -277,7 +277,7 @@ export function ExpertEditor({
         <button
           type="button"
           onClick={openNew}
-          className="min-h-[44px] inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-[var(--accent)] text-white hover:opacity-90"
+          className="min-h-[42px] inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] shadow-[var(--shadow)]"
         >
           <Plus className="w-4 h-4" />
           <span>Add expert</span>
@@ -287,7 +287,7 @@ export function ExpertEditor({
           <button
             type="button"
             onClick={handleExportExperts}
-            className="min-h-[40px] inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-muted)]"
+            className="min-h-[40px] inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-full glass-surface border border-[var(--border)] text-[var(--text)] hover:border-[var(--border-strong)]"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export</span>
@@ -295,7 +295,7 @@ export function ExpertEditor({
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="min-h-[40px] inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-muted)]"
+            className="min-h-[40px] inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-full glass-surface border border-[var(--border)] text-[var(--text)] hover:border-[var(--border-strong)]"
           >
             <Upload className="w-3.5 h-3.5" />
             <span>Import</span>
@@ -311,17 +311,22 @@ export function ExpertEditor({
       </div>
 
       {enabledCount === 0 && (
-        <div className="p-3 rounded-lg bg-[var(--surface-muted)] border border-[var(--border)] text-xs text-[var(--text-muted)]">
+        <div className="p-3.5 rounded-[18px] glass-surface border border-[var(--border)] text-xs text-[var(--text-muted)]">
           You have no experts enabled. Jennifer will answer directly without specialist delegation.
         </div>
       )}
 
-      <div className="divide-y divide-[var(--border)] border border-[var(--border)] rounded-xl bg-[var(--bg)]">
+      <div className="space-y-2.5">
         {experts.map((exp) => (
-          <div key={exp.id} className="p-3.5 flex items-start justify-between gap-3">
+          <div
+            key={exp.id}
+            className="p-4 rounded-[20px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] flex items-start justify-between gap-3"
+          >
             <div className="min-w-0 space-y-1">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-[var(--text)] truncate">{exp.name}</span>
+                <span className="text-sm font-semibold text-[var(--text)] truncate">
+                  {exp.name}
+                </span>
                 {!exp.enabled && (
                   <span className="text-[11px] text-[var(--text-faint)]">Disabled</span>
                 )}
@@ -340,13 +345,13 @@ export function ExpertEditor({
                 onChange={() =>
                   onSaveExpert({ ...exp, enabled: !exp.enabled, updatedAt: nowIso() })
                 }
-                className="w-4 h-4 mr-1 accent-[var(--accent)] cursor-pointer"
+                className="w-4 h-4 mr-1 accent-[#181817] dark:accent-[#EBEE2C] cursor-pointer"
               />
               <button
                 type="button"
                 onClick={() => openEdit(exp)}
                 aria-label={`Edit ${exp.name}`}
-                className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-muted)]"
+                className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-full text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-muted)]"
               >
                 <Pencil className="w-4 h-4" />
               </button>
@@ -354,7 +359,7 @@ export function ExpertEditor({
                 type="button"
                 onClick={() => setDeleteTarget(exp)}
                 aria-label={`Delete ${exp.name}`}
-                className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)]"
+                className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-full text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)]"
               >
                 <Trash2 className="w-4 h-4" />
               </button>

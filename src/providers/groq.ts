@@ -51,7 +51,8 @@ export class GroqProvider implements AIProvider {
 
     const meta = MODEL_METADATA.groq;
     const rawList = data.data ?? [];
-    const excluded = ['whisper', 'tts', 'guard', 'safeguard', 'prompt-guard'];
+    const excluded = ['whisper', 'tts', 'guard', 'safeguard', 'prompt-guard', 'allam'];
+    const preferredOrder = Object.keys(meta);
 
     const models: ModelInfo[] = rawList
       .filter((m) => m.active !== false)
@@ -71,8 +72,11 @@ export class GroqProvider implements AIProvider {
       });
 
     models.sort((a, b) => {
-      const aKnown = Boolean(meta[a.id]);
-      const bKnown = Boolean(meta[b.id]);
+      const aIdx = preferredOrder.indexOf(a.id);
+      const bIdx = preferredOrder.indexOf(b.id);
+      const aKnown = aIdx !== -1;
+      const bKnown = bIdx !== -1;
+      if (aKnown && bKnown) return aIdx - bIdx;
       if (aKnown !== bKnown) return aKnown ? -1 : 1;
       return a.id.localeCompare(b.id);
     });

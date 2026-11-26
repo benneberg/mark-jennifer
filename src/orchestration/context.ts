@@ -48,7 +48,11 @@ export function trimChatHistory(
 }
 
 export function trimExpertHistory(messages: ChatMessage[]): ChatCompletionMessage[] {
-  return trimChatHistory(messages, HISTORY_MAX_EXPERT_MESSAGES);
+  const recent = trimChatHistory(messages, HISTORY_MAX_EXPERT_MESSAGES);
+  return recent.map((m) => ({
+    role: m.role,
+    content: m.content.length > 1400 ? `${m.content.slice(0, 1400)}\n… [trimmed]` : m.content,
+  }));
 }
 
 function uniqueItems(items: Array<string | undefined>, max = 12): string[] | undefined {
