@@ -1,4 +1,4 @@
-# Hedetangen AI Marketing Studio
+# Mark & Jennifer - AI Marketing Studio for small and medium sized business
 
 A client-side, mobile-first AI marketing workspace built for **Hedetangen** — a family-run eco-tourism sanctuary in Värmland, Sweden offering off-grid glamping in a floating AuroraHut on a private island, paired with wood-fired sauna and ice-bath experiences.
 
