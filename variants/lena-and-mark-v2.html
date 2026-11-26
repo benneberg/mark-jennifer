@@ -1,0 +1,2912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#f8fafc" id="themeColor" />
+<meta name="description" content="Lena &amp; Mark — your personal marketing team. Plan, content and delivery in one place." />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Lena &amp; Mark — Your Marketing Team</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+/* ============ Design tokens ============ */
+:root {
+  --bg: #f8fafc; --surface: #ffffff; --surface-2: #f1f5f9; --surface-3: #e9eef5;
+  --border: #e2e8f0; --border-strong: #cbd5e1;
+  --text: #0f172a; --text-muted: #64748b; --text-faint: #94a3b8;
+  --primary: #0ea5e9; --primary-hover: #0284c7; --primary-soft: #e0f2fe;
+  --accent: #8b5cf6; --accent-soft: #f3e8ff;
+  --success: #10b981; --success-soft: #d1fae5;
+  --danger: #ef4444; --danger-soft: #fee2e2;
+  --warning: #f59e0b; --warning-soft: #fef3c7;
+  --radius: 12px; --radius-sm: 8px; --radius-lg: 16px;
+  --shadow: 0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
+  --shadow-md: 0 4px 16px rgba(15,23,42,.10);
+  --shadow-lg: 0 12px 40px rgba(15,23,42,.18);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --nav-h: 58px; --header-h: 56px; --status-h: 46px; --sp-w: 432px;
+}
+[data-theme="dark"] {
+  --bg: #0f172a; --surface: #1e293b; --surface-2: #283649; --surface-3: #334155;
+  --border: #334155; --border-strong: #475569;
+  --text: #f1f5f9; --text-muted: #94a3b8; --text-faint: #64748b;
+  --primary: #38bdf8; --primary-hover: #7dd3fc; --primary-soft: #0c4a6e;
+  --accent: #a78bfa; --accent-soft: #4c1d95;
+  --success: #34d399; --success-soft: #064e3b;
+  --danger: #f87171; --danger-soft: #7f1d1d;
+  --warning: #fbbf24; --warning-soft: #78350f;
+  --shadow: 0 1px 3px rgba(0,0,0,.3); --shadow-md: 0 4px 16px rgba(0,0,0,.4);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.55);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.5;
+  -webkit-font-smoothing: antialiased; overflow: hidden;
+}
+button { font-family: inherit; color: inherit; }
+#app { display: flex; flex-direction: column; height: 100dvh; max-width: 1024px; margin: 0 auto; background: var(--bg); position: relative; box-shadow: var(--shadow-lg); overflow: hidden; }
+.hidden { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+svg { flex-shrink: 0; }
+
+/* ============ Top bar ============ */
+.topbar {
+  height: var(--header-h); display: flex; align-items: center; justify-content: space-between;
+  padding: 0 10px 0 14px; background: var(--surface); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; z-index: 30; gap: 6px;
+}
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; cursor: pointer; background: none; border: none; text-align: left; padding: 4px 6px 4px 0; border-radius: 10px; }
+.brand:hover { background: var(--surface-2); }
+.team-avatar { position: relative; width: 38px; height: 38px; flex-shrink: 0; }
+.team-avatar .a1, .team-avatar .a2 {
+  position: absolute; width: 27px; height: 27px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 12px;
+  border: 2px solid var(--surface);
+}
+.team-avatar .a1 { background: linear-gradient(135deg, #0ea5e9, #8b5cf6); top: 0; left: 0; }
+.team-avatar .a2 { background: linear-gradient(135deg, #f472b6, #f59e0b); bottom: 0; right: 0; }
+.brand-text { min-width: 0; }
+.brand-title { font-size: 15.5px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; }
+.brand-sub { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.topbar-actions { display: flex; align-items: center; gap: 2px; }
+.icon-btn {
+  width: 38px; height: 38px; border: none; background: transparent; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; color: var(--text-muted);
+  cursor: pointer; transition: background .15s, color .15s; position: relative;
+}
+.icon-btn:hover, .icon-btn:focus-visible { background: var(--surface-2); color: var(--text); outline: 2px solid transparent; }
+.icon-btn.active { background: var(--primary-soft); color: var(--primary); }
+.icon-btn .bubble-tip {
+  position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--warning); border: 2px solid var(--surface);
+}
+
+/* ============ Status bar (active project) ============ */
+.statusbar {
+  min-height: var(--status-h); display: flex; align-items: center; gap: 10px;
+  padding: 6px 14px; background: linear-gradient(90deg, var(--primary-soft), var(--accent-soft));
+  border-bottom: 1px solid var(--border); flex-shrink: 0; z-index: 29;
+}
+[data-theme="dark"] .statusbar { background: linear-gradient(90deg, #0c3550, #2e1d54); }
+.statusbar .proj-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 34%; }
+.phase-dots { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; overflow: hidden; }
+.phase-dot { display: flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 20px; font-size: 11px; color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); white-space: nowrap; }
+.phase-dot .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); }
+.phase-dot.done { color: var(--success); border-color: var(--success); }
+.phase-dot.done .dot { background: var(--success); }
+.phase-dot.now { color: var(--primary); border-color: var(--primary); font-weight: 600; }
+.phase-dot.now .dot { background: var(--primary); animation: pulse 1.6s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+.deliver-btn {
+  border: none; background: var(--primary); color: #fff; font-size: 12.5px; font-weight: 600;
+  padding: 7px 14px; border-radius: 20px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  transition: background .15s, transform .1s; white-space: nowrap;
+}
+.deliver-btn:hover { background: var(--primary-hover); }
+.deliver-btn:active { transform: scale(.97); }
+.deliver-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ============ Main / tabs ============ */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.panel.active { display: flex; }
+
+/* ============ Chat ============ */
+.chat-scroll { flex: 1; overflow-y: auto; padding: 16px 16px 8px; display: flex; flex-direction: column; gap: 14px; scroll-behavior: smooth; }
+.welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; gap: 6px; }
+.welcome .team-avatar { width: 84px; height: 84px; margin-bottom: 10px; }
+.welcome .team-avatar .a1, .welcome .team-avatar .a2 { width: 58px; height: 58px; font-size: 22px; border-width: 3px; }
+.welcome h1 { font-size: 23px; font-weight: 700; letter-spacing: -.02em; }
+.welcome .wave { display: inline-block; animation: wave 2.4s infinite; transform-origin: 70% 70%; }
+@keyframes wave { 0%,60%,100% { transform: rotate(0); } 10%,30% { transform: rotate(16deg); } 20% { transform: rotate(-6deg); } }
+.welcome p { font-size: 14px; color: var(--text-muted); max-width: 380px; }
+.welcome .team-strip { display: flex; gap: 14px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+.welcome .team-member { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); padding: 5px 10px 5px 6px; border-radius: 20px; }
+.mini-avatar { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 9px; font-weight: 700; }
+.msg { max-width: 88%; display: flex; flex-direction: column; gap: 4px; }
+.msg.user { align-self: flex-end; }
+.msg.assistant { align-self: flex-start; }
+.msg-row { display: flex; gap: 8px; align-items: flex-end; }
+.msg.assistant .msg-row .team-avatar { width: 30px; height: 30px; flex-shrink: 0; margin-bottom: 16px; }
+.msg.assistant .msg-row .team-avatar .a1 { width: 21px; height: 21px; font-size: 10px; border: none; }
+.msg.assistant .msg-row .team-avatar .a2 { width: 19px; height: 19px; font-size: 9px; border: none; }
+.msg-bubble { padding: 10px 14px; border-radius: 16px; font-size: 14.5px; line-height: 1.55; word-break: break-word; min-width: 0; }
+.msg.user .msg-bubble { background: var(--primary); color: #fff; border-bottom-right-radius: 4px; white-space: pre-wrap; }
+.msg.assistant .msg-bubble { background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px; box-shadow: var(--shadow); }
+.msg-meta { font-size: 11px; color: var(--text-faint); padding: 0 4px; }
+.msg.user .msg-meta { text-align: right; }
+.msg-images { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.msg-images img { max-width: 130px; max-height: 130px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); }
+.msg-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+/* rich markdown inside bubbles */
+.md h1, .md h2, .md h3, .md h4 { margin: 10px 0 6px; line-height: 1.3; }
+.md h1 { font-size: 17px; } .md h2 { font-size: 16px; } .md h3 { font-size: 15px; } .md h4 { font-size: 14px; }
+.md h1:first-child, .md h2:first-child, .md h3:first-child { margin-top: 2px; }
+.md p { margin: 4px 0; white-space: pre-wrap; }
+.md ul, .md ol { margin: 4px 0; padding-left: 20px; }
+.md li { margin: 3px 0; }
+.md li::marker { color: var(--primary); }
+.md blockquote { border-left: 3px solid var(--primary); padding: 2px 10px; margin: 6px 0; color: var(--text-muted); background: var(--surface-2); border-radius: 0 8px 8px 0; }
+.md code { background: rgba(127,145,170,.16); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.md pre { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; overflow-x: auto; margin: 6px 0; }
+.md pre code { background: none; padding: 0; }
+.md a { color: var(--primary); }
+.md hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+.md table { border-collapse: collapse; margin: 8px 0; font-size: 13px; display: block; max-width: 100%; overflow-x: auto; }
+.md th, .md td { border: 1px solid var(--border); padding: 5px 9px; text-align: left; }
+.md th { background: var(--surface-2); }
+.md strong { font-weight: 600; }
+/* deliverable chips inside chat */
+.deliv-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.deliv-chip {
+  display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px 7px 8px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px;
+  font-size: 12.5px; cursor: pointer; transition: all .15s; color: var(--text); max-width: 100%;
+}
+.deliv-chip:hover { border-color: var(--primary); background: var(--primary-soft); }
+.deliv-chip .ic { width: 24px; height: 24px; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: var(--surface); color: var(--primary); flex-shrink: 0; }
+.deliv-chip .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deliv-chip .s { font-size: 10.5px; color: var(--text-faint); }
+.typing-indicator { display: flex; gap: 4px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; border-bottom-left-radius: 4px; width: fit-content; }
+.typing-indicator span { width: 7px; height: 7px; background: var(--text-faint); border-radius: 50%; animation: bounce 1.2s infinite; }
+.typing-indicator span:nth-child(2) { animation-delay: .15s; }
+.typing-indicator span:nth-child(3) { animation-delay: .3s; }
+@keyframes bounce { 0%,60%,100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-4px); opacity: 1; } }
+.stream-cursor::after { content: '▋'; animation: blink 1s step-end infinite; color: var(--primary); margin-left: 1px; }
+@keyframes blink { 50% { opacity: 0; } }
+.suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 10px; }
+.chip {
+  padding: 8px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+  font-size: 13px; color: var(--text); cursor: pointer; transition: all .15s;
+}
+.chip:hover { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+
+/* ============ Composer ============ */
+.composer { padding: 8px 14px calc(10px + var(--safe-bottom)); background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0; }
+.composer-row { display: flex; align-items: flex-end; gap: 8px; }
+.composer-input-wrap {
+  flex: 1; background: var(--surface-2); border-radius: 22px; border: 1px solid var(--border);
+  display: flex; align-items: flex-end; padding: 5px 6px 5px 14px; min-height: 46px; transition: border-color .15s;
+}
+.composer-input-wrap:focus-within { border-color: var(--primary); }
+.composer-input {
+  flex: 1; border: none; background: transparent; resize: none; font-family: inherit; font-size: 15px;
+  line-height: 1.4; max-height: 140px; padding: 8px 0; color: var(--text); outline: none;
+}
+.composer-input::placeholder { color: var(--text-faint); }
+.composer-actions { display: flex; gap: 2px; align-items: center; }
+.composer-btn {
+  width: 34px; height: 34px; border: none; background: transparent; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; transition: all .15s;
+}
+.composer-btn:hover { background: var(--border); color: var(--text); }
+.composer-btn.send { background: var(--primary); color: #fff; width: 38px; height: 38px; }
+.composer-btn.send:hover { background: var(--primary-hover); }
+.composer-btn.send:disabled { background: var(--border-strong); color: var(--surface); cursor: not-allowed; }
+.composer-btn.stop { background: var(--danger); color: #fff; width: 38px; height: 38px; }
+.composer-btn.recording { background: var(--danger-soft); color: var(--danger); animation: pulse 1.2s infinite; }
+.attachment-preview { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0 8px; }
+.attach-chip { display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; background: var(--surface-2); border-radius: 16px; font-size: 12px; color: var(--text-muted); }
+.attach-chip img { width: 28px; height: 28px; border-radius: 8px; object-fit: cover; }
+.attach-chip button { border: none; background: none; color: var(--text-faint); cursor: pointer; font-size: 15px; line-height: 1; }
+
+/* ============ Work view ============ */
+.work-head { padding: 14px 16px 10px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; }
+.work-head-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.work-head h2 { font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+.work-head .sub { font-size: 12px; color: var(--text-muted); }
+.readiness { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; }
+.readiness-top { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+.readiness-top b { color: var(--text); font-size: 12.5px; }
+.progressbar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.progressbar > div { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 3px; transition: width .4s; }
+.work-list { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.btn {
+  padding: 8px 14px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer;
+  border: 1px solid transparent; transition: all .15s; display: inline-flex; align-items: center; gap: 6px; justify-content: center;
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-secondary { background: var(--surface); border-color: var(--border); color: var(--text); }
+.btn-secondary:hover { background: var(--surface-2); border-color: var(--border-strong); }
+.btn-ghost { background: transparent; color: var(--text-muted); }
+.btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+.btn-danger { background: var(--danger-soft); color: var(--danger); }
+.btn-danger:hover { filter: brightness(.96); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 7px; }
+.work-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 13px 14px; box-shadow: var(--shadow); cursor: pointer; transition: border-color .15s, transform .1s;
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.work-card:hover { border-color: var(--primary); }
+.work-card:active { transform: scale(.995); }
+.work-card .kind-ic {
+  width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  background: var(--primary-soft); color: var(--primary);
+}
+.work-card .info { flex: 1; min-width: 0; }
+.work-card h3 { font-size: 14.5px; font-weight: 600; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.work-card .preview { font-size: 12px; color: var(--text-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 18px; }
+.work-card .meta-row { display: flex; align-items: center; gap: 8px; margin-top: 7px; flex-wrap: wrap; }
+.mini-progress { flex: 1; min-width: 60px; }
+.empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: var(--text-muted); gap: 10px; padding: 32px; }
+.empty-state svg { width: 46px; height: 46px; opacity: .4; }
+.empty-state .hint { font-size: 13px; max-width: 280px; }
+
+/* ============ Status badges ============ */
+.status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 10px; font-size: 10.5px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; }
+.status-badge.new { background: var(--primary-soft); color: var(--primary); }
+.status-badge.approved { background: var(--success-soft); color: var(--success); }
+.status-badge.changes { background: var(--warning-soft); color: var(--warning); }
+.kind-badge { font-size: 10.5px; padding: 2px 8px; border-radius: 8px; background: var(--surface-2); color: var(--text-muted); font-weight: 500; }
+
+/* ============ Bottom nav ============ */
+.bottom-nav {
+  height: calc(var(--nav-h) + var(--safe-bottom)); padding-bottom: var(--safe-bottom);
+  display: flex; background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0; z-index: 30;
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  border: none; background: none; color: var(--text-faint); font-size: 11px; font-weight: 500;
+  cursor: pointer; transition: color .15s; padding-top: 7px; position: relative;
+}
+.nav-item.active { color: var(--primary); }
+.nav-item svg { width: 22px; height: 22px; }
+.nav-badge {
+  position: absolute; top: 5px; right: calc(50% - 24px); background: var(--primary); color: #fff;
+  font-size: 10px; font-weight: 600; min-width: 16px; height: 16px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; padding: 0 4px;
+}
+
+/* ============ Side panel (slide-over) ============ */
+.side-panel {
+  position: absolute; inset: 0; z-index: 40; display: flex; flex-direction: column;
+  background: var(--bg); transform: translateX(102%); transition: transform .28s cubic-bezier(.32,.72,.28,1);
+  visibility: hidden; overflow: hidden;
+}
+.side-panel.open { transform: translateX(0); visibility: visible; }
+@media (min-width: 900px) {
+  .side-panel { left: auto; width: var(--sp-w); border-left: 1px solid var(--border); box-shadow: var(--shadow-lg); }
+}
+.sp-header {
+  height: var(--header-h); display: flex; align-items: center; gap: 10px; padding: 0 10px 0 8px;
+  background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.sp-header h2 { font-size: 16px; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-header .sp-sub { font-size: 11.5px; color: var(--text-muted); font-weight: 400; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-body { flex: 1; overflow-y: auto; padding: 16px; overscroll-behavior: contain; }
+.section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.section-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px; }
+.sp-actions { padding: 10px 16px calc(12px + var(--safe-bottom)); background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+.form-group { margin-bottom: 14px; }
+.form-group:last-child { margin-bottom: 0; }
+.form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.form-hint { font-size: 12px; color: var(--text-muted); margin-top: 5px; line-height: 1.45; }
+.form-input, .form-select, .form-textarea {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface-2); font-family: inherit; font-size: 14px; color: var(--text); outline: none; transition: border-color .15s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--primary); }
+.form-textarea { min-height: 84px; resize: vertical; line-height: 1.5; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.toggle { position: relative; width: 44px; height: 26px; background: var(--border-strong); border-radius: 13px; cursor: pointer; transition: background .2s; flex-shrink: 0; border: none; }
+.toggle.on { background: var(--primary); }
+.toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.toggle.on::after { transform: translateX(18px); }
+input[type="range"] { width: 100%; accent-color: var(--primary); }
+.key-status { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 8px; }
+.key-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); flex-shrink: 0; }
+.key-status.connected .dot { background: var(--success); }
+.key-status.error .dot { background: var(--danger); }
+
+/* ============ Team panel ============ */
+.team-card { display: flex; gap: 12px; padding: 14px; background: var(--surface-2); border-radius: var(--radius); margin-bottom: 10px; border: 1px solid var(--border); }
+.team-card .who { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 56px; flex-shrink: 0; }
+.team-card .who .avatar-lg { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 17px; box-shadow: var(--shadow); }
+.team-card .who .role { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; text-align: center; }
+.team-card .what { flex: 1; min-width: 0; }
+.team-card h3 { font-size: 14.5px; font-weight: 600; }
+.team-card .desc { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; line-height: 1.5; }
+.team-card .skills-tag { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.team-card .skills-tag span { font-size: 10.5px; background: var(--surface); border: 1px solid var(--border); padding: 2px 8px; border-radius: 8px; color: var(--text-muted); }
+.skill-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: var(--surface-2); border-radius: var(--radius-sm); margin-bottom: 8px; border: 1px solid var(--border); }
+.skill-item:last-child { margin-bottom: 0; }
+.skill-info { flex: 1; min-width: 0; }
+.skill-name { font-size: 14px; font-weight: 600; }
+.skill-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.skill-actions { display: flex; gap: 2px; flex-shrink: 0; }
+
+/* ============ Deliverable detail ============ */
+.detail-title { font-size: 18px; font-weight: 700; letter-spacing: -.01em; margin-bottom: 4px; }
+.detail-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.detail-body { font-size: 14px; line-height: 1.6; }
+.detail-body .md p { white-space: normal; }
+.edit-title-input { width: 100%; padding: 10px 12px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); font-family: inherit; font-size: 16px; font-weight: 600; color: var(--text); outline: none; }
+.edit-title-input:focus { border-color: var(--primary); }
+.edit-area { width: 100%; min-height: 260px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); font-family: inherit; font-size: 13.5px; line-height: 1.6; color: var(--text); resize: vertical; outline: none; }
+.edit-area:focus { border-color: var(--primary); }
+.edit-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+
+/* option cards */
+.opt-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; position: relative; }
+.opt-card.chosen { border-color: var(--success); background: var(--success-soft); }
+.opt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.opt-head h3 { font-size: 15px; font-weight: 700; }
+.opt-summary { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+.opt-lines { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; }
+.opt-lines .ln { display: flex; gap: 6px; }
+.opt-lines .k { font-weight: 600; min-width: 64px; color: var(--text-muted); }
+.opt-lines .pros .k { color: var(--success); }
+.opt-lines .cons .k { color: var(--danger); }
+.verdict { margin-top: 10px; padding: 8px 12px; background: var(--primary-soft); color: var(--text); border-radius: 8px; font-size: 12.5px; font-weight: 500; }
+.opt-choose { margin-top: 10px; }
+
+/* plan checklist */
+.plan-phase { margin-bottom: 16px; }
+.plan-phase:last-child { margin-bottom: 0; }
+.plan-phase h4 { font-size: 13.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.plan-phase .ph-chip { font-size: 10px; background: var(--primary-soft); color: var(--primary); padding: 2px 8px; border-radius: 8px; font-weight: 600; }
+.plan-phase .ph-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; max-width: 70px; }
+.plan-phase .ph-bar > div { height: 100%; background: var(--success); }
+.task { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background .12s; }
+.task:hover { background: var(--surface-2); }
+.task input[type="checkbox"] { accent-color: var(--success); width: 16px; height: 16px; margin-top: 2px; cursor: pointer; flex-shrink: 0; }
+.task .tx { flex: 1; font-size: 13.5px; line-height: 1.5; }
+.task.done .tx { text-decoration: line-through; color: var(--text-faint); }
+
+/* calendar view */
+.view-toggle { display: flex; gap: 4px; margin-bottom: 12px; }
+.view-toggle .btn { padding: 6px 12px; font-size: 12px; }
+.view-toggle .btn.active { background: var(--primary-soft); color: var(--primary); border-color: var(--primary); }
+.cal-list { display: flex; flex-direction: column; gap: 6px; }
+.cal-row { display: flex; gap: 10px; padding: 9px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; align-items: flex-start; }
+.cal-date { min-width: 52px; text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 3px 4px; flex-shrink: 0; }
+.cal-date .d { font-size: 15px; font-weight: 700; line-height: 1.1; }
+.cal-date .m { font-size: 9.5px; text-transform: uppercase; color: var(--text-faint); font-weight: 600; letter-spacing: .05em; }
+.cal-main { flex: 1; min-width: 0; }
+.cal-main .t { font-size: 13px; font-weight: 600; }
+.cal-main .n { font-size: 11.5px; color: var(--text-muted); }
+.cal-channel { display: inline-block; font-size: 10px; padding: 1px 8px; border-radius: 7px; background: var(--primary-soft); color: var(--primary); font-weight: 600; margin-top: 3px; }
+
+/* project cards */
+.project-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; box-shadow: var(--shadow); cursor: pointer; transition: border-color .15s; }
+.project-card:hover, .project-card.active { border-color: var(--primary); }
+.project-card.active { background: var(--primary-soft); }
+.project-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.project-card .meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 10px; flex-wrap: wrap; }
+.project-card .mini-progress { margin-top: 8px; }
+.project-card-actions { display: flex; gap: 6px; margin-top: 10px; }
+
+/* notes list (brief) */
+.note-item { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; background: var(--surface-2); border-radius: 8px; margin-bottom: 6px; font-size: 12.5px; border: 1px solid var(--border); }
+.note-item .tx { flex: 1; line-height: 1.5; }
+.note-item .dt { color: var(--text-faint); font-size: 10.5px; white-space: nowrap; margin-top: 2px; }
+
+/* ============ Modals ============ */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 60; display: none; align-items: flex-end; justify-content: center; }
+[data-theme="dark"] .modal-backdrop { background: rgba(0,0,0,.65); }
+.modal-backdrop.open { display: flex; }
+.modal { background: var(--surface); border-radius: var(--radius-lg) var(--radius-lg) 0 0; width: 100%; max-width: 520px; max-height: 86vh; overflow-y: auto; padding: 20px 16px calc(20px + var(--safe-bottom)); animation: slideUp .25s ease; }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-title { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 8px; margin-top: 18px; justify-content: flex-end; }
+@media (min-width: 640px) {
+  .modal-backdrop { align-items: center; }
+  .modal { border-radius: var(--radius-lg); margin: 16px; }
+  .msg { max-width: 74%; }
+}
+.modal .row-btns { display: flex; flex-direction: column; gap: 8px; }
+.modal .row-btns .btn { width: 100%; }
+
+/* ============ Toast ============ */
+.toast {
+  position: fixed; bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px); left: 50%;
+  transform: translateX(-50%) translateY(20px); background: var(--text); color: var(--bg);
+  padding: 10px 18px; border-radius: 22px; font-size: 13px; font-weight: 500; opacity: 0;
+  pointer-events: none; transition: all .25s; z-index: 100; max-width: min(90%, 420px); text-align: center;
+  box-shadow: var(--shadow-md);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  .chat-scroll { scroll-behavior: auto; }
+}
+@media print { .topbar, .bottom-nav, .statusbar, .composer, .suggestions, .side-panel { display: none !important; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ============ Top bar ============ -->
+  <header class="topbar">
+    <button class="brand" id="brandBtn" title="Your business profile">
+      <div class="team-avatar"><div class="a1">L</div><div class="a2">M</div></div>
+      <div class="brand-text">
+        <div class="brand-title">Lena &amp; Mark</div>
+        <div class="brand-sub" id="brandSub">Your marketing team</div>
+      </div>
+    </button>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="btnBrief" title="Business profile" aria-label="Business profile">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5"/><rect x="10" y="4" width="4" height="4" rx="1"/><path d="M9 13h6M9 16h4"/></svg>
+        <span class="bubble-tip hidden" id="briefTip"></span>
+      </button>
+      <button class="icon-btn" id="btnTeam" title="Meet the team" aria-label="Team">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      </button>
+      <button class="icon-btn" id="btnProjects" title="Projects" aria-label="Projects">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+      </button>
+      <button class="icon-btn" id="btnTheme" title="Toggle theme" aria-label="Theme">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" id="iconSun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" id="iconMoon" class="hidden"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
+      <button class="icon-btn" id="btnSettings" title="Settings" aria-label="Settings">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ============ Status bar ============ -->
+  <div class="statusbar hidden" id="statusBar">
+    <div class="proj-name" id="sbName">—</div>
+    <div class="phase-dots" id="sbPhases"></div>
+    <button class="deliver-btn" id="btnDeliverMain">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      Deliver
+    </button>
+  </div>
+
+  <div class="main">
+    <!-- ============ Chat panel ============ -->
+    <section class="panel active" id="panelChat" aria-label="Chat with your team">
+      <div class="chat-scroll" id="chatScroll">
+        <div class="welcome" id="welcome">
+          <div class="team-avatar"><div class="a1">L</div><div class="a2">M</div></div>
+          <h1><span class="wave">👋</span> Hi, we're your marketing team</h1>
+          <p>Lena and Mark lead a small team that plans your marketing, writes everything you need, and hands it over ready to use. Tell us what's going on with your business — plain language is fine.</p>
+          <div class="team-strip">
+            <div class="team-member"><span class="mini-avatar" style="background:linear-gradient(135deg,#0ea5e9,#8b5cf6)">L</span>Lena · team lead</div>
+            <div class="team-member"><span class="mini-avatar" style="background:linear-gradient(135deg,#f472b6,#f59e0b)">M</span>Mark · copy &amp; content</div>
+            <div class="team-member"><span class="mini-avatar" style="background:linear-gradient(135deg,#34d399,#0ea5e9)">Ma</span>Maya · channels &amp; ads</div>
+            <div class="team-member"><span class="mini-avatar" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">S</span>Sam · schedule &amp; ops</div>
+          </div>
+        </div>
+      </div>
+      <div class="suggestions" id="suggestions">
+        <button class="chip" data-prompt="I run a small glamping site. Bookings die between December and March — how do we fix that?">Winter is dead — help</button>
+        <button class="chip" data-prompt="We just built a new feature for our SaaS and I need a launch plan plus the actual content.">Launch my product</button>
+        <button class="chip" data-prompt="I own a local café and I never know what to post. Give me a month of content that sounds like us.">A month of café content</button>
+      </div>
+      <div class="composer">
+        <div class="attachment-preview" id="attachPreview"></div>
+        <div class="composer-row">
+          <div class="composer-input-wrap">
+            <textarea class="composer-input" id="chatInput" rows="1" placeholder="Tell Lena what you need…" enterkeyhint="send"></textarea>
+            <div class="composer-actions">
+              <button class="composer-btn" id="btnAttach" title="Attach photo" aria-label="Attach">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+              </button>
+              <button class="composer-btn" id="btnMic" title="Voice input" aria-label="Voice">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+              </button>
+            </div>
+          </div>
+          <button class="composer-btn send" id="btnSend" title="Send" aria-label="Send" disabled>
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          </button>
+          <button class="composer-btn stop hidden" id="btnStop" title="Stop generating" aria-label="Stop">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+          </button>
+        </div>
+        <input type="file" id="fileInput" class="sr-only" accept="image/*" multiple />
+      </div>
+    </section>
+
+    <!-- ============ Work panel ============ -->
+    <section class="panel" id="panelWork" aria-label="Work in progress">
+      <div class="work-head">
+        <div class="work-head-row">
+          <div>
+            <h2>The work</h2>
+            <div class="sub" id="workSub">Everything your team is producing for you</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btnAddDeliverable" title="Ask the team for something specific">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Request
+          </button>
+        </div>
+        <div class="readiness">
+          <div class="readiness-top"><span>Project readiness</span><b id="readinessLabel">0%</b></div>
+          <div class="progressbar"><div id="readinessBar" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div class="work-list" id="workList">
+        <div class="empty-state">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <div class="hint">Nothing in progress yet.<br/>Start a conversation with Lena — your plan, content and schedule will land here as cards.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ Bottom nav ============ -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-tab="chat" aria-label="Chat">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+      Chat
+    </button>
+    <button class="nav-item" data-tab="work" aria-label="The work">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+      Work
+      <span class="nav-badge hidden" id="workBadge">0</span>
+    </button>
+  </nav>
+
+  <!-- ============ Side panel: Business profile (Brief) ============ -->
+  <aside class="side-panel" id="spBrief" aria-label="Business profile">
+    <div class="sp-header">
+      <button class="icon-btn" data-close-panel aria-label="Close"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg></button>
+      <h2>Business profile<span class="sp-sub" id="briefHeaderSub">What your team knows about you</span></h2>
+      <button class="btn btn-primary btn-sm" id="btnBriefEdit">Edit</button>
+    </div>
+    <div class="sp-body" id="briefBody"></div>
+    <div class="sp-actions">
+      <button class="btn btn-secondary" id="btnBriefAsk" style="flex:1">Ask Lena about this</button>
+      <button class="btn btn-ghost" id="btnBriefReset" title="Clear profile">Reset</button>
+    </div>
+  </aside>
+
+  <!-- ============ Side panel: Team ============ -->
+  <aside class="side-panel" id="spTeam" aria-label="Your team">
+    <div class="sp-header">
+      <button class="icon-btn" data-close-panel aria-label="Close"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg></button>
+      <h2>Your team<span class="sp-sub">Lena brings in whoever the job needs</span></h2>
+    </div>
+    <div class="sp-body" id="teamBody"></div>
+  </aside>
+
+  <!-- ============ Side panel: Projects ============ -->
+  <aside class="side-panel" id="spProjects" aria-label="Projects">
+    <div class="sp-header">
+      <button class="icon-btn" data-close-panel aria-label="Close"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg></button>
+      <h2>Projects<span class="sp-sub" id="projectsSub">All your campaigns</span></h2>
+      <button class="btn btn-primary btn-sm" id="btnNewProject">+ New</button>
+    </div>
+    <div class="sp-body" id="projectsBody"></div>
+  </aside>
+
+  <!-- ============ Side panel: Settings ============ -->
+  <aside class="side-panel" id="spSettings" aria-label="Settings">
+    <div class="sp-header">
+      <button class="icon-btn" data-close-panel aria-label="Close"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg></button>
+      <h2>Settings<span class="sp-sub">Power users only</span></h2>
+    </div>
+    <div class="sp-body">
+      <div class="section">
+        <div class="section-title">Connection</div>
+        <div class="form-group">
+          <label class="form-label" for="apiKey">Groq API key</label>
+          <input type="password" class="form-input" id="apiKey" placeholder="gsk_…" autocomplete="off" />
+          <div class="form-hint">Stored only in this browser (never uploaded anywhere else). Get a free key at console.groq.com.</div>
+          <div class="key-status" id="keyStatus"><span class="dot"></span> <span>Not connected</span></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="modelSelect">Model</label>
+          <select class="form-select" id="modelSelect">
+            <option value="llama-3.3-70b-versatile">Llama 3.3 70B — best quality</option>
+            <option value="llama-3.1-8b-instant">Llama 3.1 8B — fastest</option>
+            <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4 Scout — image + text</option>
+            <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
+            <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
+          </select>
+          <div class="form-hint">Llama 4 Scout can read attached photos. Everything else is text-only.</div>
+        </div>
+        <button class="btn btn-primary" id="btnSaveKey" style="width:100%;margin-top:8px;">Save &amp; connect</button>
+      </div>
+      <div class="section">
+        <div class="section-title">Generation</div>
+        <div class="form-group">
+          <div class="toggle-row">
+            <label class="form-label" style="margin:0" for="temperature">Creativity (temperature)</label>
+            <span id="tempValue" style="font-size:13px;color:var(--text-muted)">0.7</span>
+          </div>
+          <input type="range" id="temperature" min="0" max="1.5" step="0.1" value="0.7" />
+          <div class="form-hint">Lower = focused and safe · Higher = more creative</div>
+        </div>
+        <div class="form-group">
+          <div class="toggle-row">
+            <label class="form-label" style="margin:0">Stream replies live</label>
+            <div class="toggle on" id="toggleStream" role="switch" aria-checked="true" tabindex="0"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="toggle-row">
+            <label class="form-label" style="margin:0">Auto-approve routine deliverables</label>
+            <div class="toggle" id="toggleAutoApprove" role="switch" aria-checked="false" tabindex="0"></div>
+          </div>
+          <div class="form-hint">If on, simple items (checklists, notes) are marked approved automatically. You can still change them.</div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">Team instructions</div>
+        <div class="form-group">
+          <label class="form-label" for="systemPrompt">Extra guidance for the team</label>
+          <textarea class="form-textarea" id="systemPrompt" placeholder="Brand voice, must-never-do rules, favorite phrases…"></textarea>
+          <div class="form-hint">Appended to Lena's standing orders. Optional.</div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">Skills</div>
+        <div class="form-hint" style="margin-bottom:12px">Playbooks the team can use when producing your work. Edit or add your own.</div>
+        <div id="skillsList"></div>
+        <button class="btn btn-secondary btn-sm" id="btnNewSkill" style="margin-top:10px;">+ New skill</button>
+      </div>
+      <div class="section">
+        <div class="section-title">Data</div>
+        <div class="row-btns">
+          <button class="btn btn-secondary" id="btnExportAll">Download all data (JSON)</button>
+          <button class="btn btn-secondary" id="btnClearChat">Clear this conversation</button>
+          <button class="btn btn-danger" id="btnResetAll">Reset everything</button>
+        </div>
+        <div class="form-hint" style="margin-top:10px;">v2.0 · everything lives in your browser. Version <span id="appVersion">2.0.0</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ Side panel: Deliverable detail ============ -->
+  <aside class="side-panel" id="spDetail" aria-label="Deliverable">
+    <div class="sp-header">
+      <button class="icon-btn" data-close-panel aria-label="Close"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg></button>
+      <h2 id="detailHeaderTitle">Deliverable</h2>
+    </div>
+    <div class="sp-body" id="detailBody"></div>
+    <div class="sp-actions" id="detailActions"></div>
+  </aside>
+
+  <!-- ============ Modals ============ -->
+  <div class="modal-backdrop" id="projectModal">
+    <div class="modal">
+      <div class="modal-title" id="projectModalTitle">New project</div>
+      <div class="form-group">
+        <label class="form-label" for="projName">Name</label>
+        <input type="text" class="form-input" id="projName" placeholder="e.g. Winter bookings push" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="projGoal">What should this achieve? (optional)</label>
+        <textarea class="form-textarea" id="projGoal" placeholder="More bookings December–March…"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="btnCancelProject">Cancel</button>
+        <button class="btn btn-primary" id="btnSaveProject">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="skillModal">
+    <div class="modal">
+      <div class="modal-title" id="skillModalTitle">New skill</div>
+      <div class="form-group">
+        <label class="form-label" for="skillName">Name</label>
+        <input type="text" class="form-input" id="skillName" placeholder="e.g. Instagram carousel" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="skillDesc">Description</label>
+        <textarea class="form-textarea" id="skillDesc" placeholder="What this skill produces…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="skillPrompt">Instructions for the team</label>
+        <textarea class="form-textarea" id="skillPrompt" style="min-height:120px" placeholder="When using this skill…"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="btnCancelSkill">Cancel</button>
+        <button class="btn btn-primary" id="btnSaveSkill">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="requestModal">
+    <div class="modal">
+      <div class="modal-title">Request new work</div>
+      <p class="form-hint" style="margin-bottom:12px">Pick what you want the team to produce next. It will be added to the current project.</p>
+      <div class="row-btns" id="requestList"></div>
+      <div class="modal-actions"><button class="btn btn-ghost" id="btnCloseRequest">Close</button></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="confirmModal">
+    <div class="modal">
+      <div class="modal-title" id="confirmTitle">Are you sure?</div>
+      <p class="form-hint" id="confirmText" style="margin-bottom:4px;"></p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="btnConfirmCancel">Cancel</button>
+        <button class="btn btn-danger" id="btnConfirmOk">Yes, do it</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+
+/* ══════════ c3_core.js ══════════ */
+/* ============================================================
+   Lena & Mark v2.0 — core: constants, state, storage, UI kit
+   ============================================================ */
+'use strict';
+
+/* ---------- Constants ---------- */
+const APP_VERSION = '2.0.0';
+const STORAGE_KEY = 'lena_mark_v2';
+const LEGACY_KEYS = ['lena_campaign_v2', 'lena_campaign_v1'];
+const GROQ_BASE = 'https://api.groq.com/openai/v1';
+const VISION_MODELS = ['meta-llama/llama-4-scout-17b-16e-instruct'];
+
+const KIND_META = {
+  plan:      { label: 'Plan',        icon: 'plan' },
+  options:   { label: 'Options',     icon: 'options' },
+  brief:     { label: 'Brief',       icon: 'brief' },
+  social:    { label: 'Social posts',icon: 'social' },
+  email:     { label: 'Email',       icon: 'email' },
+  ad:        { label: 'Ad copy',     icon: 'ad' },
+  landing:   { label: 'Landing page',icon: 'landing' },
+  calendar:  { label: 'Calendar',    icon: 'calendar' },
+  instructions: { label: 'Instructions', icon: 'instructions' },
+  handbook:  { label: 'Handbook',    icon: 'instructions' },
+  other:     { label: 'Note',        icon: 'other' },
+};
+
+const ICONS = {
+  plan:   '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
+  options:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+  brief:  '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5"/><rect x="10" y="4" width="4" height="4" rx="1"/></svg>',
+  social: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M7 11v9M7 4v3M4 7h6M15 20c0-5 1.5-9 5-11v9.5a4 4 0 01-4 1.5M15 20v-6"/></svg>',
+  email:  '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>',
+  ad:     '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 11l18-7-7 18-2.5-7.5L3 11z"/></svg>',
+  landing:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h8"/></svg>',
+  calendar:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>',
+  instructions:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01M12 11v5M12 16.5v.01"/></svg>',
+  other:  '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>',
+};
+
+/* ---------- Default skills (team playbooks) ---------- */
+const DEFAULT_SKILLS = [
+  { id: 'skill_options', name: 'Strategy options', description: 'Compare 2–3 realistic approaches with effort, cost and expected impact.',
+    prompt: 'Present 2–3 options as a comparison: what it is, best for, effort (Low/Med/High), rough cost band, expected impact, pros and cons (2–3 each), and a clear recommendation with reasoning.' },
+  { id: 'skill_plan', name: 'Campaign plan', description: 'A phased plan with owners, tasks and a timeline the client can follow.',
+    prompt: 'Build a phased plan. Use phase headings (e.g. "Phase 1 — Preparation"), then tasks as markdown checklists "- [ ] Task" with the team member responsible in parentheses. Keep phases to 3–5 and tasks concrete and jargon-free.' },
+  { id: 'skill_social', name: 'Social media posts', description: 'Platform-ready posts for Instagram, Facebook, LinkedIn, TikTok.',
+    prompt: 'Write engaging social posts. Include captions, hashtags and suggested visuals. Format clearly per platform with headings.' },
+  { id: 'skill_email', name: 'Email sequence', description: 'Multi-email nurture or promo sequences with subject lines.',
+    prompt: 'Create a short email sequence (3–5 emails). Include subject lines, preview text and body copy. Number each email.' },
+  { id: 'skill_ads', name: 'Ad copy', description: 'Paid ads — headlines, primary text, CTAs.',
+    prompt: 'Write ad variants: headlines, primary text, CTAs. Provide 3 options where useful, with a note on which audience each suits.' },
+  { id: 'skill_landing', name: 'Landing page copy', description: 'Hero, benefits, FAQ, CTA sections.',
+    prompt: 'Draft landing page sections: hero (headline + subline), benefits, social proof placeholders, FAQ, CTA.' },
+  { id: 'skill_calendar', name: 'Content calendar', description: 'Schedule posts and sends across channels.',
+    prompt: 'Build a practical content calendar covering the campaign window. Output one line per item: DATE | Channel | Item | Notes (dates as YYYY-MM-DD).' },
+  { id: 'skill_instructions', name: 'How-to instructions', description: 'Plain-language steps for publishing and running the campaign.',
+    prompt: 'Write numbered step-by-step instructions a non-technical owner can follow to publish/use the deliverables. Mention where each file lives in the delivery package and what to do if something looks wrong.' },
+];
+
+/* ---------- Default team roster ---------- */
+const TEAM = [
+  { id: 'lena', name: 'Lena', role: 'Team lead', color: 'linear-gradient(135deg,#0ea5e9,#8b5cf6)',
+    desc: 'Your single point of contact. Lena listens, understands the business, recommends the best approach, coordinates the team and owns the result.',
+    skills: ['Strategy', 'Discovery', 'Coordination', 'QA'] },
+  { id: 'mark', name: 'Mark', role: 'Copy & content', color: 'linear-gradient(135deg,#f472b6,#f59e0b)',
+    desc: 'Writes everything: social posts, emails, ads, landing pages. Matches tone of voice to the business and keeps it consistent.',
+    skills: ['Copywriting', 'Tone of voice', 'Editing'] },
+  { id: 'maya', name: 'Maya', role: 'Channels & ads', color: 'linear-gradient(135deg,#34d399,#0ea5e9)',
+    desc: 'Picks the right channels and audiences, drafts targeting notes and budget guidance, and reviews copy per platform.',
+    skills: ['Channel strategy', 'Audiences', 'Ad platforms'] },
+  { id: 'sam', name: 'Sam', role: 'Schedule & ops', color: 'linear-gradient(135deg,#f59e0b,#ef4444)',
+    desc: 'Builds calendars, packages the final delivery, and writes the instructions you follow to put everything live.',
+    skills: ['Calendars', 'Packaging', 'Instructions'] },
+];
+
+/* ---------- Standing orders (system prompt) ---------- */
+const DEFAULT_SYSTEM = `You are Lena, the team lead of a small marketing team that works for one client at a time (the user). Your teammates are Mark (copywriting and content), Maya (channels and ads) and Sam (scheduling and operations). The user is a busy business owner: not a marketer, not interested in jargon. You are their single point of contact.
+
+HOW YOU TALK
+- Plain, warm, confident language. Short paragraphs and bullets. No marketing buzzwords; explain any necessary term in one phrase.
+- Be concrete: real numbers, dates, examples. Ask at most 1–2 focused questions when you genuinely need info, then proceed with sensible assumptions and say what you assumed.
+- Proactively suggest the sensible next step; don't wait to be asked.
+
+HOW YOU WORK (follow this arc)
+1. UNDERSTAND — Get the essentials: what the business is, the goal, timeline, budget feel, audience. Use what you already know from the client profile; only ask what is missing and material.
+2. RECOMMEND — Offer 2–3 realistic options with a clear recommendation (use the Strategy options skill). Keep each option short; put the comparison in the OPTIONS deliverable.
+3. PLAN — Once a direction is chosen (or you recommend proceeding with your preferred option), produce a phased plan with tasks assigned to team members.
+4. PRODUCE — Create the actual content the plan calls for: social posts, emails, ad copy, landing copy, calendar — whatever fits. Produce complete, final-quality drafts, not outlines. For a small campaign, produce everything the plan needs in the same reply rather than asking permission for each piece.
+5. HAND OVER — End with a short plain-language summary of what was produced and what the user should do next (approve, tweak, or deliver the package).
+
+DELIVERABLES PROTOCOL
+When you produce a finished piece of work, wrap it in markers so the app can file it:
+[[DELIVERABLE:kind|Title]]
+...content in markdown...
+[[/DELIVERABLE]]
+Kinds: options, plan, brief, social, email, ad, landing, calendar, instructions, other.
+Rules:
+- Every campaign should include an "options" deliverable (unless the user already fixed the approach), a "plan", the content deliverables, a "calendar" if anything is scheduled, and "instructions" for how to use it all.
+- For "options": one section per option with fields: What it is, Best for, Effort, Cost, Impact, Pros (2-3 bullets), Cons (2-3 bullets); end with a "Recommendation" section naming the chosen option and why, in plain words.
+- For "plan": 3–5 phases titled "Phase N — Name", each with markdown checklist tasks "- [ ] task (Sam)" assigning a team member; include timing in phase titles or tasks (e.g. "Week 1–2").
+- For "calendar": one line per item: YYYY-MM-DD | Channel | Item | Notes.
+- For "instructions": numbered steps for a non-technical owner to publish and use everything, referencing the delivery package files.
+- Never leave placeholders like "TBD" or "insert here" inside deliverables; make complete, specific drafts (invented-but-plausible specifics are fine and expected).
+- Outside the deliverables, keep chat replies SHORT. The detail lives in the deliverables.
+
+CONTEXT
+The app sends you a client profile summary and the active project brief at the top of each conversation. Use it; don't re-ask what you already know. If the user sends photos, describe what you see and use it.`;
+
+/* ---------- State ---------- */
+const defaultProfile = () => ({
+  businessName: '', businessType: '', location: '',
+  audience: '', voice: '', budget: '', notes: [], // notes: [{text, ts}]
+  updatedAt: null,
+});
+
+function defaultState() {
+  return {
+    version: APP_VERSION,
+    apiKey: '',
+    model: 'llama-3.3-70b-versatile',
+    temperature: 0.7,
+    systemPrompt: '',
+    stream: true,
+    autoApprove: false,
+    theme: 'light',
+    profile: defaultProfile(),
+    skills: JSON.parse(JSON.stringify(DEFAULT_SKILLS)),
+    projects: [],
+    activeProjectId: null,
+    seenWorkTab: true, // true = no unread badge
+  };
+}
+
+let state = defaultState();
+// transient (not persisted)
+const T = {
+  attachments: [],        // { name, type, dataUrl }
+  isGenerating: false,
+  abortCtrl: null,
+  recognition: null,
+  editingSkillId: null,
+  openDetailId: null,
+  editingDeliverable: false,
+  confirmCb: null,
+  closedPanels: new Set(), // panels user has closed at least once
+};
+
+function activeProject() {
+  return state.projects.find(p => p.id === state.activeProjectId) || null;
+}
+
+function ensureProject(seed) {
+  let p = activeProject();
+  if (!p) {
+    p = newProjectObj(seed);
+    state.projects.unshift(p);
+    state.activeProjectId = p.id;
+  } else if (seed && seed.name && p.name === 'Untitled project') {
+    p.name = seed.name.slice(0, 60);
+  }
+  return p;
+}
+
+function newProjectObj(seed) {
+  const now = Date.now();
+  return {
+    id: 'proj_' + now + '_' + Math.random().toString(36).slice(2, 6),
+    name: (seed && seed.name) || 'Untitled project',
+    goal: (seed && seed.goal) || '',
+    status: 'In progress',
+    phase: 'discover',   // discover → options → plan → produce → deliver
+    messages: [],
+    deliverables: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/* ---------- Storage & migration ---------- */
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      state = mergeState(defaultState(), saved);
+    } else {
+      migrateLegacy(); // first run: try to adopt v1 data
+    }
+  } catch (e) { console.warn('loadState failed', e); }
+  if (!Array.isArray(state.skills) || !state.skills.length) state.skills = JSON.parse(JSON.stringify(DEFAULT_SKILLS));
+  if (!state.profile || typeof state.profile !== 'object') state.profile = defaultProfile();
+  applyTheme(state.theme === 'dark' ? 'dark' : 'light');
+}
+
+function mergeState(base, saved) {
+  const out = { ...base, ...saved };
+  out.profile = { ...defaultProfile(), ...(saved.profile || {}) };
+  if (saved.version && saved.version !== APP_VERSION) { /* future migrations hook */ }
+  return out;
+}
+
+function migrateLegacy() {
+  for (const key of LEGACY_KEYS) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const old = JSON.parse(raw);
+      const msgs = old.messages || (old.project && []) || [];
+      const arts = old.artifacts || [];
+      if (!msgs.length && !arts.length) continue;
+      const p = newProjectObj({ name: (old.project && old.project.name) || 'Imported campaign' });
+      p.phase = arts.some(a => a.type === 'plan') ? 'plan' : 'discover';
+      p.messages = msgs.map(m => ({ role: m.role, content: m.content, ts: m.ts || Date.now() }));
+      p.deliverables = arts.map(a => ({
+        id: 'dlv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        kind: normalizeKind(a.type), title: a.title || 'Imported item',
+        content: a.content || '', status: (a.status === 'ready' || a.status === 'scheduled') ? 'approved' : 'new',
+        createdAt: a.createdAt || Date.now(), updatedAt: a.updatedAt || null, messageId: null,
+        checklist: parseChecklist(a.content || ''),
+      }));
+      state.projects.unshift(p);
+      state.activeProjectId = p.id;
+      if (old.apiKey) state.apiKey = old.apiKey;
+      if (old.model) state.model = old.model;
+      if (old.temperature != null) state.temperature = old.temperature;
+      if (old.systemPrompt) state.systemPrompt = old.systemPrompt;
+      if (old.theme) state.theme = old.theme;
+      if (old.skills && old.skills.length) state.skills = old.skills;
+      console.info('Migrated data from', key);
+      break;
+    } catch (e) { /* skip corrupt entries */ }
+  }
+}
+
+function saveState() {
+  try {
+    const { attachments, ...rest } = state; // attachments never persisted (not on state anyway)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn('saveState failed', e);
+    toast('Storage full — export & reset old projects to free space');
+  }
+}
+
+/* ---------- Theme ---------- */
+function applyTheme(theme) {
+  state.theme = theme;
+  document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
+  document.getElementById('themeColor').content = theme === 'dark' ? '#0f172a' : '#f8fafc';
+  document.getElementById('iconSun').classList.toggle('hidden', theme === 'dark');
+  document.getElementById('iconMoon').classList.toggle('hidden', theme !== 'dark');
+}
+
+/* ---------- UI kit ---------- */
+function $(id) { return document.getElementById(id); }
+function qs(sel, root) { return (root || document).querySelector(sel); }
+function qsa(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
+
+function toast(msg, ms) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), ms || 2400);
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function fmtTime(ts) { return new Date(ts || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+function fmtDate(ts) { return new Date(ts || Date.now()).toLocaleDateString([], { month: 'short', day: 'numeric' }); }
+
+function confirmDialog(title, text, okLabel, cb) {
+  $('confirmTitle').textContent = title;
+  $('confirmText').textContent = text || '';
+  $('btnConfirmOk').textContent = okLabel || 'Yes, do it';
+  T.confirmCb = cb;
+  $('confirmModal').classList.add('open');
+}
+
+function autoResize(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
+}
+
+function statusBadge(status) {
+  const map = { new: 'new', approved: 'approved', changes: 'changes' };
+  const cls = map[status] || 'new';
+  const label = status === 'changes' ? 'changes wanted' : status;
+  return `<span class="status-badge ${cls}">${esc(label)}</span>`;
+}
+
+function kindLabel(kind) { return (KIND_META[kind] || KIND_META.other).label; }
+function kindIcon(kind) { const k = KIND_META[kind] ? kind : 'other'; return ICONS[KIND_META[k].icon] || ICONS.other; }
+
+/* ---------- Side panels ---------- */
+const PANELS = ['spBrief', 'spTeam', 'spProjects', 'spSettings', 'spDetail'];
+function openPanel(id) {
+  PANELS.forEach(pid => $(pid).classList.toggle('open', pid === id));
+}
+function closePanels() {
+  PANELS.forEach(pid => $(pid).classList.remove('open'));
+  T.editingDeliverable = false;
+}
+
+/* ---------- Tabs ---------- */
+function switchTab(tab) {
+  qsa('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  qsa('.panel').forEach(p => p.classList.remove('active'));
+  $(tab === 'work' ? 'panelWork' : 'panelChat').classList.add('active');
+  if (tab === 'work') {
+    state.seenWorkTab = true;
+    updateWorkBadge();
+    renderWork();
+  }
+}
+
+function updateWorkBadge() {
+  const p = activeProject();
+  const n = p ? p.deliverables.filter(d => d.status === 'new').length : 0;
+  const badge = $('workBadge');
+  badge.textContent = n > 9 ? '9+' : String(n);
+  badge.classList.toggle('hidden', !(n > 0) || state.seenWorkTab === true && document.querySelector('.panel.active')?.id === 'panelWork');
+  // simpler: show badge when there are new items and work tab not currently open
+  const workOpen = $('panelWork').classList.contains('active');
+  badge.classList.toggle('hidden', !(n > 0) || workOpen);
+}
+
+
+/* ══════════ c4_pure.js ══════════ */
+/* ============================================================
+   Lena & Mark v2.0 — pure modules: markdown, parsers, ICS, zip
+   (no DOM access here → unit-testable in Node)
+   ============================================================ */
+
+/* ---------- Markdown → safe HTML (renderer below in c5) ---------- */
+function escMd(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function inlineMd(escaped) {
+  let s = escaped;
+  s = s.replace(/`([^`]+)`/g, (m, c) => '<code>' + c + '</code>');
+  s = s.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>');
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return s;
+}
+
+function mdToHtmlLines(src) {
+  const lines = String(src || '').replace(/\r\n?/g, '\n').split('\n');
+  const out = [];
+  let i = 0, listStack = [], inCode = false, codeBuf = [], paraBuf = [];
+
+  const closeLists = () => { while (listStack.length) out.push('</' + listStack.pop() + '>'); };
+  const flushPara = () => { if (paraBuf.length) { out.push('<p>' + inlineMd(escMd(paraBuf.join(' '))) + '</p>'); paraBuf = []; } };
+  const isUl = t => /^[-*+]\s+/.test(t);
+  const isOl = t => /^\d+[.)]\s+/.test(t);
+  const listText = t => t.replace(/^[-*+]\s+/, '').replace(/^\d+[.)]\s+/, '');
+
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^```/.test(line.trim())) {
+      if (inCode) { out.push('<pre><code>' + escMd(codeBuf.join('\n')) + '</code></pre>'); codeBuf = []; inCode = false; }
+      else { flushPara(); closeLists(); inCode = true; }
+      i++; continue;
+    }
+    if (inCode) { codeBuf.push(line); i++; continue; }
+    if (!line.trim()) { flushPara(); closeLists(); i++; continue; }
+
+    const h = line.match(/^(#{1,4})\s+(.*)$/);
+    if (h) { flushPara(); closeLists(); const lv = h[1].length; out.push(`<h${lv}>` + inlineMd(escMd(h[2])) + `</h${lv}>`); i++; continue; }
+
+    if (/^(---+|\*\*\*+)$/.test(line.trim())) { flushPara(); closeLists(); out.push('<hr>'); i++; continue; }
+
+    if (/^>\s?/.test(line)) {
+      flushPara(); closeLists();
+      const buf = [];
+      while (i < lines.length && /^>\s?/.test(lines[i])) { buf.push(lines[i].replace(/^>\s?/, '')); i++; }
+      out.push('<blockquote>' + inlineMd(escMd(buf.join(' '))) + '</blockquote>');
+      continue;
+    }
+
+    // table: | a | b |  / |---|---|
+    if (/^\s*\|/.test(line) && i + 1 < lines.length && /^\s*\|[\s:|-]+\|?\s*$/.test(lines[i + 1])) {
+      flushPara(); closeLists();
+      const head = line.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+      i += 2;
+      const rows = [];
+      while (i < lines.length && /^\s*\|/.test(lines[i])) {
+        rows.push(lines[i].trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()));
+        i++;
+      }
+      let html = '<table><thead><tr>' + head.map(c => '<th>' + inlineMd(escMd(c)) + '</th>').join('') + '</tr></thead><tbody>';
+      for (const r of rows) html += '<tr>' + head.map((_, ci) => '<td>' + inlineMd(escMd(r[ci] || '')) + '</td>').join('') + '</tr>';
+      out.push(html + '</tbody></table>');
+      continue;
+    }
+
+    if (isUl(line) || isOl(line)) {
+      flushPara();
+      const want = isUl(line) ? 'ul' : 'ol';
+      if (listStack[listStack.length - 1] !== want) { closeLists(); listStack.push(want); out.push('<' + want + '>'); }
+      let text = listText(line);
+      const checked = text.match(/^\[([ xX])\]\s+(.*)$/);
+      if (checked) {
+        text = checked[2];
+        const done = checked[1].toLowerCase() === 'x';
+        out.push('<li class="md-check' + (done ? ' done' : '') + '">' + (done ? '☑' : '☐') + ' ' + inlineMd(escMd(text)) + '</li>');
+      } else {
+        out.push('<li>' + inlineMd(escMd(text)) + '</li>');
+      }
+      i++; continue;
+    }
+    closeLists();
+    paraBuf.push(line.trim());
+    i++;
+  }
+  if (inCode) out.push('<pre><code>' + escMd(codeBuf.join('\n')) + '</code></pre>');
+  flushPara(); closeLists();
+  return out.join('');
+}
+
+/* ---------- Deliverable extraction ---------- */
+function normalizeKind(t) {
+  const k = String(t || '').trim().toLowerCase();
+  if (KIND_META[k]) return k;
+  const aliases = { strategy: 'options', choices: 'options', comparison: 'options', roadmap: 'plan',
+    campaign: 'plan', post: 'social', posts: 'social', socialmedia: 'social', emails: 'email',
+    newsletter: 'email', ads: 'ad', copy: 'ad', page: 'landing', site: 'landing',
+    schedule: 'calendar', content_calendar: 'calendar', guide: 'instructions', howto: 'instructions',
+    steps: 'instructions', note: 'other', misc: 'other', audit: 'other' };
+  return aliases[k] || 'other';
+}
+
+function extractDeliverables(text) {
+  const re = /\[\[\s*DELIVERABLE\s*:\s*([^|\]]+?)\s*\|\s*([^\]]+?)\s*\]\]([\s\S]*?)\[\[\s*\/\s*DELIVERABLE\s*\]\]/g;
+  const found = [];
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    found.push({
+      id: 'dlv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      kind: normalizeKind(m[1]),
+      title: m[2].trim().slice(0, 120),
+      content: m[3].trim(),
+      status: 'new',
+      createdAt: Date.now(),
+      updatedAt: null,
+      checklist: parseChecklist(m[3]),
+      messageId: null,
+    });
+  }
+  return found;
+}
+
+function stripDeliverableMarkers(text) {
+  // remove markers; keep a light "→ <Title> filed to Work" cue per deliverable
+  let out = String(text || '').replace(
+    /\[\[\s*DELIVERABLE\s*:\s*([^|\]]+?)\s*\|\s*([^\]]+?)\s*\]\][\s\S]*?\[\[\s*\/\s*DELIVERABLE\s*\]\]/g,
+    (m, kind, title) => `\n\n**${title.trim()}** — filed to your Work tab.\n`
+  );
+  return out.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function parseChecklist(content) {
+  // returns [{text, done, owner}] from markdown checkboxes
+  const items = [];
+  const re = /^[-*+]\s+\[([ xX])\]\s+(.+)$/gm;
+  let m;
+  while ((m = re.exec(String(content || ''))) !== null) {
+    let text = m[2].trim();
+    let owner = '';
+    const om = text.match(/\((?:by\s+|with\s+)?(Lena|Mark|Maya|Sam|You)\)\s*$/i);
+    if (om) { owner = om[1]; text = text.slice(0, om.index).trim(); }
+    items.push({ text, done: m[1].toLowerCase() === 'x', owner });
+  }
+  return items;
+}
+
+function planProgress(deliverable) {
+  const items = deliverable.checklist || [];
+  if (!items.length) return null;
+  const done = items.filter(x => x.done).length;
+  return { done, total: items.length, pct: Math.round(done / items.length * 100) };
+}
+
+/* ---------- Options parsing ---------- */
+function parseOptions(content) {
+  // Split options deliverable into structured option blocks by ## headings
+  const lines = String(content || '').replace(/\r\n?/g, '\n').split('\n');
+  const blocks = [];
+  let cur = null, inRec = false;
+  for (const ln of lines) {
+    const h = ln.match(/^#{1,3}\s+(.*)$/);
+    if (h) {
+      const t = h[1].trim();
+      const isRec = /^recommend/i.test(t);
+      if (!isRec && /^option\s*\d+/i.test(t)) {
+        cur = { title: t, body: [] }; blocks.push(cur); inRec = false; continue;
+      }
+      if (isRec) { cur = { title: 'Recommendation', body: [], recommendation: true }; blocks.push(cur); inRec = true; continue; }
+    }
+    if (cur) cur.body.push(ln);
+  }
+  // helper: first match of a labeled field (handles **Label:** and **Label**: forms)
+  const field = (body, label) => {
+    const re = new RegExp('\\*{0,2}' + label + '\\*{0,2}\\s*[:\\-]\\s*(.+)', 'i');
+    const m = body.join('\n').match(re);
+    return m ? m[1].replace(/^[\s*_]+/, '').replace(/[\s*_]+$/, '').trim() : '';
+  };
+  return blocks.map(b => ({
+    title: b.title,
+    recommendation: !!b.recommendation,
+    summary: field(b.body, '(?:What it is|Summary)'),
+    bestFor: field(b.body, 'Best for'),
+    effort: field(b.body, 'Effort'),
+    cost: field(b.body, '(?:Cost|Budget)'),
+    impact: field(b.body, '(?:Impact|Expected impact)'),
+    pros: b.body.join('\n').split('\n').filter(l => /^\s*[-*+]\s+/.test(l) && /pros?/i.test(l) === false && false), // placeholder; filled below
+    body: b.body.join('\n').trim(),
+  }));
+}
+
+/* ---------- Calendar parsing ---------- */
+function parseCalendar(content) {
+  const items = [];
+  for (const line of String(content || '').split('\n')) {
+    const t = line.trim().replace(/^\|/, '').replace(/\|$/, '');
+    if (!t) continue;
+    const parts = t.split('|').map(x => x.trim());
+    const dm = parts[0].match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (dm && parts.length >= 3) {
+      items.push({ date: dm[0], channel: parts[1], item: parts[2], notes: parts[3] || '' });
+      continue;
+    }
+    // fallback: "Nov 20 | ..." or "20 Nov | ..."
+    const dm2 = parts[0].match(/^(\d{1,2})\s+([A-Za-z]{3,})/) || parts[0].match(/^([A-Za-z]{3,})\s+(\d{1,2})/);
+    if (dm2) {
+      const d = new Date(parts[0]);
+      if (!isNaN(d)) items.push({ date: d.toISOString().slice(0, 10), channel: parts[1], item: parts[2], notes: parts[3] || '' });
+    }
+  }
+  return items.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+}
+
+function calendarToICS(items, calName) {
+  const pad = n => String(n).padStart(2, '0');
+  const icsDate = d => d.replace(/-/g, '');
+  const escIcs = s => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  const stamp = () => {
+    const d = new Date();
+    return d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) + 'T' +
+      pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + 'Z';
+  };
+  let count = 0;
+  let out = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//LenaMark//Campaign Calendar//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'X-WR-CALNAME:' + escIcs(calName || 'Campaign schedule')];
+  for (const it of items) {
+    count++;
+    const uid = 'schedule-' + count + '-' + icsDate(it.date) + '@lenamark';
+    out.push('BEGIN:VEVENT', 'UID:' + uid, 'DTSTAMP:' + stamp(), 'DTSTART;VALUE=DATE:' + icsDate(it.date),
+      'SUMMARY:' + escIcs(it.channel + ': ' + it.item),
+      'DESCRIPTION:' + escIcs(it.notes || ''), 'TRANSP:TRANSPARENT', 'END:VEVENT');
+  }
+  out.push('END:VCALENDAR');
+  return out.join('\r\n');
+}
+
+/* ---------- Minimal ZIP writer (store, no compression) ---------- */
+function crc32(bytes) {
+  let table = crc32._t;
+  if (!table) {
+    table = crc32._t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      table[n] = c >>> 0;
+    }
+  }
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) crc = (table[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8)) >>> 0;
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+function makeZip(files) {
+  // files: [{ name, data: Uint8Array }]
+  const enc = new TextEncoder();
+  const chunks = [], central = [];
+  let offset = 0;
+  const dosTime = () => { const d = new Date(); return { t: ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xFFFF, d: (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xFFFF }; };
+  const { t, d } = dosTime();
+  const w16 = v => new Uint8Array([v & 255, (v >> 8) & 255]);
+  const w32 = v => new Uint8Array([v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255]);
+
+  for (const f of files) {
+    const data = typeof f.data === 'string' ? enc.encode(f.data) : f.data;
+    const nameB = enc.encode(f.name);
+    const crc = crc32(data);
+    const local = [w32(0x04034b50), w16(20), w16(0), w16(0), w16(t), w16(d), w32(crc), w32(data.length), w32(data.length), w16(nameB.length), w16(0), nameB, data];
+    chunks.push(...local);
+    central.push({ nameB, crc, size: data.length, offset });
+    offset += local.reduce((n, u) => n + u.length, 0);
+  }
+  const centralStart = offset;
+  for (const c of central) {
+    chunks.push(w32(0x02014b50), w16(20), w16(20), w16(0), w16(0), w16(t), w16(d), w32(c.crc), w32(c.size), w32(c.size), w16(c.nameB.length), w16(0), w16(0), w16(0), w16(0), w32(0), w32(c.offset), c.nameB);
+    offset += 46 + c.nameB.length;
+  }
+  chunks.push(w32(0x06054b50), w16(0), w16(0), w16(central.length), w16(central.length), w32(offset - centralStart), w32(centralStart), w16(0));
+  let total = 0;
+  for (const c of chunks) total += c.length;
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const c of chunks) { out.set(c, pos); pos += c.length; }
+  return out;
+}
+
+/* ---------- File download helper ---------- */
+function downloadBytes(bytes, filename, mime) {
+  const blob = new Blob([bytes], { type: mime || 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+/* ---------- Profile learning (heuristic NLP, client-side) ---------- */
+const PROFILE_HINTS = {
+  businessType: [
+    { re: /\b(glamping|camping|campsite|cabin|hut|lodge|bnb|guesthouse|hotel|hostel|motel|resort|retreat)\b/i, val: 'Accommodation / hospitality' },
+    { re: /\b(cafe|café|coffee shop|restaurant|bakery|diner|bistro|pizzeria|bar|brewery|food truck|catering)\b/i, val: 'Food & drink' },
+    { re: /\b(saas|software|app|platform|startup|b2b|dev tool|api)\b/i, val: 'Software / SaaS' },
+    { re: /\b(salon|spa|barber|nails|massage|physio|dental|clinic|studio|yoga|gym|fitness)\b/i, val: 'Personal services' },
+    { re: /\b(boutique|shop|store|ecommerce|e-commerce|retail|clothing|jewelry|jewellery|handmade|candles|soap)\b/i, val: 'Retail / products' },
+    { re: /\b(consultant|agency|freelance|coach|photographer|designer|accountant|lawyer|tutor|trainer)\b/i, val: 'Professional services' },
+    { re: /\b(farm|nursery|garden|landscap|florist)\b/i, val: 'Plants / outdoors' },
+    { re: /\b(tour|guide|activity|kayak|bike|surf|ski|adventure)\b/i, val: 'Tours & activities' },
+  ],
+  location: /\b(?:in|near|around|based in|from)\s+([A-Z][A-Za-zÀ-ÿ'’.-]+(?:\s+[A-Z][A-Za-zÀ-ÿ'’.-]+)?)/,
+  budget: /\b(?:budget|spend|around|about|up to|max|per month|monthly)\s*[$€£]?\s*(\d[\d,.]*)\s*(?:k\b|thousand)?\s*(?:per month|\/month|monthly|total)?/i,
+  voice: [
+    { re: /\b(friendly|warm|casual|chatty|relaxed)\b.*\b(tone|voice|sound|vibe)\b|\b(tone|voice|sound|vibe)\b.*\b(friendly|warm|casual|chatty|relaxed)\b/i, val: 'Friendly & warm' },
+    { re: /\b(professional|formal|corporate|serious)\b.*\b(tone|voice|sound)\b|\b(tone|voice)\b.*\b(professional|formal|corporate)\b/i, val: 'Professional' },
+    { re: /\b(playful|fun|cheeky|quirky|humor|humour|funny|witty)\b/i, val: 'Playful & witty' },
+    { re: /\b(luxury|premium|elegant|refined|high.end|sophisticated)\b/i, val: 'Premium & elegant' },
+    { re: /\b(down to earth|no nonsense|straightforward|honest|simple|plain)\b/i, val: 'Down-to-earth' },
+  ],
+  audience: [
+    { re: /\b(famil\w+|parents|mums|moms|kids|children)\b/i, val: 'Families & parents' },
+    { re: /\b(couples|romantic|honeymoon|anniversary|date night)\b/i, val: 'Couples' },
+    { re: /\b(millennials?|gen ?z|young (?:people|adults)|students?)\b/i, val: 'Younger audience' },
+    { re: /\b(professionals?|business(?:es)?|founders?|teams?|b2b)\b/i, val: 'Business customers' },
+    { re: /\b(locals?|neighbou?rhood|community|nearby)\b/i, val: 'Local community' },
+    { re: /\b(tourists?|travellers?|travelers?|visitors?|out.of.town)\b/i, val: 'Tourists & travellers' },
+    { re: /\b(outdoor|nature|hikers?|adventure|backpack\w*)\b/i, val: 'Outdoor enthusiasts' },
+  ],
+};
+
+function learnFromText(text) {
+  // returns list of {field, value} learnings from a user message
+  const out = [];
+  const t = String(text || '');
+  if (!t.trim() || t.length < 12) return out;
+  for (const h of PROFILE_HINTS.businessType) {
+    if (h.re.test(t)) { out.push({ field: 'businessType', value: h.val }); break; }
+  }
+  const lm = t.match(PROFILE_HINTS.location);
+  if (lm && !/^(the|a|an|my|our)$/i.test(lm[1])) {
+    // find the LAST plausible location mention (first match may be a month, e.g. "in January ... near Salzburg")
+    let city = lm[1];
+    const all = [...t.matchAll(new RegExp(PROFILE_HINTS.location.source, 'g'))].map(m2 => m2[1]);
+    for (const cand of all) {
+      if (!/\b(team|mark|maya|sam|lena|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december|winter|summer|spring|autumn|fall|time|order|person|town|city|person|general|total|need|fact|mind)\b$/i.test(cand)) {
+        city = cand; break;
+      }
+    }
+    if (!/\b(team|mark|maya|sam|lena|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december|winter|summer|spring|autumn|fall)\b$/i.test(city)) {
+      out.push({ field: 'location', value: city });
+    }
+  }
+  const bm = t.match(PROFILE_HINTS.budget);
+  if (bm) {
+    let v = bm[1].replace(/,/g, '');
+    let n = parseFloat(v);
+    if (!isNaN(n)) {
+      if (/k\b|thousand/i.test(bm[0])) n *= 1000;
+      const per = /per month|\/month|monthly/i.test(bm[0]);
+      const band = n <= 300 ? 'Small (~$' + (per ? n + '/mo)' : n + ' total)') : n <= 2000 ? 'Medium (~$' + (per ? n + '/mo)' : n + ' total)') : 'Larger (~$' + (per ? n + '/mo)' : n + ' total)');
+      out.push({ field: 'budget', value: band });
+    }
+  }
+  for (const h of PROFILE_HINTS.voice) { if (h.re.test(t)) { out.push({ field: 'voice', value: h.val }); break; } }
+  for (const h of PROFILE_HINTS.audience) { if (h.re.test(t)) { out.push({ field: 'audience', value: h.val }); break; } }
+  return out;
+}
+
+function applyLearnings(learnings) {
+  // don't overwrite what the user set explicitly in the Brief
+  let changed = false;
+  for (const l of learnings || []) {
+    if (l.field === 'businessType' && !state.profile.businessType) { state.profile.businessType = l.value; changed = true; }
+    if (l.field === 'location' && !state.profile.location) { state.profile.location = l.value; changed = true; }
+    if (l.field === 'budget' && !state.profile.budget) { state.profile.budget = l.value; changed = true; }
+    if (l.field === 'voice' && !state.profile.voice) { state.profile.voice = l.value; changed = true; }
+    if (l.field === 'audience' && !state.profile.audience) { state.profile.audience = l.value; changed = true; }
+  }
+  if (changed) {
+    state.profile.updatedAt = Date.now();
+    renderBrief();
+  }
+  return changed;
+}
+
+
+/* ══════════ c5_chat.js ══════════ */
+/* ============================================================
+   Lena & Mark v2.0 — chat: rendering, streaming, API, context
+   ============================================================ */
+
+/* ---------- Render chat ---------- */
+function renderChat() {
+  const scroll = $('chatScroll');
+  const welcome = $('welcome');
+  const p = activeProject();
+  const msgs = (p && p.messages) || [];
+  const input = $('chatInput');
+
+  if (!msgs.length) {
+    qsa('.msg', scroll).forEach(el => el.remove());
+    welcome.classList.remove('hidden');
+    $('suggestions').classList.remove('hidden');
+    return;
+  }
+  welcome.classList.add('hidden');
+  $('suggestions').classList.add('hidden');
+  qsa('.msg', scroll).forEach(el => el.remove());
+  const frag = document.createDocumentFragment();
+  for (const m of msgs) {
+    if (m.role === 'system') continue;
+    frag.appendChild(buildMsgEl(m, p));
+  }
+  scroll.appendChild(frag);
+  scroll.scrollTop = scroll.scrollHeight;
+}
+
+function buildMsgEl(m, project) {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + (m.role === 'user' ? 'user' : 'assistant');
+  let html = '';
+  if (m.role === 'user') {
+    let imgs = '';
+    if (m.images && m.images.length) imgs = '<div class="msg-images">' + m.images.map(s => '<img src="' + s + '" alt="attachment" />').join('') + '</div>';
+    html = imgs + '<div class="msg-bubble">' + esc(m.content) + '</div>' +
+      '<div class="msg-meta">You · ' + fmtTime(m.ts) + '</div>';
+  } else {
+    const delivs = (project.deliverables || []).filter(d => d.messageId === m.id);
+    let chips = '';
+    if (delivs.length) {
+      chips = '<div class="deliv-chips">' + delivs.map(d =>
+        '<button class="deliv-chip" data-open-deliv="' + d.id + '">' +
+        '<span class="ic">' + kindIcon(d.kind) + '</span>' +
+        '<span><span class="t">' + esc(d.title) + '</span><br/><span class="s">' + esc(kindLabel(d.kind)) + ' · view</span></span>' +
+        '</button>').join('') + '</div>';
+    }
+    const body = renderStreamedMarkdown(m.content);
+    html = '<div class="msg-row">' +
+      '<div class="team-avatar"><div class="a1">L</div><div class="a2">M</div></div>' +
+      '<div class="msg-body"><div class="msg-bubble md">' + body + '</div>' + chips +
+      '<div class="msg-meta">Lena · ' + fmtTime(m.ts) + '</div></div></div>';
+  }
+  wrap.innerHTML = html;
+  return wrap;
+}
+
+/* Lightweight markdown render for bubbles */
+function renderStreamedMarkdown(text) {
+  return mdToHtmlLines(text);
+}
+
+/* ---------- Typing / streaming bubbles ---------- */
+function showTyping(show) {
+  const scroll = $('chatScroll');
+  let el = $('typing');
+  if (show) {
+    welcomeHiddenForTyping();
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'typing';
+      el.className = 'msg assistant';
+      el.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+      scroll.appendChild(el);
+    }
+    scroll.scrollTop = scroll.scrollHeight;
+  } else if (el) el.remove();
+}
+function welcomeHiddenForTyping() {
+  $('welcome').classList.add('hidden');
+  $('suggestions').classList.add('hidden');
+}
+
+function startStreamBubble() {
+  showTyping(false);
+  const scroll = $('chatScroll');
+  const el = document.createElement('div');
+  el.id = 'streamMsg';
+  el.className = 'msg assistant';
+  el.innerHTML = '<div class="msg-row">' +
+    '<div class="team-avatar"><div class="a1">L</div><div class="a2">M</div></div>' +
+    '<div class="msg-body"><div class="msg-bubble md stream-cursor" id="streamBubble"></div>' +
+    '<div class="msg-meta">Lena is writing…</div></div></div>';
+  scroll.appendChild(el);
+  scroll.scrollTop = scroll.scrollHeight;
+  return $('streamBubble');
+}
+
+/* ---------- Context building ---------- */
+function profileSummary() {
+  const pr = state.profile || {};
+  const bits = [];
+  if (pr.businessName) bits.push('Business name: ' + pr.businessName);
+  if (pr.businessType) bits.push('Type of business: ' + pr.businessType);
+  if (pr.location) bits.push('Location: ' + pr.location);
+  if (pr.audience) bits.push('Audience: ' + pr.audience);
+  if (pr.voice) bits.push('Preferred tone of voice: ' + pr.voice);
+  if (pr.budget) bits.push('Budget: ' + pr.budget);
+  if (pr.notes && pr.notes.length) bits.push('Client notes: ' + pr.notes.map(n => n.text).join(' | '));
+  return bits.length
+    ? 'CLIENT PROFILE (learned — use it, do not re-ask):\n' + bits.map(b => '- ' + b).join('\n')
+    : 'CLIENT PROFILE: mostly unknown — ask for the essentials in your first reply (business, goal, timeline).';
+}
+
+function projectBriefSummary(p) {
+  if (!p) return '';
+  const lines = ['ACTIVE PROJECT: ' + p.name + (p.goal ? ' — goal: ' + p.goal : '')];
+  const approved = (p.deliverables || []).filter(d => d.status === 'approved');
+  if (approved.length) lines.push('Deliverables already approved by client: ' + approved.map(d => d.title + ' (' + d.kind + ')').join(', '));
+  const chosen = (p.deliverables || []).find(d => d.kind === 'options' && d.chosenOption);
+  if (chosen) lines.push('Chosen option: ' + chosen.chosenOption);
+  return lines.join('\n');
+}
+
+function buildSystemPrompt(p) {
+  const skillsBlock = state.skills.length
+    ? '\n\nTEAM SKILLS (playbooks you can use):\n' + state.skills.map(s => '- ' + s.name + ': ' + s.description + '\n  Instructions: ' + s.prompt).join('\n')
+    : '';
+  const extra = state.systemPrompt ? '\n\nCLIENT EXTRA INSTRUCTIONS:\n' + state.systemPrompt : '';
+  return DEFAULT_SYSTEM + '\n\n' + profileSummary() + '\n\n' + projectBriefSummary(p) + skillsBlock + extra;
+}
+
+function buildApiMessages(projectMessages, p) {
+  const api = [{ role: 'system', content: buildSystemPrompt(p) }];
+  const recent = projectMessages.slice(-24);
+  for (const m of recent) {
+    if (m.role === 'system') continue;
+    if (m.images && m.images.length && VISION_MODELS.includes(state.model)) {
+      const content = m.images.map(u => ({ type: 'image_url', image_url: { url: u } }));
+      content.push({ type: 'text', text: m.content || '(see attached photo)' });
+      api.push({ role: m.role, content });
+    } else {
+      let text = m.content || '';
+      if (m.images && m.images.length) text += '\n[Photo attached — describe what you can infer and ask if needed; full image analysis needs a vision model.]';
+      api.push({ role: m.role, content: text });
+    }
+  }
+  return api;
+}
+
+/* ---------- Groq call ---------- */
+async function callGroq(project, onDelta) {
+  if (!state.apiKey) throw new Error('No API key — add your Groq key in Settings (top right).');
+  const payload = {
+    model: state.model,
+    temperature: state.temperature,
+    messages: buildApiMessages(project.messages, project),
+    max_tokens: 6000,
+    stream: true,
+  };
+  T.abortCtrl = new AbortController();
+  const res = await fetch(GROQ_BASE + '/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.apiKey },
+    body: JSON.stringify(payload),
+    signal: T.abortCtrl.signal,
+  });
+  if (!res.ok) {
+    let msg = 'API error ' + res.status;
+    try { const j = await res.json(); msg = (j.error && j.error.message) || msg; } catch (e) { /* keep */ }
+    if (res.status === 401) msg = 'That API key was rejected. Check it in Settings.';
+    if (res.status === 429) msg = 'Rate limit hit — wait a few seconds and try again.';
+    throw new Error(msg);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let full = '', buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t.startsWith('data:')) continue;
+      const data = t.slice(5).trim();
+      if (data === '[DONE]') continue;
+      try {
+        const json = JSON.parse(data);
+        const delta = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content || '';
+        if (delta) { full += delta; onDelta && onDelta(full, delta); }
+      } catch (e) { /* partial line */ }
+    }
+  }
+  return full;
+}
+
+/* ---------- Send ---------- */
+function setGenerating(on) {
+  T.isGenerating = on;
+  $('btnSend').classList.toggle('hidden', on);
+  $('btnStop').classList.toggle('hidden', !on);
+  updateSendBtn();
+}
+
+function updateSendBtn() {
+  const has = ($('chatInput').value.trim().length > 0) || T.attachments.length > 0;
+  $('btnSend').disabled = !has || T.isGenerating;
+}
+
+async function sendMessage(text) {
+  if (T.isGenerating) { toast('Hang on — still working. You can stop it.'); return; }
+  text = (text || '').trim();
+  if (!text && !T.attachments.length) return;
+
+  if (!state.apiKey) {
+    toast('Connect first — Settings → add your free Groq API key');
+    openPanel('spSettings');
+    syncSettingsUI();
+    return;
+  }
+
+  const p = ensureProject();
+  const images = T.attachments.filter(a => a.dataUrl).map(a => a.dataUrl);
+  const userMsg = {
+    id: 'msg_' + Date.now(),
+    role: 'user',
+    content: text || (images.length ? 'Please look at these photos.' : ''),
+    ts: Date.now(),
+  };
+  if (images.length) userMsg.images = images;
+  p.messages.push(userMsg);
+
+  // learn about the business from this message
+  const learned = learnFromText(text);
+  if (learned.length) {
+    applyLearnings(learned);
+    const newOnes = learned.filter(l => l.field !== 'businessName');
+    if (newOnes.length && !T.closedPanels.has('spBrief')) {
+      const tip = $('briefTip');
+      tip.classList.remove('hidden');
+    }
+  }
+
+  // auto-name project from first message
+  if (p.name === 'Untitled project' && text) {
+    p.name = deriveProjectName(text);
+  }
+  p.updatedAt = Date.now();
+
+  $('chatInput').value = '';
+  autoResize($('chatInput'));
+  clearAttachments();
+  saveState();
+  renderChat();
+  updateStatusbar();
+  setGenerating(true);
+  showTyping(true);
+  $('brandSub').textContent = 'Working on it…';
+
+  let bubble = null;
+  try {
+    let reply = '';
+    if (state.stream) {
+      bubble = startStreamBubble();
+      reply = await callGroq(p, (full) => {
+        const shown = stripDeliverableMarkers(full) || 'Working…';
+        bubble.innerHTML = renderStreamedMarkdown(shown);
+        const scroll = $('chatScroll');
+        scroll.scrollTop = scroll.scrollHeight;
+      });
+    } else {
+      reply = await callGroq(p, null);
+    }
+    if (bubble) bubble.classList.remove('stream-cursor');
+
+    const deliverables = extractDeliverables(reply);
+    const displayText = stripDeliverableMarkers(reply) || '(see your Work tab)';
+    const asstMsg = { id: 'msg_a' + Date.now(), role: 'assistant', content: displayText, ts: Date.now() };
+    p.messages.push(asstMsg);
+
+    if (deliverables.length) {
+      for (const d of deliverables) {
+        d.messageId = asstMsg.id;
+        if (state.autoApprove && (d.kind === 'other' || d.kind === 'instructions')) d.status = 'approved';
+      }
+      p.deliverables.push(...deliverables);
+      advancePhase(p, deliverables);
+      if (p.name === 'Untitled project') {
+        const plan = deliverables.find(d => d.kind === 'plan' || d.kind === 'options');
+        if (plan) p.name = plan.title.slice(0, 60);
+      }
+      toast(deliverables.length + ' deliverable' + (deliverables.length > 1 ? 's' : '') + ' added to Work');
+      updateWorkBadge();
+    }
+    p.updatedAt = Date.now();
+    saveState();
+    renderChat();
+    updateStatusbar();
+    renderWork();
+  } catch (err) {
+    const aborted = err.name === 'AbortError';
+    if (aborted) {
+      const partial = bubble ? bubble.textContent : '';
+      if (partial && partial.trim() && partial !== 'Working…') {
+        p.messages.push({ id: 'msg_a' + Date.now(), role: 'assistant', content: partial.trim() + '\n\n*(stopped)*', ts: Date.now() });
+      } else {
+        p.messages.push({ id: 'msg_a' + Date.now(), role: 'assistant', content: 'Stopped — tell me to go on when you\'re ready.', ts: Date.now() });
+      }
+      saveState();
+    } else {
+      p.messages.push({
+        id: 'msg_e' + Date.now(),
+        role: 'assistant',
+        content: 'I couldn\'t reach the model: ' + err.message + '\n\nCheck the key/model in Settings (top right ⚙).',
+        ts: Date.now(),
+      });
+      saveState();
+      toast(err.message, 3600);
+    }
+    renderChat();
+  } finally {
+    $('streamMsg') && $('streamMsg').remove();
+    showTyping(false);
+    setGenerating(false);
+    T.abortCtrl = null;
+    updateStatusbar();
+    updateBrandSub();
+  }
+}
+
+function deriveProjectName(text) {
+  const t = text.replace(/\s+/g, ' ').trim();
+  const m = t.match(/\b((?:glamping|café|cafe|restaurant|saas|launch|winter|summer|holiday|christmas|new year|product|bookings?|campaign|newsletter|website|brand))\b/i);
+  const base = m ? m[1] : '';
+  const words = t.split(' ').slice(0, 5).join(' ');
+  let name = base ? base[0].toUpperCase() + base.slice(1) + ' push' : words;
+  if (/winter|december|january|february|march/i.test(t)) name = 'Winter bookings push';
+  if (/launch/i.test(t)) name = 'Product launch';
+  if (/caf/i.test(t)) name = 'Café content';
+  return (name || 'New project').slice(0, 60);
+}
+
+function advancePhase(p, newDeliverables) {
+  const kinds = new Set((p.deliverables || []).map(d => d.kind));
+  const rank = ['discover', 'options', 'plan', 'produce', 'deliver'];
+  let target = p.phase || 'discover';
+  if (kinds.has('options')) target = 'plan';
+  if (kinds.has('plan')) target = 'produce';
+  if (kinds.has('social') || kinds.has('email') || kinds.has('ad') || kinds.has('landing')) target = 'produce';
+  if (kinds.has('calendar') && (kinds.has('social') || kinds.has('email') || kinds.has('ad'))) target = 'deliver';
+  const has = (p.deliverables || []).some(d => d.status === 'approved');
+  if (has && target === 'produce') target = 'deliver';
+  if (rank.indexOf(target) > rank.indexOf(p.phase)) p.phase = target;
+}
+
+/* ---------- Attachments ---------- */
+function clearAttachments() {
+  T.attachments = [];
+  $('attachPreview').innerHTML = '';
+}
+function renderAttachments() {
+  $('attachPreview').innerHTML = T.attachments.map((a, i) =>
+    '<div class="attach-chip">' + (a.dataUrl ? '<img src="' + a.dataUrl + '" alt="" />' : '') +
+    '<span>' + esc(a.name) + '</span><button data-rm="' + i + '" aria-label="Remove">×</button></div>'
+  ).join('');
+}
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+async function addAttachments(files) {
+  for (const f of files) {
+    if (!f.type.startsWith('image/')) continue;
+    if (f.size > 4 * 1024 * 1024) { toast(f.name + ' is over 4MB'); continue; }
+    try { T.attachments.push({ name: f.name, type: f.type, dataUrl: await readFileAsDataURL(f) }); }
+    catch (e) { toast('Could not read ' + f.name); }
+  }
+  renderAttachments();
+  updateSendBtn();
+  if (T.attachments.length && !VISION_MODELS.includes(state.model)) {
+    toast('Tip: switch to Llama 4 Scout in Settings to analyse photos');
+  }
+}
+
+/* ---------- Voice ---------- */
+function initSpeech() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  try {
+    T.recognition = new SR();
+    T.recognition.continuous = false;
+    T.recognition.interimResults = false;
+    T.recognition.lang = navigator.language || 'en-US';
+    T.recognition.onresult = (e) => {
+      const t = e.results[0][0].transcript;
+      const input = $('chatInput');
+      input.value = (input.value + ' ' + t).trim();
+      autoResize(input);
+      updateSendBtn();
+    };
+    T.recognition.onend = () => $('btnMic').classList.remove('recording');
+    T.recognition.onerror = () => { $('btnMic').classList.remove('recording'); toast('Voice input failed'); };
+  } catch (e) { T.recognition = null; }
+}
+
+
+/* ══════════ c6_work.js ══════════ */
+/* ============================================================
+   Lena & Mark v2.0 — Work tab + deliverable detail renderers
+   ============================================================ */
+
+/* ---------- Phase model ---------- */
+const PHASES = [
+  { id: 'discover', label: 'Understand' },
+  { id: 'options',  label: 'Options' },
+  { id: 'plan',     label: 'Plan' },
+  { id: 'produce',  label: 'Content' },
+  { id: 'deliver',  label: 'Ready' },
+];
+
+/* ---------- Status bar (project + phases) ---------- */
+function updateStatusbar() {
+  const p = activeProject();
+  const bar = $('statusBar');
+  if (!p) { bar.classList.add('hidden'); updateBrandSub(); return; }
+  bar.classList.remove('hidden');
+  $('sbName').textContent = p.name;
+  const idx = PHASES.findIndex(ph => ph.id === p.phase);
+  const approvedCount = p.deliverables.filter(d => d.status === 'approved').length;
+  $('sbPhases').innerHTML = PHASES.map((ph, i) => {
+    const cls = i < idx ? 'done' : (i === idx ? 'now' : '');
+    const dot = i < idx ? '✓' : '';
+    return '<span class="phase-dot ' + cls + '"><span class="dot">' + dot + '</span>' + ph.label + '</span>';
+  }).join('<span style="color:var(--text-faint);font-size:10px">›</span>');
+  $('btnDeliverMain').disabled = !(p.deliverables.length > 0);
+  updateBrandSub();
+}
+
+function updateBrandSub() {
+  const p = activeProject();
+  if (T.isGenerating) { $('brandSub').textContent = 'Working on it…'; return; }
+  if (!p) {
+    $('brandSub').textContent = state.apiKey ? 'Your marketing team' : 'Connect your key to start';
+    return;
+  }
+  const n = p.deliverables.length;
+  const approved = p.deliverables.filter(d => d.status === 'approved').length;
+  $('brandSub').textContent = p.name + ' · ' + approved + '/' + n + ' approved';
+}
+
+/* ---------- Work list ---------- */
+function renderWork() {
+  const list = $('workList');
+  const p = activeProject();
+  const items = p ? p.deliverables : [];
+  updateReadiness(p);
+  if (!items.length) {
+    list.innerHTML = '<div class="empty-state">' +
+      '<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>' +
+      '<div class="hint">Nothing here yet.<br/>Chat with Lena — the plan, content and schedule will appear as cards here for you to review.</div></div>';
+    return;
+  }
+  // order: options, plan, content, calendar, instructions, other
+  const order = { options: 0, plan: 1, brief: 1.5, social: 2, email: 2, ad: 2, landing: 2, calendar: 3, instructions: 4, handbook: 4.5, other: 5 };
+  const sorted = items.slice().sort((a, b) => (order[a.kind] ?? 9) - (order[b.kind] ?? 9) || a.createdAt - b.createdAt);
+  list.innerHTML = sorted.map(d => {
+    const prog = d.kind === 'plan' ? planProgress(d) : null;
+    const calN = d.kind === 'calendar' ? parseCalendar(d.content).length : 0;
+    const preview = firstLine(d.content);
+    return '<div class="work-card" data-open-deliv="' + d.id + '" role="button" tabindex="0">' +
+      '<div class="kind-ic">' + kindIcon(d.kind) + '</div>' +
+      '<div class="info">' +
+        '<h3>' + esc(d.title) + '</h3>' +
+        '<div class="preview">' + esc(preview) + '</div>' +
+        '<div class="meta-row">' + statusBadge(d.status) +
+          '<span class="kind-badge">' + esc(kindLabel(d.kind)) + '</span>' +
+          (prog ? '<span class="kind-badge">' + prog.done + '/' + prog.total + ' tasks</span>' : '') +
+          (calN ? '<span class="kind-badge">' + calN + ' scheduled</span>' : '') +
+          (d.kind === 'options' && d.chosenOption ? '<span class="kind-badge">✓ ' + esc(d.chosenOption) + '</span>' : '') +
+        '</div>' +
+        (prog ? '<div class="mini-progress"><div class="progressbar"><div style="width:' + prog.pct + '%"></div></div></div>' : '') +
+      '</div></div>';
+  }).join('');
+  updateWorkBadge();
+}
+
+function firstLine(content) {
+  const t = String(content || '').replace(/[#*`>\-|]/g, ' ').replace(/\s+/g, ' ').trim();
+  return t.slice(0, 110);
+}
+
+function updateReadiness(p) {
+  let pct = 0, label = '0%';
+  if (p && p.deliverables.length) {
+    const weights = p.deliverables.map(d => d.status === 'approved' ? 1 : d.status === 'changes' ? 0.4 : 0.25);
+    pct = Math.round(weights.reduce((a, b) => a + b, 0) / p.deliverables.length * 100);
+    label = pct + '%';
+    if (pct === 100) label = 'Ready to deliver';
+  }
+  $('readinessLabel').textContent = label;
+  $('readinessBar').style.width = pct + '%';
+  $('workSub').textContent = p
+    ? p.deliverables.length + ' item' + (p.deliverables.length === 1 ? '' : 's') + ' · ' + p.deliverables.filter(d => d.status === 'approved').length + ' approved'
+    : 'Everything your team is producing for you';
+}
+
+/* ---------- Deliverable detail panel ---------- */
+function openDeliverable(id) {
+  const p = activeProject();
+  const d = p && p.deliverables.find(x => x.id === id);
+  if (!d) return;
+  T.openDetailId = id;
+  T.editingDeliverable = false;
+  renderDetail();
+  openPanel('spDetail');
+}
+
+function renderDetail() {
+  const p = activeProject();
+  const d = p && p.deliverables.find(x => x.id === T.openDetailId);
+  if (!d) return;
+  $('detailHeaderTitle').innerHTML = esc(d.title) + '<span class="sp-sub">' + esc(kindLabel(d.kind)) + '</span>';
+  const body = $('detailBody');
+  const actions = $('detailActions');
+
+  if (T.editingDeliverable) {
+    body.innerHTML = '<div class="section">' +
+      '<p class="edit-hint">Editing — saves locally. Status goes back to "new" if it was approved.</p>' +
+      '<input type="text" class="edit-title-input" id="dlvTitleInput" value="' + esc(d.title) + '" maxlength="120" />' +
+      '<textarea class="edit-area" id="dlvContentArea" spellcheck="true">' + esc(d.content) + '</textarea>' +
+      '</div>';
+    actions.innerHTML =
+      '<button class="btn btn-primary" id="btnDlvSave">Save</button>' +
+      '<button class="btn btn-secondary" id="btnDlvCancel">Cancel</button>';
+    $('btnDlvSave').onclick = saveDeliverableEdit;
+    $('btnDlvCancel').onclick = () => { T.editingDeliverable = false; renderDetail(); };
+    const area = $('dlvContentArea');
+    area.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); saveDeliverableEdit(); }
+      if (e.key === 'Escape') { e.preventDefault(); T.editingDeliverable = false; renderDetail(); }
+    });
+    return;
+  }
+
+  // view mode
+  const meta = '<div class="detail-meta">' + statusBadge(d.status) +
+    '<span class="kind-badge">' + esc(kindLabel(d.kind)) + '</span>' +
+    '<span class="kind-badge">' + fmtDate(d.createdAt) + (d.updatedAt ? ' · edited' : '') + '</span></div>';
+
+  let html = meta;
+  if (d.kind === 'options') html += renderOptionsView(d);
+  else if (d.kind === 'plan') html += renderPlanView(d);
+  else if (d.kind === 'calendar') html += renderCalendarView(d);
+  else html += '<div class="section"><div class="detail-body md">' + mdToHtmlLines(d.content) + '</div></div>';
+
+  body.innerHTML = html;
+
+  actions.innerHTML =
+    (d.status !== 'approved'
+      ? '<button class="btn btn-primary" id="btnDlvApprove">' + (d.status === 'changes' ? 'Approve revision' : 'Looks good') + '</button>'
+      : '<span class="kind-badge" style="align-self:center">Approved ✓</span>') +
+    '<button class="btn btn-secondary" id="btnDlvEdit">Edit</button>' +
+    '<button class="btn btn-secondary" id="btnDlvAsk">Ask Lena to revise</button>' +
+    (d.status !== 'changes' ? '<button class="btn btn-ghost" id="btnDlvChanges">Want changes</button>' : '') +
+    '<button class="btn btn-ghost" id="btnDlvCopy">Copy</button>' +
+    '<button class="btn btn-ghost" id="btnDlvDelete" title="Delete">' +
+      '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></button>';
+
+  const bind = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
+  bind('btnDlvApprove', () => {
+    d.status = 'approved'; d.updatedAt = Date.now(); p.updatedAt = Date.now();
+    saveState(); renderDetail(); renderWork(); updateStatusbar(); toast('Approved — thank you!');
+  });
+  bind('btnDlvEdit', () => { T.editingDeliverable = true; renderDetail(); });
+  bind('btnDlvAsk', () => {
+    closePanels();
+    switchTab('chat');
+    const input = $('chatInput');
+    input.value = 'Please revise "' + d.title + '" (' + kindLabel(d.kind) + '). What I want changed: ';
+    autoResize(input); updateSendBtn(); input.focus();
+  });
+  bind('btnDlvChanges', () => {
+    d.status = 'changes'; d.updatedAt = Date.now();
+    saveState(); renderDetail(); renderWork(); updateStatusbar();
+    closePanels(); switchTab('chat');
+    const input = $('chatInput');
+    input.value = 'About "' + d.title + '" — here\'s what I\'d like changed: ';
+    autoResize(input); updateSendBtn(); input.focus();
+  });
+  bind('btnDlvCopy', () => {
+    navigator.clipboard.writeText(d.content).then(() => toast('Copied')).catch(() => toast('Copy failed'));
+  });
+  bind('btnDlvDelete', () => {
+    confirmDialog('Delete this deliverable?', '"' + d.title + '" will be removed from the project.', 'Delete', () => {
+      p.deliverables = p.deliverables.filter(x => x.id !== d.id);
+      p.updatedAt = Date.now();
+      saveState(); closePanels(); renderWork(); updateStatusbar(); toast('Deleted');
+    });
+  });
+
+  // plan checklist interactions
+  qsa('[data-task-idx]', body).forEach(el => {
+    el.addEventListener('change', () => {
+      const idx = +el.dataset.taskIdx;
+      if (d.checklist && d.checklist[idx]) {
+        d.checklist[idx].done = el.checked;
+        if (d.checklist[idx].done) d.checklist[idx].doneAt = Date.now();
+        d.updatedAt = Date.now(); p.updatedAt = Date.now();
+        // rewrite content checkboxes to persist
+        d.content = syncChecklistContent(d.content, d.checklist);
+        saveState(); renderWork(); updateStatusbar();
+        const prog = planProgress(d);
+        if (prog && prog.pct === 100) toast('All tasks done — nice!');
+      }
+    });
+  });
+
+  // calendar view toggle
+  qsa('[data-calview]', body).forEach(btn => {
+    btn.addEventListener('click', () => {
+      qsa('[data-calview]', body).forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const cal = btn.dataset.calview === 'cal';
+      const cl = $('calView'), tx = $('calTextView');
+      if (cl) cl.classList.toggle('hidden', !cal);
+      if (tx) tx.classList.toggle('hidden', cal);
+    });
+  });
+
+  // options choose buttons
+  qsa('[data-choose-opt]', body).forEach(btn => {
+    btn.addEventListener('click', () => {
+      d.chosenOption = btn.dataset.chooseOpt;
+      d.updatedAt = Date.now(); p.updatedAt = Date.now();
+      saveState(); renderDetail(); renderWork(); toast('Direction set: ' + d.chosenOption);
+    });
+  });
+}
+
+/* ---------- Save deliverable edit ---------- */
+function saveDeliverableEdit() {
+  const p = activeProject();
+  if (!p || !T.openDetailId) return;
+  const d = p.deliverables.find(x => x.id === T.openDetailId);
+  if (!d) return;
+  const newTitle = ($('dlvTitleInput') ? $('dlvTitleInput').value : '').trim();
+  const newContent = $('dlvContentArea') ? $('dlvContentArea').value : '';
+  if (!newTitle) { toast('Give it a title'); $('dlvTitleInput').focus(); return; }
+  d.title = newTitle;
+  d.content = newContent;
+  d.checklist = parseChecklist(newContent);
+  if (d.status === 'approved') d.status = 'new'; // edited after approval → needs re-review
+  d.updatedAt = Date.now();
+  p.updatedAt = Date.now();
+  T.editingDeliverable = false;
+  saveState();
+  renderDetail();
+  renderWork();
+  updateStatusbar();
+  toast('Saved');
+}
+
+function syncChecklistContent(content, checklist) {  let i = 0;
+  return String(content || '').replace(/^([-*+]\s+\[)([ xX])(\])/gm, (m, a, mark, b) => {
+    const item = checklist[i++];
+    return a + (item && item.done ? 'x' : ' ') + b;
+  });
+}
+
+/* ---------- Options renderer ---------- */
+function renderOptionsView(d) {
+  const blocks = parseOptions(d.content);
+  const chosen = d.chosenOption;
+  let html = '<div class="section">';
+  if (!blocks.length) {
+    html += '<div class="detail-body md">' + mdToHtmlLines(d.content) + '</div></div>';
+    return html;
+  }
+  html += '<p class="edit-hint">Lena\'s recommendation is highlighted. Choose a direction and the team runs with it — you can change your mind any time.</p>';
+  for (const b of blocks) {
+    const isChosen = chosen && chosen.toLowerCase() === b.title.toLowerCase().replace(/^option\s*\d+\s*[—-]\s*/i, '').toLowerCase();
+    const isRec = b.recommendation;
+    html += '<div class="opt-card' + (isChosen ? ' chosen' : '') + '">';
+    if (isRec) {
+      html += '<div class="opt-head"><h3>✅ ' + esc(b.title) + '</h3></div>' +
+        '<div class="detail-body md">' + mdToHtmlLines(b.body) + '</div></div>';
+      continue;
+    }
+    html += '<div class="opt-head"><h3>' + esc(b.title) + '</h3>' +
+      (isChosen ? '<span class="status-badge approved">chosen</span>' : '') + '</div>';
+    if (b.summary) html += '<div class="opt-summary">' + esc(b.summary) + '</div>';
+    const fields = [
+      ['Best for', b.bestFor], ['Effort', b.effort], ['Cost', b.cost], ['Impact', b.impact],
+    ].filter(f => f[1]);
+    if (fields.length) {
+      html += '<div class="opt-lines">' + fields.map(f => '<div class="ln"><span class="k">' + f[0] + '</span><span>' + esc(f[1]) + '</span></div>').join('') + '</div>';
+    }
+    // pros/cons from body bullets under Pros/Cons headings
+    const pc = extractProsCons(b.body);
+    if (pc.pros.length || pc.cons.length) {
+      html += '<div class="opt-lines">' +
+        (pc.pros.length ? '<div class="ln pros"><span class="k">Pros</span><span>' + pc.pros.map(esc).join('<br/>') + '</span></div>' : '') +
+        (pc.cons.length ? '<div class="ln cons"><span class="k">Cons</span><span>' + pc.cons.map(esc).join('<br/>') + '</span></div>' : '') +
+        '</div>';
+    }
+    html += '<div class="opt-choose">' +
+      (isChosen
+        ? '<span class="kind-badge">✓ This is the direction we\'re taking</span>'
+        : '<button class="btn btn-primary btn-sm" data-choose-opt="' + esc(b.title.replace(/^option\s*\d+\s*[—-]\s*/i, '')) + '">Go with this</button>') +
+      '</div></div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function extractProsCons(body) {
+  const lines = String(body || '').split('\n');
+  const out = { pros: [], cons: [] };
+  let mode = null;
+  for (const ln of lines) {
+    const h = ln.match(/^#{0,4}\s*\**\s*(pros?|cons?|upside|downside|drawbacks?)\s*\**\s*:?\s*$/i);
+    if (h) { mode = /^p|^u/i.test(h[1]) ? 'pros' : 'cons'; continue; }
+    const inline = ln.match(/^\s*[-*+]\s+(.*)$/);
+    if (inline && mode) out[mode].push(inline[1].trim());
+  }
+  return out;
+}
+
+/* ---------- Plan renderer ---------- */
+function renderPlanView(d) {
+  const items = d.checklist || [];
+  let html = '<div class="section"><p class="edit-hint">Your project plan. Tick things off as they happen — the progress bar on the card updates.</p>';
+  if (!items.length) {
+    html += '<div class="detail-body md">' + mdToHtmlLines(d.content) + '</div></div>';
+    return html;
+  }
+  // group by phase headings (## Phase ...)
+  const phases = splitPhases(d.content);
+  if (!phases.length) {
+    html += items.map((it, i) => taskHtml(it, i)).join('') + '</div>';
+    return html;
+  }
+  let idx = 0;
+  for (const ph of phases) {
+    const phItems = items.slice(idx, idx + ph.count);
+    const done = phItems.filter(x => x.done).length;
+    const pct = ph.count ? Math.round(done / ph.count * 100) : 0;
+    html += '<div class="plan-phase"><h4>' + esc(ph.title) +
+      '<span class="ph-chip">' + (ph.timing || (ph.count ? done + '/' + ph.count : '')) + '</span>' +
+      (ph.count ? '<span class="ph-bar"><div style="width:' + pct + '%"></div></span>' : '') + '</h4>';
+    for (let k = 0; k < ph.count; k++) {
+      const it = items[idx + k];
+      html += taskHtml(it, idx + k);
+    }
+    html += '</div>';
+    idx += ph.count;
+  }
+  // any items not under a phase
+  for (; idx < items.length; idx++) html += taskHtml(items[idx], idx);
+  html += '</div>';
+  return html;
+}
+
+function taskHtml(it, i) {
+  return '<label class="task' + (it.done ? ' done' : '') + '">' +
+    '<input type="checkbox" data-task-idx="' + i + '"' + (it.done ? ' checked' : '') + ' />' +
+    '<span class="tx">' + esc(it.text) + (it.owner ? ' <span class="kind-badge">' + esc(it.owner) + '</span>' : '') + '</span></label>';
+}
+
+function splitPhases(content) {
+  const phases = [];
+  const lines = String(content || '').split('\n');
+  let cur = null, count = 0;
+  const flush = () => { if (cur) { cur.count = count; phases.push(cur); } cur = null; count = 0; };
+  for (const ln of lines) {
+    const h = ln.match(/^#{1,3}\s+(.*phase[^:]*)/i) || ln.match(/^#{1,3}\s+(Week\s*\d+.*)$/i);
+    if (h) { flush(); cur = { title: h[1].trim(), timing: '' }; continue; }
+    if (cur && /^[-*+]\s+\[[ xX]\]/.test(ln)) count++;
+  }
+  flush();
+  // pull timing like "(Week 1–2)" out of title
+  for (const ph of phases) {
+    const tm = ph.title.match(/\(?\s*((?:week|wk|day|month)\s*[\d–\-\s]*)\)?\s*$/i);
+    if (tm) { ph.timing = tm[1]; ph.title = ph.title.replace(/\(?\s*(?:week|wk|day|month)\s*[\d–\-\s]*\)?\s*$/i, '').trim(); }
+  }
+  return phases;
+}
+
+/* ---------- Calendar renderer ---------- */
+function renderCalendarView(d) {
+  const items = parseCalendar(d.content);
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let html = '<div class="section">';
+  if (!items.length) {
+    html += '<div class="detail-body md">' + mdToHtmlLines(d.content) + '</div></div>';
+    return html;
+  }
+  html += '<div class="view-toggle">' +
+    '<button class="btn btn-secondary active" data-calview="cal">Schedule</button>' +
+    '<button class="btn btn-secondary" data-calview="text">Text</button></div>' +
+    '<div id="calView" class="cal-list">';
+  for (const it of items) {
+    const dt = new Date(it.date + 'T00:00:00');
+    const day = dt.getDate(), mon = MONTHS[dt.getMonth()] || '';
+    html += '<div class="cal-row">' +
+      '<div class="cal-date"><div class="d">' + day + '</div><div class="m">' + mon + '</div></div>' +
+      '<div class="cal-main"><div class="t">' + esc(it.item) + '</div>' +
+      (it.notes ? '<div class="n">' + esc(it.notes) + '</div>' : '') +
+      '<span class="cal-channel">' + esc(it.channel) + '</span></div></div>';
+  }
+  html += '</div><div id="calTextView" class="detail-body md hidden">' + mdToHtmlLines(d.content) + '</div></div>';
+  return html;
+}
+
+
+/* ══════════ c7_panels.js ══════════ */
+/* ============================================================
+   Lena & Mark v2.0 — Brief, Team, Projects, Settings, Delivery
+   ============================================================ */
+
+/* ---------- Business profile (Brief) ---------- */
+function renderBrief(editMode) {
+  const body = $('briefBody');
+  const pr = state.profile;
+  const rows = [
+    ['Business name', pr.businessName, 'e.g. Willow Creek Glamping'],
+    ['What the business is', pr.businessType, 'e.g. Glamping site, café, SaaS…'],
+    ['Where', pr.location, 'City / area'],
+    ['Who it serves', pr.audience, 'e.g. Young couples, families…'],
+    ['Tone of voice', pr.voice, 'e.g. Warm and playful'],
+    ['Budget feel', pr.budget, 'e.g. Small (~$300/mo)'],
+  ];
+  const filled = rows.filter(r => r[1]).length;
+  $('briefHeaderSub').textContent = filled ? (filled + ' of ' + rows.length + ' filled') : 'What your team knows about you';
+
+  if (editMode) {
+    body.innerHTML = '<div class="section">' +
+      '<p class="form-hint" style="margin-bottom:12px">Fill what you know — the team uses this everywhere and stops asking repeat questions.</p>' +
+      rows.map((r, i) =>
+        '<div class="form-group"><label class="form-label" for="pf_' + i + '">' + r[0] + '</label>' +
+        '<input class="form-input" id="pf_' + i + '" data-pf="' + i + '" value="' + esc(r[1]) + '" placeholder="' + esc(r[2]) + '" /></div>'
+      ).join('') +
+      '</div>' +
+      '<div class="section"><div class="section-title">Notes for the team</div>' +
+      '<div class="form-group"><textarea class="form-textarea" id="pfNotes" placeholder="Anything else worth knowing — opening hours, seasonal peaks, competitors…">' + esc((pr.notes || []).map(n => n.text).join('\n')) + '</textarea></div>' +
+      '<div class="form-hint">One note per line. Each line becomes a separate note.</div></div>';
+    $('btnBriefEdit').textContent = 'Save';
+    $('btnBriefEdit').classList.remove('btn-primary');
+    $('btnBriefEdit').classList.add('btn-secondary');
+    return;
+  }
+
+  body.innerHTML =
+    '<div class="section">' +
+    (filled === 0
+      ? '<p class="form-hint">Nothing here yet. The team learns as you talk (you\'ll see it fill up), or fill it in yourself.</p>'
+      : rows.filter(r => r[1]).map(r =>
+        '<div class="form-group" style="margin-bottom:10px"><div class="form-label" style="margin-bottom:2px;font-size:11px;color:var(--text-faint)">' + r[0] + '</div><div style="font-size:14px">' + esc(r[1]) + '</div></div>').join('')) +
+    '</div>' +
+    ((pr.notes || []).length
+      ? '<div class="section"><div class="section-title">Notes</div>' +
+        pr.notes.map(n => '<div class="note-item"><div class="tx">' + esc(n.text) + '</div><div class="dt">' + fmtDate(n.ts) + '</div></div>').join('') +
+        '</div>'
+      : '') +
+    '<div class="section"><div class="form-hint">💡 The team fills this in automatically as you chat — things like your business type, city, audience and tone. Correct anything wrong; your edits always win.</div></div>';
+  $('btnBriefEdit').textContent = 'Edit';
+  $('btnBriefEdit').classList.add('btn-primary');
+  $('btnBriefEdit').classList.remove('btn-secondary');
+}
+
+function saveBriefEdit() {
+  const keys = ['businessName', 'businessType', 'location', 'audience', 'voice', 'budget'];
+  qsa('[data-pf]').forEach(inp => {
+    const k = keys[+inp.dataset.pf];
+    state.profile[k] = inp.value.trim();
+  });
+  const notesRaw = $('pfNotes').value.split('\n').map(s => s.trim()).filter(Boolean);
+  state.profile.notes = notesRaw.map(t => ({ text: t, ts: Date.now() }));
+  state.profile.updatedAt = Date.now();
+  saveState();
+  renderBrief(false);
+  toast('Profile saved — the team will use it');
+}
+
+/* ---------- Team panel ---------- */
+function renderTeam() {
+  $('teamBody').innerHTML =
+    '<div class="section"><p class="form-hint" style="margin-bottom:12px">You talk to Lena. She brings in whoever the job needs — you don\'t need to manage anyone.</p>' +
+    TEAM.map(m =>
+      '<div class="team-card">' +
+      '<div class="who"><div class="avatar-lg" style="background:' + m.color + '">' + m.name[0] + '</div><div class="role">' + m.role + '</div></div>' +
+      '<div class="what"><h3>' + m.name + '</h3><div class="desc">' + m.desc + '</div>' +
+      '<div class="skills-tag">' + m.skills.map(s => '<span>' + s + '</span>').join('') + '</div></div></div>'
+    ).join('') + '</div>' +
+    '<div class="section"><div class="section-title">How working with us feels</div>' +
+    '<div class="form-hint" style="line-height:1.7">' +
+    '1. <b>Tell Lena what\'s going on</b> — plain language, half a sentence is enough.<br/>' +
+    '2. She\'ll show you <b>2–3 options</b> with a recommendation. Pick one (or let her choose).<br/>' +
+    '3. The team writes the <b>plan and all the content</b> — you watch cards fill the Work tab.<br/>' +
+    '4. Approve, or say what to change. Mark and the others revise.<br/>' +
+    '5. Hit <b>Deliver</b> and get a tidy package: content files, calendar, instructions.<br/>' +
+    '</div></div>';
+}
+
+/* ---------- Projects panel ---------- */
+function renderProjects() {
+  const body = $('projectsBody');
+  if (!state.projects.length) {
+    body.innerHTML = '<div class="empty-state"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg><div class="hint">No projects yet.<br/>Your first chat starts one automatically.</div></div>';
+    $('projectsSub').textContent = 'All your campaigns';
+    return;
+  }
+  const totalDeliv = state.projects.reduce((n, p) => n + p.deliverables.length, 0);
+  $('projectsSub').textContent = state.projects.length + ' project' + (state.projects.length === 1 ? '' : 's') + ' · ' + totalDeliv + ' deliverables';
+  body.innerHTML = state.projects.map(p => {
+    const approved = p.deliverables.filter(d => d.status === 'approved').length;
+    const pct = p.deliverables.length ? Math.round(approved / p.deliverables.length * 100) : 0;
+    return '<div class="project-card' + (p.id === state.activeProjectId ? ' active' : '') + '" data-id="' + p.id + '">' +
+      '<h3>' + esc(p.name) + '</h3>' +
+      '<div class="meta"><span>' + p.deliverables.length + ' items</span><span>' + p.messages.length + ' messages</span><span>' + fmtDate(p.updatedAt || p.createdAt) + '</span><span>' + esc(p.status) + '</span></div>' +
+      '<div class="mini-progress"><div class="progressbar"><div style="width:' + pct + '%"></div></div></div>' +
+      '<div class="project-card-actions">' +
+      '<button class="btn btn-secondary btn-sm" data-open="' + p.id + '">Open</button>' +
+      '<button class="btn btn-ghost btn-sm" data-rename="' + p.id + '">Rename</button>' +
+      '<button class="btn btn-danger btn-sm" data-del="' + p.id + '">Delete</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+/* ---------- Skills (settings) ---------- */
+function renderSkills() {
+  const list = $('skillsList');
+  if (!state.skills.length) {
+    list.innerHTML = '<div class="form-hint">No skills — the team uses judgment only.</div>';
+    return;
+  }
+  list.innerHTML = state.skills.map(s =>
+    '<div class="skill-item"><div class="skill-info">' +
+    '<div class="skill-name">' + esc(s.name) + '</div>' +
+    '<div class="skill-desc">' + esc(s.description || '') + '</div></div>' +
+    '<div class="skill-actions">' +
+    '<button class="icon-btn" data-edit-skill="' + s.id + '" title="Edit"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>' +
+    '<button class="icon-btn" data-del-skill="' + s.id + '" title="Delete"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>' +
+    '</div></div>').join('');
+}
+
+function syncSettingsUI() {
+  $('apiKey').value = state.apiKey || '';
+  $('modelSelect').value = state.model;
+  $('temperature').value = state.temperature;
+  $('tempValue').textContent = state.temperature;
+  $('systemPrompt').value = state.systemPrompt || '';
+  const st = $('toggleStream');
+  st.classList.toggle('on', state.stream !== false);
+  st.setAttribute('aria-checked', String(state.stream !== false));
+  const ap = $('toggleAutoApprove');
+  ap.classList.toggle('on', !!state.autoApprove);
+  ap.setAttribute('aria-checked', String(!!state.autoApprove));
+  const status = $('keyStatus');
+  if (state.apiKey) {
+    status.className = 'key-status connected';
+    status.innerHTML = '<span class="dot"></span> <span>Key saved in this browser</span>';
+  } else {
+    status.className = 'key-status';
+    status.innerHTML = '<span class="dot"></span> <span>Not connected</span>';
+  }
+  renderSkills();
+  updateBrandSub();
+}
+
+/* ============================================================
+   DELIVERY — the package the user takes away
+   ============================================================ */
+function buildDeliveryFiles(p) {
+  const files = [];
+  const stamp = new Date().toISOString().slice(0, 10);
+  const slug = (p.name || 'campaign').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'campaign';
+  const approved = p.deliverables.filter(d => d.status === 'approved');
+  const notApproved = p.deliverables.filter(d => d.status !== 'approved');
+
+  /* README.txt */
+  const readme = [
+    p.name.toUpperCase(),
+    '='.repeat(Math.max(8, p.name.length)),
+    '',
+    'Prepared by your Lena & Mark team · ' + new Date().toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' }),
+    p.goal ? 'Goal: ' + p.goal : '',
+    '',
+    'WHAT\'S IN THIS PACKAGE',
+    '----------------------',
+    'handbook.html        — open this first: the whole campaign in one readable page',
+    'calendar.ics         — double-click to add the schedule to your calendar app',
+    'content/*.md         — every content piece, one file each (plain text, opens anywhere)',
+    'plan.md              — the project plan with your progress ticks',
+    'conversation.md      — the full chat that produced all this',
+    'data.json            — machine-readable backup of the whole project',
+    '',
+    'HOW TO USE IT',
+    '-------------',
+    '1. Open handbook.html in any browser — start with the Instructions section.',
+    '2. Follow the numbered steps there to publish each piece.',
+    '3. Add calendar.ics to Google Calendar / Apple Calendar / Outlook.',
+    '4. Keep content/*.md files as your master copies.',
+    '',
+    notApproved.length
+      ? 'NOTE: ' + notApproved.length + ' item(s) were still marked "new" or "changes" at delivery:\n' + notApproved.map(d => '  - ' + d.title + ' (' + d.status + ')').join('\n') + '\nReview them before publishing.'
+      : 'All items were approved. You\'re good to go.',
+    '',
+    'Generated by Lena & Mark v' + APP_VERSION + ' — your on-demand marketing team.',
+  ].filter(x => x !== '').join('\n');
+  files.push({ name: 'README.txt', data: readme });
+
+  /* plan.md */
+  const planD = p.deliverables.find(d => d.kind === 'plan');
+  if (planD) files.push({ name: 'plan.md', data: '# ' + planD.title + '\n\n' + planD.content + '\n' });
+
+  /* content files */
+  const folderFiles = [];
+  p.deliverables.forEach((d, i) => {
+    if (d.kind === 'plan') return;
+    const fname = String(i + 1).padStart(2, '0') + '-' + d.kind + '-' + (d.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 36) || 'item') + '.md';
+    const head = '# ' + d.title + '\n\n> Status: ' + d.status + ' · Type: ' + kindLabel(d.kind) + '\n\n';
+    folderFiles.push({ name: 'content/' + fname, data: head + d.content + '\n' });
+  });
+  files.push(...folderFiles);
+
+  /* calendar.ics */
+  const calD = p.deliverables.find(d => d.kind === 'calendar');
+  const calItems = [];
+  if (calD) calItems.push(...parseCalendar(calD.content));
+  // also harvest dates from other deliverables? keep it to explicit calendar
+  if (calItems.length) files.push({ name: 'calendar.ics', data: calendarToICS(calItems, p.name) });
+
+  /* conversation.md */
+  const conv = ['# Conversation — ' + p.name, ''].concat(
+    p.messages.map(m => (m.role === 'user' ? '**You:** ' : '**Lena:** ') + m.content + '\n')
+  ).join('\n');
+  files.push({ name: 'conversation.md', data: conv });
+
+  /* data.json */
+  files.push({ name: 'data.json', data: JSON.stringify({
+    app: 'Lena & Mark', version: APP_VERSION, exportedAt: new Date().toISOString(),
+    project: { id: p.id, name: p.name, goal: p.goal, status: p.status, phase: p.phase },
+    profile: state.profile,
+    deliverables: p.deliverables,
+    messages: p.messages,
+  }, null, 2) });
+
+  /* handbook.html — the one-page readable deliverable */
+  files.push({ name: 'handbook.html', data: buildHandbookHtml(p, calItems) });
+
+  return { files, slug, stamp };
+}
+
+function handbookSection(d, p) {
+  let inner = '';
+  if (d.kind === 'options') {
+    inner = mdToHtmlLines(d.content);
+  } else if (d.kind === 'calendar') {
+    const items = parseCalendar(d.content);
+    inner = items.length
+      ? '<table class="cal"><thead><tr><th>Date</th><th>Channel</th><th>Item</th><th>Notes</th></tr></thead><tbody>' +
+        items.map(i => '<tr><td>' + esc(i.date) + '</td><td>' + esc(i.channel) + '</td><td>' + esc(i.item) + '</td><td>' + esc(i.notes) + '</td></tr>').join('') +
+        '</tbody></table>'
+      : mdToHtmlLines(d.content);
+  } else {
+    inner = mdToHtmlLines(d.content);
+  }
+  const statusNote = d.status === 'approved' ? '<span class="ok">approved</span>' : '<span class="warn">' + esc(d.status) + '</span>';
+  return '<section class="card"><h2 id="sec-' + d.id + '">' + esc(d.title) +
+    ' <small>' + esc(kindLabel(d.kind)) + ' · ' + statusNote + '</small></h2>' + inner + '</section>';
+}
+
+function buildHandbookHtml(p, calItems) {
+  const order = { options: 0, plan: 1, brief: 1.5, social: 2, email: 2, ad: 2, landing: 2, calendar: 3, instructions: 4, handbook: 4.5, other: 5 };
+  const ds = p.deliverables.slice().sort((a, b) => (order[a.kind] ?? 9) - (order[b.kind] ?? 9) || a.createdAt - b.createdAt);
+  const toc = ds.map(d => '<li><a href="#sec-' + d.id + '">' + esc(d.title) + '</a> <span>· ' + esc(kindLabel(d.kind)) + '</span></li>').join('');
+  const sections = ds.map(d => handbookSection(d, p)).join('');
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>${esc(p.name)} — Campaign Handbook</title>
+<style>
+:root{--ink:#1e293b;--muted:#64748b;--line:#e2e8f0;--brand:#0ea5e9;--soft:#f0f9ff}
+*{box-sizing:border-box}body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--ink);margin:0;background:#f8fafc;line-height:1.6}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#0ea5e9,#8b5cf6);color:#fff;border-radius:18px;padding:36px 30px;margin-bottom:28px}
+header.hero h1{margin:0 0 6px;font-size:28px}header.hero p{margin:0;opacity:.9}
+nav.toc{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin-bottom:28px}
+nav.toc h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px}
+nav.toc ol{margin:0;padding-left:20px}nav.toc a{color:var(--brand);text-decoration:none}nav.toc span{color:var(--muted);font-size:12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px 26px;margin-bottom:22px}
+.card h2{margin:0 0 14px;font-size:20px}.card h2 small{font-size:11px;color:var(--muted);font-weight:500;margin-left:8px}
+.ok{color:#059669;font-weight:600}.warn{color:#d97706;font-weight:600}
+h3{margin:18px 0 8px}h4{margin:14px 0 6px}
+ul,ol{padding-left:22px;margin:8px 0}li{margin:4px 0}
+table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left}th{background:var(--soft)}
+blockquote{border-left:3px solid var(--brand);margin:8px 0;padding:4px 14px;color:var(--muted);background:var(--soft);border-radius:0 8px 8px 0}
+code{background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:13px}
+hr{border:none;border-top:1px solid var(--line);margin:16px 0}
+footer{color:var(--muted);font-size:12px;text-align:center;margin-top:30px}
+@media print{body{background:#fff}.card,nav.toc{break-inside:avoid}}
+</style></head><body><div class="wrap">
+<header class="hero"><h1>${esc(p.name)}</h1><p>Your campaign handbook · prepared by Lena &amp; Mark · ${new Date().toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' })}</p>${p.goal ? '<p style="margin-top:8px;opacity:.95">Goal: ' + esc(p.goal) + '</p>' : ''}</header>
+<nav class="toc"><h2>In this handbook</h2><ol>${toc}</ol></nav>
+${sections}
+${calItems.length ? '<p class="hint">📅 Tip: the delivery package includes <b>calendar.ics</b> — open it to add all ' + calItems.length + ' scheduled items to your calendar app.</p>' : ''}
+<footer>Generated by Lena &amp; Mark v${APP_VERSION} · everything in this handbook is yours to edit and reuse</footer>
+</div></body></html>`;
+}
+
+function deliverPackage() {
+  const p = activeProject();
+  if (!p || !p.deliverables.length) { toast('Nothing to deliver yet'); return; }
+  const { files, slug } = buildDeliveryFiles(p);
+  const zipBytes = makeZip(files.map(f => ({ name: f.name, data: f.data })));
+  downloadBytes(zipBytes, slug + '-delivery.zip', 'application/zip');
+  p.status = 'Delivered';
+  p.phase = 'deliver';
+  p.updatedAt = Date.now();
+  saveState();
+  updateStatusbar();
+  toast('Package delivered — check your downloads 📦');
+}
+
+
+/* ══════════ c8_events.js ══════════ */
+/* ============================================================
+   Lena & Mark v2.0 — events, request modal, init
+   ============================================================ */
+
+/* ---------- Request modal (quick ask from Work tab) ---------- */
+const REQUEST_TEMPLATES = [
+  { label: 'Strategy options', prompt: 'Give me strategy options for this project — 2–3 realistic approaches with your recommendation.' },
+  { label: 'Campaign plan', prompt: 'Build me the full campaign plan with phases and tasks.' },
+  { label: 'Social posts', prompt: 'Write the social media posts for this campaign — ready to paste, per platform.' },
+  { label: 'Email sequence', prompt: 'Write the email sequence for this campaign, subject lines included.' },
+  { label: 'Ad copy', prompt: 'Write the ad copy variants — headlines, text, CTAs.' },
+  { label: 'Landing page copy', prompt: 'Write the landing page copy for this campaign.' },
+  { label: 'Content calendar', prompt: 'Build the content calendar for this campaign with dates, channels and items.' },
+  { label: 'Instructions for me', prompt: 'Write me simple step-by-step instructions to publish and run all of this.' },
+];
+
+function renderRequestList() {
+  $('requestList').innerHTML = REQUEST_TEMPLATES.map((t, i) =>
+    '<button class="btn btn-secondary" data-req="' + i + '" style="justify-content:flex-start">' + esc(t.label) + '</button>'
+  ).join('');
+}
+
+/* ---------- Events ---------- */
+function bindEvents() {
+  /* tabs */
+  qsa('.nav-item').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+
+  /* top bar */
+  $('btnTheme').addEventListener('click', () => { applyTheme(state.theme === 'dark' ? 'light' : 'dark'); saveState(); });
+  $('brandBtn').addEventListener('click', () => { renderBrief(false); openPanel('spBrief'); });
+  $('btnBrief').addEventListener('click', () => { renderBrief(false); openPanel('spBrief'); T.closedPanels.delete('spBrief'); $('briefTip').classList.add('hidden'); });
+  $('btnTeam').addEventListener('click', () => { renderTeam(); openPanel('spTeam'); });
+  $('btnProjects').addEventListener('click', () => { renderProjects(); openPanel('spProjects'); });
+  $('btnSettings').addEventListener('click', () => { syncSettingsUI(); openPanel('spSettings'); });
+  $('btnDeliverMain').addEventListener('click', () => {
+    const p = activeProject();
+    const pending = p ? p.deliverables.filter(d => d.status !== 'approved').length : 0;
+    if (pending) {
+      confirmDialog('Deliver with unapproved items?',
+        pending + ' item(s) are still marked "new" or "changes". They\'ll be included and flagged in the README. Deliver anyway?',
+        'Deliver anyway', deliverPackage);
+    } else deliverPackage();
+  });
+
+  /* panel close */
+  qsa('[data-close-panel]').forEach(b => b.addEventListener('click', () => {
+    T.closedPanels.add(document.querySelector('.side-panel.open')?.id || '');
+    closePanels();
+  }));
+  // Esc closes panels
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const open = document.querySelector('.side-panel.open');
+      if (open) { T.closedPanels.add(open.id); closePanels(); }
+      qsa('.modal-backdrop.open').forEach(m => m.classList.remove('open'));
+    }
+  });
+
+  /* chat composer */
+  const input = $('chatInput');
+  input.addEventListener('input', () => { autoResize(input); updateSendBtn(); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input.value); }
+  });
+  $('btnSend').addEventListener('click', () => sendMessage(input.value));
+  $('btnStop').addEventListener('click', () => { if (T.abortCtrl) T.abortCtrl.abort(); });
+  $('suggestions').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (chip) sendMessage(chip.dataset.prompt);
+  });
+
+  /* attachments & voice */
+  $('btnAttach').addEventListener('click', () => $('fileInput').click());
+  $('fileInput').addEventListener('change', (e) => { if (e.target.files.length) addAttachments([...e.target.files]); e.target.value = ''; });
+  $('attachPreview').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-rm]');
+    if (btn) { T.attachments.splice(+btn.dataset.rm, 1); renderAttachments(); updateSendBtn(); }
+  });
+  $('btnMic').addEventListener('click', () => {
+    if (!T.recognition) { toast('Speech input isn\'t supported in this browser'); return; }
+    if ($('btnMic').classList.contains('recording')) { T.recognition.stop(); return; }
+    $('btnMic').classList.add('recording');
+    try { T.recognition.start(); } catch (e) { $('btnMic').classList.remove('recording'); }
+  });
+
+  /* work list → detail (delegated) */
+  $('workList').addEventListener('click', (e) => {
+    const card = e.target.closest('[data-open-deliv]');
+    if (card) openDeliverable(card.dataset.openDeliv);
+  });
+  $('workList').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const card = e.target.closest('[data-open-deliv]');
+      if (card) openDeliverable(card.dataset.openDeliv);
+    }
+  });
+  /* chat chips → detail */
+  $('chatScroll').addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-open-deliv]');
+    if (chip) openDeliverable(chip.dataset.openDeliv);
+  });
+
+  /* request modal */
+  $('btnAddDeliverable').addEventListener('click', () => { renderRequestList(); $('requestModal').classList.add('open'); });
+  $('btnCloseRequest').addEventListener('click', () => $('requestModal').classList.remove('open'));
+  $('requestList').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-req]');
+    if (!b) return;
+    $('requestModal').classList.remove('open');
+    switchTab('chat');
+    sendMessage(REQUEST_TEMPLATES[+b.dataset.req].prompt);
+  });
+
+  /* brief */
+  $('btnBriefEdit').addEventListener('click', () => {
+    if ($('btnBriefEdit').textContent === 'Edit') renderBrief(true);
+    else saveBriefEdit();
+  });
+  $('btnBriefAsk').addEventListener('click', () => {
+    closePanels(); switchTab('chat');
+    const input = $('chatInput');
+    input.value = 'About my business profile — ';
+    autoResize(input); updateSendBtn(); input.focus();
+  });
+  $('btnBriefReset').addEventListener('click', () => {
+    confirmDialog('Clear the business profile?', 'The team will forget these details (projects are kept).', 'Clear', () => {
+      state.profile = defaultProfile(); saveState(); renderBrief(false); toast('Profile cleared');
+    });
+  });
+
+  /* projects */
+  $('btnNewProject').addEventListener('click', () => {
+    $('projectModalTitle').textContent = 'New project';
+    $('projName').value = '';
+    $('projGoal').value = '';
+    $('projectModal').classList.add('open');
+  });
+  $('btnCancelProject').addEventListener('click', () => $('projectModal').classList.remove('open'));
+  $('btnSaveProject').addEventListener('click', () => {
+    const name = $('projName').value.trim() || 'Untitled project';
+    const p = newProjectObj({ name, goal: $('projGoal').value.trim() });
+    state.projects.unshift(p);
+    state.activeProjectId = p.id;
+    saveState();
+    $('projectModal').classList.remove('open');
+    renderProjects(); renderChat(); updateStatusbar(); closePanels();
+    switchTab('chat');
+    toast('Project created — tell Lena what you need');
+  });
+  $('projectsBody').addEventListener('click', (e) => {
+    const open = e.target.closest('[data-open]');
+    const del = e.target.closest('[data-del]');
+    const ren = e.target.closest('[data-rename]');
+    if (open) {
+      state.activeProjectId = open.dataset.open;
+      saveState(); renderProjects(); renderChat(); updateStatusbar(); renderWork();
+      closePanels(); switchTab('chat');
+    }
+    if (del) {
+      confirmDialog('Delete this project?', 'Its chat, deliverables and progress will be gone for good.', 'Delete', () => {
+        state.projects = state.projects.filter(p => p.id !== del.dataset.del);
+        if (state.activeProjectId === del.dataset.del) state.activeProjectId = state.projects[0] ? state.projects[0].id : null;
+        saveState(); renderProjects(); renderChat(); updateStatusbar(); renderWork(); updateBrandSub();
+        toast('Project deleted');
+      });
+    }
+    if (ren) {
+      const p = state.projects.find(x => x.id === ren.dataset.rename);
+      if (!p) return;
+      const n = prompt('Rename project', p.name);
+      if (n && n.trim()) { p.name = n.trim(); p.updatedAt = Date.now(); saveState(); renderProjects(); updateStatusbar(); }
+    }
+  });
+
+  /* settings */
+  $('temperature').addEventListener('input', (e) => { $('tempValue').textContent = e.target.value; });
+  $('toggleStream').addEventListener('click', function () {
+    this.classList.toggle('on'); this.setAttribute('aria-checked', String(this.classList.contains('on')));
+  });
+  $('toggleAutoApprove').addEventListener('click', function () {
+    this.classList.toggle('on'); this.setAttribute('aria-checked', String(this.classList.contains('on')));
+  });
+  $('btnSaveKey').addEventListener('click', () => {
+    state.apiKey = $('apiKey').value.trim();
+    state.model = $('modelSelect').value;
+    state.temperature = parseFloat($('temperature').value);
+    state.systemPrompt = $('systemPrompt').value.trim();
+    state.stream = $('toggleStream').classList.contains('on');
+    state.autoApprove = $('toggleAutoApprove').classList.contains('on');
+    saveState(); syncSettingsUI(); updateBrandSub();
+    toast(state.apiKey ? 'Connected — you\'re set 🎉' : 'Key cleared');
+  });
+  $('btnClearChat').addEventListener('click', () => {
+    const p = activeProject();
+    if (!p) return;
+    confirmDialog('Clear this conversation?', 'The chat history goes away; deliverables stay in the Work tab.', 'Clear', () => {
+      p.messages = []; p.updatedAt = Date.now(); saveState(); renderChat(); toast('Conversation cleared');
+    });
+  });
+  $('btnExportAll').addEventListener('click', () => {
+    const data = JSON.stringify({ app: 'Lena & Mark', version: APP_VERSION, exportedAt: new Date().toISOString(), state: { ...state, apiKey: '' } }, null, 2);
+    downloadBytes(new TextEncoder().encode(data), 'lena-mark-backup.json', 'application/json');
+    toast('Backup downloaded (key excluded)');
+  });
+  $('btnResetAll').addEventListener('click', () => {
+    confirmDialog('Reset everything?', 'All projects, chats, deliverables, skills and your key will be erased.', 'Erase all', () => {
+      localStorage.removeItem(STORAGE_KEY);
+      LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
+      const keepTheme = state.theme;
+      state = defaultState();
+      state.theme = keepTheme;
+      saveState();
+      renderChat(); renderWork(); renderProjects(); renderBrief(false); syncSettingsUI(); updateStatusbar();
+      toast('Fresh start');
+    });
+  });
+
+  /* skills */
+  $('btnNewSkill').addEventListener('click', () => {
+    T.editingSkillId = null;
+    $('skillModalTitle').textContent = 'New skill';
+    $('skillName').value = ''; $('skillDesc').value = ''; $('skillPrompt').value = '';
+    $('skillModal').classList.add('open');
+  });
+  $('btnCancelSkill').addEventListener('click', () => $('skillModal').classList.remove('open'));
+  $('btnSaveSkill').addEventListener('click', () => {
+    const name = $('skillName').value.trim();
+    if (!name) { toast('Give the skill a name'); return; }
+    const skill = {
+      id: T.editingSkillId || ('skill_' + Date.now()),
+      name,
+      description: $('skillDesc').value.trim(),
+      prompt: $('skillPrompt').value.trim(),
+    };
+    const i = state.skills.findIndex(s => s.id === T.editingSkillId);
+    if (i >= 0) state.skills[i] = skill; else state.skills.push(skill);
+    saveState(); renderSkills();
+    $('skillModal').classList.remove('open');
+    toast('Skill saved');
+  });
+  $('skillsList').addEventListener('click', (e) => {
+    const ed = e.target.closest('[data-edit-skill]');
+    const dl = e.target.closest('[data-del-skill]');
+    if (ed) {
+      const s = state.skills.find(x => x.id === ed.dataset.editSkill);
+      if (!s) return;
+      T.editingSkillId = s.id;
+      $('skillModalTitle').textContent = 'Edit skill';
+      $('skillName').value = s.name; $('skillDesc').value = s.description || ''; $('skillPrompt').value = s.prompt || '';
+      $('skillModal').classList.add('open');
+    }
+    if (dl) {
+      confirmDialog('Delete this skill?', 'The team will no longer use this playbook.', 'Delete', () => {
+        state.skills = state.skills.filter(s => s.id !== dl.dataset.delSkill);
+        saveState(); renderSkills(); toast('Skill deleted');
+      });
+    }
+  });
+
+  /* confirm modal */
+  $('btnConfirmCancel').addEventListener('click', () => { $('confirmModal').classList.remove('open'); T.confirmCb = null; });
+  $('btnConfirmOk').addEventListener('click', () => {
+    $('confirmModal').classList.remove('open');
+    const cb = T.confirmCb; T.confirmCb = null;
+    if (cb) cb();
+  });
+
+  /* modal backdrop click closes */
+  ['projectModal', 'skillModal', 'requestModal', 'confirmModal'].forEach(id => {
+    $(id).addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('open'); });
+  });
+
+  /* deliverable detail save */
+  document.addEventListener('click', (e) => { /* placeholder for delegated detail actions handled in renderDetail */ });
+}
+
+/* ---------- Init ---------- */
+function init() {
+  loadState();
+  bindEvents();
+  initSpeech();
+  renderChat();
+  renderWork();
+  renderProjects();
+  renderBrief(false);
+  renderTeam();
+  syncSettingsUI();
+  updateStatusbar();
+  updateSendBtn();
+  $('appVersion').textContent = APP_VERSION;
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+</body>
+</html>
