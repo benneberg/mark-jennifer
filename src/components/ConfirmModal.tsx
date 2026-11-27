@@ -39,6 +39,30 @@ export function ConfirmModal({
       if (e.key === 'Escape') {
         e.preventDefault();
         onCancel();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+
+      // Keep keyboard focus inside the dialog (aria-modal alone does not do it).
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => el.offsetParent !== null);
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+
+      if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && (active === first || active === dialog)) {
+        e.preventDefault();
+        last.focus();
       }
     };
     window.addEventListener('keydown', onKeyDown);

@@ -15,7 +15,20 @@ Every persisted entity, every import payload, and every seed data file is valida
 · On import — the entire payload is validated first, then the per-record schemas are re-checked individually. Any failure aborts the import with a line-numbered summary.
 · On seed — the bundled seed experts and guardrails are validated at app boot; a failure here is a build defect and must be caught in manual testing.
 
-Validator subset support (from utils/validate.js): type, required, properties, additionalProperties, items, enum, const, minLength, maxLength, minimum, maximum, pattern, format (uuid, date-time, uri), anyOf, oneOf (limited). No $ref, no if/then/else, no dependencies. If a schema needs more, split it or add support to the validator.
+Validator subset support (from `src/utils/validate.ts`): type, required, properties,
+additionalProperties, items, maxItems, uniqueItems, enum, const, minLength,
+maxLength, minimum, maximum, pattern, format (uuid, date-time, uri).
+
+Not supported: `anyOf`, `oneOf`, `allOf`, `$ref`, `if/then/else`, `not`,
+`patternProperties`, `dependencies`, `minProperties`/`maxProperties`. Using one
+of these is now a **hard validation error** rather than being silently ignored,
+so a schema can never appear to pass while enforcing nothing. `$schema`, `$id`,
+`title`, `description`, `default` and `examples` are allowed as metadata.
+
+Because the app validates with the inline schemas in `src/utils/validate.ts`
+while this directory publishes JSON Schema, `tests/schemas.test.ts` asserts that
+both stay identical (required lists, property names, `additionalProperties`).
+Edit both or the test suite fails.
 
 ---
 

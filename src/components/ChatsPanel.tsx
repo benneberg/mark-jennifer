@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { MessageSquarePlus, Trash2 } from 'lucide-react';
 import type { Chat } from '../types';
 import { formatDateTime } from '../utils/dates';
+import { ConfirmModal } from './ConfirmModal';
 
 interface ChatsPanelProps {
   chats: Chat[];
@@ -19,6 +21,8 @@ export function ChatsPanel({
   onNewChat,
   onDeleteChat,
 }: ChatsPanelProps) {
+  const [pendingDelete, setPendingDelete] = useState<Chat | null>(null);
+
   return (
     <div className="space-y-4 pb-8">
       <button
@@ -73,7 +77,7 @@ export function ChatsPanel({
                 <button
                   type="button"
                   disabled={disabled}
-                  onClick={() => onDeleteChat(chat.id)}
+                  onClick={() => setPendingDelete(chat)}
                   aria-label={`Delete chat ${chat.title}`}
                   title="Delete chat"
                   className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-full text-[var(--text-faint)] hover:text-[var(--danger)] hover:bg-[var(--surface)] disabled:opacity-40 transition-colors shrink-0"
@@ -85,6 +89,22 @@ export function ChatsPanel({
           })}
         </div>
       )}
+
+      <ConfirmModal
+        open={pendingDelete !== null}
+        title="Delete this conversation?"
+        description={`"${
+          pendingDelete?.title || 'New marketing session'
+        }" and all of its messages will be permanently removed from this browser. Saved library items are not affected.`}
+        confirmLabel="Delete conversation"
+        danger
+        onConfirm={() => {
+          const target = pendingDelete;
+          setPendingDelete(null);
+          if (target) onDeleteChat(target.id);
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

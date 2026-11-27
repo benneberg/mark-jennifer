@@ -8,6 +8,19 @@ import {
 } from '../storage/entities';
 import { todaySlug } from '../utils/dates';
 
+/** Guard against freezing the tab on a huge/incorrect file. */
+const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
+
+function downloadBlob(filename: string, blob: Blob): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  // Revoking synchronously can cancel the download in some browsers.
+  window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
 interface ImportExportModalProps {
   open: boolean;
   onClose: () => void;
@@ -30,12 +43,7 @@ export function ImportExportModal({
   const handleExport = async () => {
     const pkg = await buildExportPackage(includeChats);
     const blob = new Blob([JSON.stringify(pkg, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `hedetangen-studio-${todaySlug()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(`hedetangen-studio-${todaySlug()}.json`, blob);
     onNotify(
       `Exported ${pkg.experts.length} experts and ${pkg.library.length} library items (API keys excluded).`,
       'success'
@@ -46,9 +54,29 @@ export function ImportExportModal({
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    const text = await file.text();
-    const res = await validateImportPackage(text);
-    setValidation(res);
+    if (file.size > MAX_IMPORT_BYTES) {
+      setValidation({
+        valid: false,
+        errors: [
+          `File is ${(file.size / (1024 * 1024)).toFixed(1)} MB — the limit is ${
+            MAX_IMPORT_BYTES / (1024 * 1024)
+          } MB.`,
+        ],
+        warnings: [],
+      });
+      return;
+    }
+    try {
+      const text = await file.text();
+      const res = await validateImportPackage(text);
+      setValidation(res);
+    } catch (err) {
+      setValidation({
+        valid: false,
+        errors: [err instanceof Error ? err.message : 'Could not read the selected file.'],
+        warnings: [],
+      });
+    }
   };
 
   const handleApply = async (mode: 'merge' | 'replace') => {
@@ -63,6 +91,7 @@ export function ImportExportModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(24,24,23,0.52)] backdrop-blur-[4px]"
+      role="presentation"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           setValidation(null);

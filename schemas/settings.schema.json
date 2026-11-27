@@ -4,16 +4,68 @@
   "title": "Settings",
   "type": "object",
   "additionalProperties": false,
-  "required": ["provider", "model", "temperature", "language", "theme"],
+  "required": [
+    "provider",
+    "model",
+    "temperature",
+    "language",
+    "theme"
+  ],
   "properties": {
-    "provider": { "type": "string", "enum": ["groq", "openrouter", "openai", "mock"] },
-    "model": { "type": "string", "minLength": 0, "maxLength": 200 },
-    "temperature": { "type": "number", "minimum": 0, "maximum": 1.5 },
-    "language": { "type": "string", "enum": ["auto", "sv", "en", "bilingual"] },
-    "machinePrompt": { "type": "string", "maxLength": 4000 },
-    "theme": { "type": "string", "enum": ["light", "dark"] },
-    "rememberKey": { "type": "boolean" },
-    "strictMode": { "type": "boolean" },
-    "debug": { "type": "boolean" }
+    "provider": {
+      "type": "string",
+      "enum": [
+        "groq",
+        "openrouter",
+        "openai",
+        "mock"
+      ]
+    },
+    "model": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 200
+    },
+    "temperature": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1.5
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "sv",
+        "en",
+        "bilingual"
+      ]
+    },
+    "machinePrompt": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "theme": {
+      "type": "string",
+      "enum": [
+        "light",
+        "dark"
+      ]
+    },
+    "rememberKey": {
+      "type": "boolean"
+    },
+    "strictMode": {
+      "type": "boolean"
+    },
+    "debug": {
+      "type": "boolean"
+    },
+    "responseMode": {
+      "type": "string",
+      "enum": [
+        "direct",
+        "team"
+      ]
+    }
   }
 }

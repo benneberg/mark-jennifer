@@ -18,7 +18,7 @@ import { createSeedGuardrails } from './data/seed-guardrails';
 import { runJenniferTurn } from './orchestration/jennifer';
 import { createProvider, fetchAndCacheModels } from './providers';
 import { AIError } from './providers/errors';
-import { hasApiKey, saveApiKey } from './storage/crypto';
+import { hasApiKey } from './storage/crypto';
 import {
   clearAllStudioData,
   createNewChat,
@@ -26,6 +26,7 @@ import {
   deleteChat,
   deleteLibraryItem,
   deleteMessage,
+  clearTurnInFlight,
   ensureSeedData,
   getOrCreateActiveChat,
   loadAllChats,
@@ -34,6 +35,7 @@ import {
   loadLibrary,
   loadMessagesForChat,
   loadSettings,
+  markTurnInFlight,
   removeExpert,
   saveExpert,
   saveGuardrails,
@@ -58,10 +60,12 @@ import type {
 } from './types';
 import { nowIso } from './utils/dates';
 import { generateId } from './utils/id';
+import { safeGetItem, safeSetItem } from './utils/safe-storage';
 
 export default function App() {
   const [ready, setReady] = useState(false);
   const [loadingChat, setLoadingChat] = useState(true);
+  const [bootError, setBootError] = useState<string | null>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [hasKey, setHasKey] = useState(false);
   const [models, setModels] = useState<ModelInfo[]>([]);
@@ -76,7 +80,7 @@ export default function App() {
   const [referencePhoto, setReferencePhoto] = useState('');
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [railPinned, setRailPinned] = useState<boolean>(
-    () => localStorage.getItem(LS_KEYS.RAIL_PINNED) === 'true'
+    () => safeGetItem(LS_KEYS.RAIL_PINNED) === 'true'
   );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -144,6 +148,7 @@ export default function App() {
 
   const bootstrapStudio = useCallback(async () => {
     setLoadingChat(true);
+    setBootError(null);
     try {
       const { skippedCount } = await ensureSeedData();
       const [loadedSettings, expRes, loadedGuardrails, libRes, chat, allChats] = await Promise.all([
@@ -183,6 +188,12 @@ export default function App() {
           // Non-fatal on boot
         }
       }
+    } catch (err) {
+      setBootError(
+        err instanceof Error
+          ? err.message
+          : 'Local storage is unavailable in this browser context.'
+      );
     } finally {
       setLoadingChat(false);
       setReady(true);
@@ -249,7 +260,7 @@ export default function App() {
     setModels(demoModels.models);
     setModelsFetchedAt(demoModels.fetchedAt);
     setHasKey(true);
-    localStorage.setItem(LS_KEYS.ONBOARDED, 'true');
+    safeSetItem(LS_KEYS.ONBOARDED, 'true');
     pushToast('Demo Mode active — try asking Jennifer anything.', 'success');
   }, [handleUpdateSettings, pushToast]);
 
@@ -270,7 +281,7 @@ export default function App() {
           await handleUpdateSettings({ model: preferred.id });
         }
       }
-      localStorage.setItem(LS_KEYS.ONBOARDED, 'true');
+      safeSetItem(LS_KEYS.ONBOARDED, 'true');
       pushToast(`Loaded ${res.models.length} models.`, 'success');
     },
     [handleUpdateSettings, pushToast, settings.model]
@@ -303,6 +314,22 @@ export default function App() {
     const curated = preferredOrder.find((id) => candidates.some((c) => c.id === id));
     return curated ?? candidates[0]?.id;
   }, [models, settings.model, settings.provider]);
+
+  const persistChat = useCallback(
+    async (chat: Chat) => {
+      try {
+        await updateChat(chat);
+      } catch (err) {
+        pushToast(
+          `Conversation could not be saved: ${
+            err instanceof Error ? err.message : 'validation error'
+          }`,
+          'danger'
+        );
+      }
+    },
+    [pushToast]
+  );
 
   const executeTurn = useCallback(
     async (userText: string, overrideSettings?: AppSettings, retryErrorMsgId?: string) => {
@@ -349,7 +376,7 @@ export default function App() {
         currentChat = { ...currentChat, title: nextTitle, updatedAt: nowIso() };
         setActiveChat(currentChat);
         setChats((prev) => [currentChat, ...prev.filter((c) => c.id !== currentChat.id)]);
-        await updateChat(currentChat);
+        await persistChat(currentChat);
       }
 
       const controller = new AbortController();
@@ -361,6 +388,7 @@ export default function App() {
       const assistantMsgId = generateId();
       const assistantTs = nowIso();
       let lastDbPersistAt = 0;
+      let lastPersistedLength = 0;
       let hasPersistedStreaming = false;
 
       setStreamingState({
@@ -372,6 +400,12 @@ export default function App() {
       });
 
       try {
+        // Crash recovery marker: best-effort, must never fail the turn itself.
+        await markTurnInFlight({
+          messageId: assistantMsgId,
+          chatId: currentChat.id,
+          startedAt: assistantTs,
+        }).catch(() => {});
         const result = await runJenniferTurn({
           userMessage: trimmed,
           history: prevHistory,
@@ -398,9 +432,13 @@ export default function App() {
               const nextBuf = streamBufferRef.current;
               setStreamingState((s) => ({ ...s, buffer: nextBuf }));
 
+              // Checkpointing the whole response on every tick was O(n^2) writes on
+              // mobile storage; require real progress before persisting again.
               const nowMs = Date.now();
-              if (nextBuf.trim() && nowMs - lastDbPersistAt >= 650) {
+              const grewEnough = nextBuf.length - lastPersistedLength >= 400;
+              if (nextBuf.trim() && grewEnough && nowMs - lastDbPersistAt >= 1200) {
                 lastDbPersistAt = nowMs;
+                lastPersistedLength = nextBuf.length;
                 hasPersistedStreaming = true;
                 saveMessage({
                   id: assistantMsgId,
@@ -449,7 +487,7 @@ export default function App() {
         };
         setActiveChat(updatedChat);
         setChats((prev) => [updatedChat, ...prev.filter((c) => c.id !== updatedChat.id)]);
-        await updateChat(updatedChat);
+        await persistChat(updatedChat);
 
         addDebugEntry({
           type: 'turn',
@@ -529,6 +567,7 @@ export default function App() {
           });
         }
       } finally {
+        await clearTurnInFlight().catch(() => {});
         isGeneratingRef.current = false;
         abortRef.current = null;
         setStreamingState({
@@ -546,6 +585,7 @@ export default function App() {
       experts,
       guardrails,
       messages,
+      persistChat,
       pushToast,
       referencePhoto,
       settings,
@@ -602,13 +642,21 @@ export default function App() {
         sourceMessageId: msg.id,
         createdAt: nowIso(),
       };
-      await saveLibraryItem(item);
-      setLibrary((prev) => [item, ...prev]);
 
-      const updatedMsg: ChatMessage = { ...msg, savedToLibrary: true };
-      await saveMessage(updatedMsg);
-      setMessages((prev) => prev.map((m) => (m.id === msg.id ? updatedMsg : m)));
-      pushToast('Saved to Content Library.', 'success');
+      try {
+        await saveLibraryItem(item);
+        setLibrary((prev) => [item, ...prev]);
+
+        const updatedMsg: ChatMessage = { ...msg, savedToLibrary: true };
+        await saveMessage(updatedMsg);
+        setMessages((prev) => prev.map((m) => (m.id === msg.id ? updatedMsg : m)));
+        pushToast('Saved to Content Library.', 'success');
+      } catch (err) {
+        pushToast(
+          `Could not save to library: ${err instanceof Error ? err.message : 'unknown error'}`,
+          'danger'
+        );
+      }
     },
     [pushToast]
   );
@@ -734,6 +782,33 @@ export default function App() {
     experts: 'Specialist Experts',
     guardrails: 'Brand DNA Guardrails',
   };
+
+  if (bootError) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center p-6 text-[var(--text)]">
+        <div className="max-w-md w-full space-y-3 p-6 rounded-[24px] glass-surface border border-[var(--border)]">
+          <EyeEmblem size="lg" />
+          <h1 className="text-lg font-semibold">The studio could not open its local database</h1>
+          <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+            {bootError}
+          </p>
+          <p className="text-xs text-[var(--text-faint)] leading-relaxed">
+            Private browsing, blocked storage, or a full disk can cause this. Nothing has been
+            deleted — reopen the app in a normal window, then export a backup from Settings.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              void bootstrapStudio();
+            }}
+            className="min-h-[42px] px-4 py-2 text-sm font-semibold rounded-full bg-[var(--lime)] text-[#181817]"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!ready) {
     return (
@@ -929,7 +1004,7 @@ export default function App() {
                   onClick={() => {
                     const next = !railPinned;
                     setRailPinned(next);
-                    localStorage.setItem(LS_KEYS.RAIL_PINNED, String(next));
+                    safeSetItem(LS_KEYS.RAIL_PINNED, String(next));
                   }}
                   title={railPinned ? 'Unpin panel' : 'Pin panel on desktop'}
                   aria-label={railPinned ? 'Unpin panel' : 'Pin panel'}
@@ -977,7 +1052,6 @@ export default function App() {
                   onOpenImportExport={() => setImportExportOpen(true)}
                   onClearAllData={async () => {
                     await clearAllStudioData();
-                    await saveApiKey('groq', '', false);
                     setActivePanel(null);
                     await bootstrapStudio();
                     pushToast('All studio data cleared.', 'info');

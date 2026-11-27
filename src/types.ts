@@ -141,6 +141,8 @@ export interface ChatResult {
 }
 
 export type AIErrorCode =
+  | 'KEY_MISSING'
+  | 'KEY_UNREADABLE'
   | 'AUTH_INVALID'
   | 'RATE_LIMIT'
   | 'QUOTA_EXCEEDED'

@@ -3,6 +3,7 @@ import { Download, Lock, Pencil, Plus, Trash2, Upload } from 'lucide-react';
 import type { Expert } from '../types';
 import { nowIso } from '../utils/dates';
 import { generateId } from '../utils/id';
+import { downloadText } from '../utils/download';
 import { EXPERT_SCHEMA, validateSchema } from '../utils/validate';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -102,13 +103,11 @@ export function ExpertEditor({
   };
 
   const handleExportExperts = () => {
-    const blob = new Blob([JSON.stringify(experts, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `hedetangen-experts-${nowIso().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadText(
+      `hedetangen-experts-${nowIso().slice(0, 10)}.json`,
+      JSON.stringify(experts, null, 2),
+      'application/json'
+    );
     onNotify(`Exported ${experts.length} experts.`, 'success');
   };
 

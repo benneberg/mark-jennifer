@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Check, Copy, Download, Trash2 } from 'lucide-react';
 import type { LibraryItem, LibraryItemType } from '../types';
 import { formatShortDate, todaySlug } from '../utils/dates';
+import { downloadText } from '../utils/download';
+import { ConfirmModal } from './ConfirmModal';
 
 interface LibraryPanelProps {
   items: LibraryItem[];
@@ -33,6 +35,7 @@ export function LibraryPanel({
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<LibraryItem | null>(null);
 
   const allTags = useMemo(() => {
     const set = new Set<string>();
@@ -59,20 +62,10 @@ export function LibraryPanel({
     );
   };
 
-  const downloadFile = (filename: string, content: string, mime: string) => {
-    const blob = new Blob([content], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const exportItems = (targetItems: LibraryItem[], format: 'json' | 'md') => {
     if (targetItems.length === 0) return;
     if (format === 'json') {
-      downloadFile(
+      downloadText(
         `hedetangen-library-${todaySlug()}.json`,
         JSON.stringify(targetItems, null, 2),
         'application/json'
@@ -84,7 +77,7 @@ export function LibraryPanel({
             `# ${it.title}\n\n- Type: ${it.type}\n- Tags: ${it.tags.join(', ') || 'none'}\n- Saved: ${it.createdAt}\n\n${it.content}\n\n---\n`
         )
         .join('\n');
-      downloadFile(`hedetangen-library-${todaySlug()}.md`, md, 'text/markdown');
+      downloadText(`hedetangen-library-${todaySlug()}.md`, md, 'text/markdown');
     }
     onNotify(`Exported ${targetItems.length} item(s).`, 'success');
   };
@@ -279,7 +272,7 @@ export function LibraryPanel({
                   </button>
                   <button
                     type="button"
-                    onClick={() => onDeleteItem(item.id)}
+                    onClick={() => setPendingDelete(item)}
                     aria-label={`Delete ${item.title}`}
                     className="min-h-[36px] inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--danger)] rounded-full hover:bg-[var(--danger-soft)] ml-auto"
                   >
@@ -292,6 +285,29 @@ export function LibraryPanel({
           })}
         </div>
       )}
+
+      <ConfirmModal
+        open={pendingDelete !== null}
+        title="Delete this library item?"
+        description={`\"${
+          pendingDelete?.title ?? 'This item'
+        }\" will be removed from the Content Library on this device. This cannot be undone.`}
+        confirmLabel="Delete item"
+        danger
+        onConfirm={() => {
+          const target = pendingDelete;
+          setPendingDelete(null);
+          if (target) {
+            void onDeleteItem(target.id).catch((err) => {
+              onNotify(
+                `Could not delete item: ${err instanceof Error ? err.message : 'unknown error'}`,
+                'danger'
+              );
+            });
+          }
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

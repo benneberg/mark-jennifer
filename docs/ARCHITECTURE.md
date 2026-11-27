@@ -1,9 +1,28 @@
 ARCHITECTURE.md — Hedetangen AI Marketing Studio
 
-Version: 1.0
-Status: Draft for review
-Companion documents: PRD.md v1.0, SCHEMAS.md v1.0, PROMPTS.md (next)
+Version: 1.1 (annotated 2026-11-27)
+Status: Design record — the code and `tests/` are authoritative
+Companion documents: PRD.md v1.0, SCHEMAS.md v1.0, PROMPTS.md, UI_SPEC.md
 Deployment target: Static files on GitHub Pages
+
+> **How to read this document.** This is the design intent captured before the
+> build. The shipped app is React 19 + Vite + TypeScript (`src/`), not the
+> vanilla-ES/no-bundler layout described below. Known divergences:
+>
+> - §2/§3: framework and file layout. Real code lives in `src/**/*.ts(x)`; the
+>   `.js` paths below are historical.
+> - History trimming: constants are the source of truth —
+>   `HISTORY_MAX_MESSAGES = 8`, `HISTORY_MAX_TOKENS_APPROX = 3200`,
+>   `HISTORY_MAX_EXPERT_MESSAGES = 2` in `src/constants.ts` (this document says
+>   20 messages / 8,000 tokens).
+> - §10 CSP: implemented as a build-time `<meta>` injection in `vite.config.ts`
+>   so `npm run dev` keeps working; the policy now also allows the Google Fonts
+>   hosts that the shell actually loads.
+> - Migrations: `runMigrations` in `src/storage/db.ts` only defines v1. Bump
+>   `DB_VERSION` and add a migration branch before changing any stored shape,
+>   because loaders reject unknown properties rather than migrating them.
+> - Offline path: Demo Mode uses an explicit `stage` hint passed through
+>   `ChatRequestOptions` instead of sniffing prompt tags.
 
 ---
 
@@ -434,7 +453,7 @@ Synthesis messages:
 [user]    "Compose the final answer for the user. Apply the Brand DNA guardrails. Do not mention internal expert names."
 ```
 
-History trimming: Hard cap at 20 messages or ~8,000 tokens (whichever hits first), always preserving the system message and the current user message. For free-tier models with 128K context this is conservative; keeps latency low and avoids blowing the per-minute token budget.
+History trimming: hard cap at 8 messages or ~3,200 tokens (whichever hits first; see `src/constants.ts`), always preserving the current user message. For free-tier models with 128K context this is deliberately conservative: it keeps latency low and avoids blowing the per-minute token budget. (Earlier drafts of this document proposed 20 messages / 8,000 tokens.)
 
 Guardrail injection: prompts.* always prepend the guardrails block first, before any other instruction. This is both a functional requirement (honesty rule is highest priority) and a defense against prompt injection in later context.
 

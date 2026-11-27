@@ -2,8 +2,16 @@ import { REQUEST_TIMEOUT_MS, STREAM_CHUNK_TIMEOUT_MS } from '../constants';
 import type { ChatCompletionMessage, ChatResult, ModelInfo, ProviderId } from '../types';
 import { AIError, mapHttpError } from './errors';
 
+export type ChatStage = 'planner' | 'expert' | 'synthesis' | 'direct';
+
 export interface ChatRequestOptions {
   model: string;
+  /**
+   * Explicit orchestration stage. Providers that simulate responses (Demo Mode)
+   * use this instead of string-matching prompt internals, so renaming a prompt
+   * tag can no longer silently break the offline path.
+   */
+  stage?: ChatStage;
   messages: ChatCompletionMessage[];
   temperature?: number;
   maxTokens?: number;
@@ -91,6 +99,70 @@ function isTransientStatus(status?: number): boolean {
   return status === 502 || status === 503 || status === 504 || status === 529;
 }
 
+/**
+ * Provider error bodies frequently carry a *string* code (e.g.
+ * "rate_limit_exceeded"), not an HTTP status. Mapping the known ones keeps the
+ * retry/UX taxonomy correct instead of degrading everything to PROVIDER_ERROR.
+ */
+const ERROR_CODE_TO_STATUS: Record<string, number> = {
+  invalid_api_key: 401,
+  invalid_authentication: 401,
+  authentication_error: 401,
+  insufficient_quota: 402,
+  billing_hard_limit_reached: 402,
+  rate_limit_exceeded: 429,
+  rate_limit_error: 429,
+  tokens: 400,
+  context_length_exceeded: 400,
+  model_not_found: 404,
+  invalid_request_error: 400,
+  server_error: 500,
+};
+
+function statusFromErrorCode(code: unknown): number {
+  if (typeof code === 'number' && Number.isFinite(code)) return code;
+  if (typeof code === 'string') {
+    const mapped = ERROR_CODE_TO_STATUS[code.trim().toLowerCase()];
+    if (mapped !== undefined) return mapped;
+  }
+  return 500;
+}
+
+/**
+ * OpenAI reasoning families (o1/o3/o4/gpt-5) reject a custom temperature and
+ * require `max_completion_tokens`; sending classic chat params makes the model
+ * fail with a hard 400 even though the app lists it as available.
+ */
+const REASONING_MODEL_PATTERN = /(^|\/)(o[1-9]|gpt-5)(\b|-)/i;
+
+function usesReasoningParams(provider: ProviderId, model: string): boolean {
+  if (provider !== 'openai' && provider !== 'openrouter') return false;
+  return REASONING_MODEL_PATTERN.test(model.trim());
+}
+
+function buildChatRequestBody(
+  provider: ProviderId,
+  options: ChatRequestOptions,
+  stream: boolean
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    model: options.model,
+    messages: options.messages,
+    stream,
+  };
+  if (usesReasoningParams(provider, options.model)) {
+    if (options.maxTokens !== undefined) {
+      body.max_completion_tokens = options.maxTokens;
+    }
+    return body;
+  }
+  body.temperature = options.temperature ?? 0.7;
+  if (options.maxTokens !== undefined) {
+    body.max_tokens = options.maxTokens;
+  }
+  return body;
+}
+
 export async function runOpenAICompatibleChat(
   provider: ProviderId,
   baseUrl: string,
@@ -111,13 +183,7 @@ export async function runOpenAICompatibleChat(
           'Content-Type': 'application/json',
           ...headers,
         },
-        body: JSON.stringify({
-          model: options.model,
-          messages: options.messages,
-          temperature: options.temperature ?? 0.7,
-          max_tokens: options.maxTokens,
-          stream,
-        }),
+        body: JSON.stringify(buildChatRequestBody(provider, options, stream)),
       },
       options.signal
     );
@@ -129,13 +195,14 @@ export async function runOpenAICompatibleChat(
 
     const canRetryRateLimit = mapped.code === 'RATE_LIMIT' && attempt < maxRetries;
     const canRetryTransient =
-      mapped.code === 'PROVIDER_ERROR' && isTransientStatus(mapped.status) && attempt < 2;
+      mapped.code === 'PROVIDER_ERROR' && isTransientStatus(mapped.status) && attempt < maxRetries;
 
     if (canRetryRateLimit || canRetryTransient) {
       const fallbackDelay = mapped.code === 'RATE_LIMIT' ? (attempt + 1) * 4000 : (attempt + 1) * 1500;
+      // Honour Retry-After, but never park the user for longer than a minute.
       const waitMs = Math.min(
         Math.max(1200, (mapped.retryAfterMs ?? fallbackDelay) + 400),
-        20000
+        60000
       );
       options.onRetryWait?.(waitMs, attempt + 1);
       await waitWithAbort(waitMs, options.signal);
@@ -166,8 +233,11 @@ export async function runOpenAICompatibleChat(
       });
     }
     if (data.error) {
-      const statusNum = typeof data.error.code === 'number' ? data.error.code : 500;
-      throw mapHttpError(provider, statusNum, JSON.stringify({ error: data.error }));
+      throw mapHttpError(
+        provider,
+        statusFromErrorCode(data.error.code),
+        JSON.stringify({ error: data.error })
+      );
     }
     const content = data.choices?.[0]?.message?.content ?? '';
     if (options.onToken && content) {
@@ -218,8 +288,11 @@ export async function runOpenAICompatibleChat(
     }
 
     if (chunk.error) {
-      const statusNum = typeof chunk.error.code === 'number' ? chunk.error.code : 500;
-      const mapped = mapHttpError(provider, statusNum, JSON.stringify({ error: chunk.error }));
+      const mapped = mapHttpError(
+        provider,
+        statusFromErrorCode(chunk.error.code),
+        JSON.stringify({ error: chunk.error })
+      );
       if (fullContent) mapped.partialContent = fullContent;
       throw mapped;
     }
