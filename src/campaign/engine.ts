@@ -277,13 +277,16 @@ export async function generateCampaignPackage(params: {
     });
   }
 
-  const deliverablesList = intake.deliverables.length > 0 ? intake.deliverables : (['social', 'email'] as CampaignDeliverableKind[]);
+  const deliverablesList =
+    intake.deliverables.length > 0
+      ? intake.deliverables
+      : (['social', 'email', 'video', 'calendar'] as CampaignDeliverableKind[]);
   const totalSteps = 1 + deliverablesList.length;
   const systemPrompt = buildEngineSystemPrompt({ guardrails, businessProfile, intake });
   const intakeJson = JSON.stringify(intake, null, 2);
 
   // Step 1: Strategy
-  onProgress?.('Building strategy & phased checklist…', 1, totalSteps);
+  onProgress?.('Building campaign strategy & action plan…', 1, totalSteps);
   const strategyRes = await runStructuredJsonWithRepair<CampaignStrategy>({
     providerId: settings.provider,
     modelId,
@@ -318,59 +321,71 @@ export async function generateCampaignPackage(params: {
     }
   }
 
-  // Step 2..N: Each requested deliverable
+  // Step 2..N: Generate deliverables in bounded batches of 2 for faster completion
   const deliverables: CampaignDeliverable[] = [];
   const todayIso = nowIso().slice(0, 10);
+  const BATCH_SIZE = 2;
 
-  for (let idx = 0; idx < deliverablesList.length; idx++) {
-    const kind = deliverablesList[idx];
-    const stepNum = idx + 2;
-    onProgress?.(`Generating ${DELIVERABLE_TITLES[kind]}…`, stepNum, totalSteps);
+  for (let start = 0; start < deliverablesList.length; start += BATCH_SIZE) {
+    const batch = deliverablesList.slice(start, start + BATCH_SIZE);
+    const stepNum = start + 2;
+    const batchLabels = batch.map((k) => DELIVERABLE_TITLES[k]).join(' & ');
+    onProgress?.(`Creating ${batchLabels}…`, stepNum, totalSteps);
 
-    const extraRule =
-      kind === 'calendar'
-        ? `\nStart dates on or after ${todayIso} in YYYY-MM-DD format, aligned with ${intake.hoursPerWeek}.`
-        : kind === 'video'
-          ? '\nEach shot must use one continuous slow move or static frame, one sensory feeling, and obey the reference-photo rule strictly.'
-          : '';
+    const batchResults = await Promise.all(
+      batch.map(async (kind) => {
+        const extraRule =
+          kind === 'calendar'
+            ? `\nStart dates on or after ${todayIso} in YYYY-MM-DD format, aligned with ${intake.hoursPerWeek}.`
+            : kind === 'video'
+              ? '\nEach shot must use one continuous slow move or static frame, one sensory feeling, and obey the reference-photo rule strictly.'
+              : '';
 
-    const delivRes = await runStructuredJsonWithRepair<Record<string, unknown>>({
-      providerId: settings.provider,
-      modelId,
-      systemPrompt,
-      userPrompt: `Generate the "${kind}" deliverable JSON grounded in this intake and strategy.\n\nIntake:\n${intakeJson}\n\nStrategy summary:\nHeadline: ${strategy.headline}\nPositioning: ${strategy.positioning}\nTop channels: ${strategy.rankedChannels
-        .map((c) => `${c.priority}. ${c.channel}`)
-        .join(', ')}${extraRule}\n\nRequired JSON schema shape:\n${buildSchemaShapeInstruction(kind)}`,
-      schema: getDeliverableSchema(kind),
-      temperature: kind === 'calendar' || kind === 'research' ? 0.25 : 0.35,
-      maxTokens: DELIVERABLE_MAX_TOKENS,
-      signal,
-      lintFn: (parsed) => {
-        const md = formatDeliverableMarkdown(kind, parsed);
-        return lintCampaignOutput({
-          kind,
-          markdown: md,
-          structured: parsed,
-          intake,
-          businessProfile,
+        const delivRes = await runStructuredJsonWithRepair<Record<string, unknown>>({
+          providerId: settings.provider,
+          modelId,
+          systemPrompt,
+          userPrompt: `Generate the "${kind}" deliverable JSON grounded in this intake and strategy.\n\nIntake:\n${intakeJson}\n\nStrategy summary:\nHeadline: ${strategy.headline}\nPositioning: ${strategy.positioning}\nTop channels: ${strategy.rankedChannels
+            .map((c) => `${c.priority}. ${c.channel}`)
+            .join(', ')}${extraRule}\n\nRequired JSON schema shape:\n${buildSchemaShapeInstruction(kind)}`,
+          schema: getDeliverableSchema(kind),
+          temperature: kind === 'calendar' || kind === 'research' ? 0.25 : 0.35,
+          maxTokens: DELIVERABLE_MAX_TOKENS,
+          signal,
+          lintFn: (parsed) => {
+            const md = formatDeliverableMarkdown(kind, parsed);
+            return lintCampaignOutput({
+              kind,
+              markdown: md,
+              structured: parsed,
+              intake,
+              businessProfile,
+            });
+          },
+          onRetryWait: (waitMs) =>
+            onProgress?.(
+              `Rate-limit pause — resuming in ${Math.ceil(waitMs / 1000)}s…`,
+              stepNum,
+              totalSteps
+            ),
         });
-      },
-      onRetryWait: (waitMs) =>
-        onProgress?.(`Rate-limit pause — resuming in ${Math.ceil(waitMs / 1000)}s…`, stepNum, totalSteps),
-    });
 
-    const markdown = formatDeliverableMarkdown(kind, delivRes.data);
-    deliverables.push({
-      id: generateId(),
-      kind,
-      title: DELIVERABLE_TITLES[kind],
-      markdown,
-      structured: delivRes.data,
-      lintIssues: delivRes.lintIssues,
-      repaired: delivRes.repaired,
-      status: 'draft',
-      createdAt: nowIso(),
-    });
+        const markdown = formatDeliverableMarkdown(kind, delivRes.data);
+        return {
+          id: generateId(),
+          kind,
+          title: DELIVERABLE_TITLES[kind],
+          markdown,
+          structured: delivRes.data,
+          lintIssues: delivRes.lintIssues,
+          repaired: delivRes.repaired,
+          status: 'draft' as const,
+          createdAt: nowIso(),
+        };
+      })
+    );
+
+    deliverables.push(...batchResults);
   }
 
   const allIssues = [...strategyRes.lintIssues, ...deliverables.flatMap((d) => d.lintIssues)];
