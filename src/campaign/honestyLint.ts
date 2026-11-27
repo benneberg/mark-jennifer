@@ -18,6 +18,8 @@ const DISCOUNT_PATTERN =
 
 const PRICE_PATTERN = /\b(\d[\d\s.,]{0,10})\s*(sek|kr|eur|usd)\b|[€$]\s*(\d[\d\s.,]{0,10})/gi;
 
+const MAX_ISSUES_PER_RULE = 3;
+
 function isNegatedContext(text: string, matchIndex: number): boolean {
   const prefix = text.slice(Math.max(0, matchIndex - 32), matchIndex).toLowerCase();
   return /\b(no|without|never|not|avoid|inget|inga|utan|ej)\s+(?:\w+\s+){0,2}$/.test(prefix);
@@ -113,7 +115,9 @@ export function lintCampaignOutput(params: {
   if (!hasReferencePhoto && (kind === 'video' || kind === 'social' || kind === 'ad' || kind === 'calendar')) {
     const visualSegments =
       kind === 'video' ? extractVisualSegments(structured, markdown) : extractVisualSegments(structured, '');
+    let structureCount = 0;
     for (const seg of visualSegments) {
+      if (structureCount >= MAX_ISSUES_PER_RULE) break;
       const rx = new RegExp(VISUAL_STRUCTURE_PATTERN.source, 'gi');
       let m: RegExpExecArray | null;
       while ((m = rx.exec(seg)) !== null) {
@@ -124,6 +128,7 @@ export function lintCampaignOutput(params: {
           message: `Visual direction mentions "${m[0]}" without a supplied reference photo. Use atmosphere-only imagery (water, fire, steam, light, hands, textures).`,
           snippet: seg.slice(Math.max(0, m.index - 24), m.index + m[0].length + 24),
         });
+        structureCount++;
         break;
       }
     }
@@ -132,14 +137,16 @@ export function lintCampaignOutput(params: {
   // 2. Unconditioned weather / aurora guarantees
   for (const pattern of WEATHER_GUARANTEE_PATTERNS) {
     const rx = new RegExp(pattern.source, 'gi');
-    const match = rx.exec(markdown);
-    if (match) {
+    let match: RegExpExecArray | null;
+    let weatherCount = 0;
+    while ((match = rx.exec(markdown)) !== null && weatherCount < MAX_ISSUES_PER_RULE) {
       issues.push({
         code: 'WEATHER_GUARANTEE',
         severity: 'error',
         message: `Contains unconditioned weather/aurora claim ("${match[0]}"). Keep northern lights, snow, and ice strictly conditional.`,
         snippet: match[0],
       });
+      weatherCount++;
     }
   }
 
@@ -147,7 +154,8 @@ export function lintCampaignOutput(params: {
   const suppliedDiscountText = collectSuppliedDiscountsText(intake);
   const discRx = new RegExp(DISCOUNT_PATTERN.source, 'gi');
   let discMatch: RegExpExecArray | null;
-  while ((discMatch = discRx.exec(markdown)) !== null) {
+  let discountCount = 0;
+  while ((discMatch = discRx.exec(markdown)) !== null && discountCount < MAX_ISSUES_PER_RULE) {
     const token = discMatch[0].toLowerCase().trim();
     if (isNegatedContext(markdown, discMatch.index)) continue;
     if (!suppliedDiscountText.includes(token)) {
@@ -157,14 +165,15 @@ export function lintCampaignOutput(params: {
         message: `Mentions discount "${discMatch[0]}" that was not provided in the offer/intake.`,
         snippet: discMatch[0],
       });
-      break;
+      discountCount++;
     }
   }
 
   const allowedNums = collectAllowedNumericTokens(intake, businessProfile);
   const priceRx = new RegExp(PRICE_PATTERN.source, 'gi');
   let priceMatch: RegExpExecArray | null;
-  while ((priceMatch = priceRx.exec(markdown)) !== null) {
+  let priceCount = 0;
+  while ((priceMatch = priceRx.exec(markdown)) !== null && priceCount < MAX_ISSUES_PER_RULE) {
     const rawNum = (priceMatch[1] || priceMatch[3] || '').replace(/[\s.,]/g, '');
     if (!rawNum) continue;
     if (!allowedNums.has(rawNum)) {
@@ -174,7 +183,7 @@ export function lintCampaignOutput(params: {
         message: `Introduces unsupplied price "${priceMatch[0].trim()}". Only cite prices provided in the intake or business profile.`,
         snippet: priceMatch[0].trim(),
       });
-      break;
+      priceCount++;
     }
   }
 
