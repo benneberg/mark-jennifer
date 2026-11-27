@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Menu, Moon, PanelRightClose, PanelRightOpen, Sun, X } from 'lucide-react';
+import { ChatsPanel } from './components/ChatsPanel';
 import { ChatList } from './components/ChatList';
 import { Composer } from './components/Composer';
-import { ConfirmModal } from './components/ConfirmModal';
 import { DebugDrawer } from './components/DebugDrawer';
 import { ExpertEditor } from './components/ExpertEditor';
 import { EyeEmblem, useGlobalEyeTracker } from './components/EyeEmblem';
@@ -21,13 +21,14 @@ import { AIError } from './providers/errors';
 import { hasApiKey, saveApiKey } from './storage/crypto';
 import {
   clearAllStudioData,
-  clearChatMessages,
   createNewChat,
   DEFAULT_SETTINGS,
+  deleteChat,
   deleteLibraryItem,
   deleteMessage,
   ensureSeedData,
   getOrCreateActiveChat,
+  loadAllChats,
   loadExperts,
   loadGuardrails,
   loadLibrary,
@@ -68,6 +69,7 @@ export default function App() {
   const [experts, setExperts] = useState<Expert[]>([]);
   const [guardrails, setGuardrails] = useState<Guardrails>(() => createSeedGuardrails());
   const [library, setLibrary] = useState<LibraryItem[]>([]);
+  const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
@@ -79,7 +81,6 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [importExportOpen, setImportExportOpen] = useState(false);
-  const [newChatModalOpen, setNewChatModalOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [debugOpen, setDebugOpen] = useState(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1'
@@ -100,6 +101,7 @@ export default function App() {
     buffer: '',
   });
 
+  const isGeneratingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const streamBufferRef = useRef('');
   const handoffTextRef = useRef<string | null>(null);
@@ -144,12 +146,13 @@ export default function App() {
     setLoadingChat(true);
     try {
       const { skippedCount } = await ensureSeedData();
-      const [loadedSettings, expRes, loadedGuardrails, libRes, chat] = await Promise.all([
+      const [loadedSettings, expRes, loadedGuardrails, libRes, chat, allChats] = await Promise.all([
         loadSettings(),
         loadExperts(),
         loadGuardrails(),
         loadLibrary(),
         getOrCreateActiveChat(),
+        loadAllChats(),
       ]);
 
       const msgs = await loadMessagesForChat(chat.id);
@@ -159,6 +162,7 @@ export default function App() {
       setExperts(expRes.experts);
       setGuardrails(loadedGuardrails);
       setLibrary(libRes.items);
+      setChats(allChats.length > 0 ? allChats : [chat]);
       setActiveChat(chat);
       setMessages(msgs);
       setHasKey(keyPresent);
@@ -303,10 +307,12 @@ export default function App() {
   const executeTurn = useCallback(
     async (userText: string, overrideSettings?: AppSettings, retryErrorMsgId?: string) => {
       const trimmed = userText.trim();
-      if (!trimmed || !activeChat || streamingState.active) return;
+      if (!trimmed || !activeChat || isGeneratingRef.current || streamingState.active) return;
 
+      isGeneratingRef.current = true;
       const activeSettings = overrideSettings ?? settings;
       const turnId = generateId();
+      let currentChat: Chat = activeChat;
 
       let baseMessages = messages;
       if (retryErrorMsgId) {
@@ -326,7 +332,7 @@ export default function App() {
       } else {
         const userMsg: ChatMessage = {
           id: generateId(),
-          chatId: activeChat.id,
+          chatId: currentChat.id,
           role: 'user',
           content: trimmed,
           timestamp: nowIso(),
@@ -338,11 +344,12 @@ export default function App() {
         await saveMessage(userMsg);
       }
 
-      if (prevHistory.length === 0) {
+      if (prevHistory.filter((m) => m.role === 'user').length === 0) {
         const nextTitle = trimmed.slice(0, 60);
-        const updatedChat = { ...activeChat, title: nextTitle, updatedAt: nowIso() };
-        setActiveChat(updatedChat);
-        await updateChat(updatedChat);
+        currentChat = { ...currentChat, title: nextTitle, updatedAt: nowIso() };
+        setActiveChat(currentChat);
+        setChats((prev) => [currentChat, ...prev.filter((c) => c.id !== currentChat.id)]);
+        await updateChat(currentChat);
       }
 
       const controller = new AbortController();
@@ -350,6 +357,11 @@ export default function App() {
       streamBufferRef.current = '';
       handoffTextRef.current = null;
       delegatedExpertsRef.current = [];
+
+      const assistantMsgId = generateId();
+      const assistantTs = nowIso();
+      let lastDbPersistAt = 0;
+      let hasPersistedStreaming = false;
 
       setStreamingState({
         active: true,
@@ -363,7 +375,7 @@ export default function App() {
         const result = await runJenniferTurn({
           userMessage: trimmed,
           history: prevHistory,
-          sessionFacts: activeChat.sessionFacts,
+          sessionFacts: currentChat.sessionFacts,
           referencePhoto: referencePhoto.trim(),
           settings: activeSettings,
           guardrails,
@@ -385,6 +397,24 @@ export default function App() {
               streamBufferRef.current += delta;
               const nextBuf = streamBufferRef.current;
               setStreamingState((s) => ({ ...s, buffer: nextBuf }));
+
+              const nowMs = Date.now();
+              if (nextBuf.trim() && nowMs - lastDbPersistAt >= 650) {
+                lastDbPersistAt = nowMs;
+                hasPersistedStreaming = true;
+                saveMessage({
+                  id: assistantMsgId,
+                  chatId: currentChat.id,
+                  role: 'jennifer',
+                  content: nextBuf,
+                  handoffText: handoffTextRef.current ?? undefined,
+                  delegatedExperts: delegatedExpertsRef.current,
+                  timestamp: assistantTs,
+                  status: 'streaming',
+                  savedToLibrary: false,
+                  turnId,
+                }).catch(() => {});
+              }
             },
             onParseWarn: (raw) => {
               addDebugEntry({
@@ -396,27 +426,29 @@ export default function App() {
           },
         });
 
+        const finalText = (result.content || streamBufferRef.current).trim() || 'Done.';
         const jenniferMsg: ChatMessage = {
-          id: generateId(),
-          chatId: activeChat.id,
+          id: assistantMsgId,
+          chatId: currentChat.id,
           role: 'jennifer',
-          content: result.content || streamBufferRef.current || 'Done.',
+          content: finalText,
           handoffText: result.handoffText,
           delegatedExperts: result.delegatedExperts,
-          timestamp: nowIso(),
+          timestamp: assistantTs,
           status: 'complete',
           savedToLibrary: false,
           turnId,
         };
 
         await saveMessage(jenniferMsg);
-        setMessages((curr) => [...curr, jenniferMsg]);
-        const updatedChat = {
-          ...activeChat,
+        setMessages((curr) => [...curr.filter((m) => m.id !== assistantMsgId), jenniferMsg]);
+        const updatedChat: Chat = {
+          ...currentChat,
           sessionFacts: result.updatedFacts,
           updatedAt: nowIso(),
         };
         setActiveChat(updatedChat);
+        setChats((prev) => [updatedChat, ...prev.filter((c) => c.id !== updatedChat.id)]);
         await updateChat(updatedChat);
 
         addDebugEntry({
@@ -431,25 +463,35 @@ export default function App() {
           durationMs: result.durationMs,
         });
       } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') {
-          const partial = streamBufferRef.current.trim();
-          if (partial) {
-            const stoppedMsg: ChatMessage = {
-              id: generateId(),
-              chatId: activeChat.id,
-              role: 'jennifer',
-              content: partial,
-              handoffText: handoffTextRef.current ?? undefined,
-              delegatedExperts: delegatedExpertsRef.current,
-              timestamp: nowIso(),
-              status: 'stopped',
-              savedToLibrary: false,
-              turnId,
-            };
-            await saveMessage(stoppedMsg);
-            setMessages((curr) => [...curr, stoppedMsg]);
-          }
-          pushToast('Stopped. You can edit your message and try again.', 'info');
+        const isAborted =
+          controller.signal.aborted || (err instanceof DOMException && err.name === 'AbortError');
+        const errPartial = err instanceof AIError ? err.partialContent ?? '' : '';
+        const partial = (streamBufferRef.current || errPartial).trim();
+
+        if (partial) {
+          const stoppedMsg: ChatMessage = {
+            id: assistantMsgId,
+            chatId: currentChat.id,
+            role: 'jennifer',
+            content: partial,
+            handoffText: handoffTextRef.current ?? undefined,
+            delegatedExperts: delegatedExpertsRef.current,
+            timestamp: assistantTs,
+            status: 'stopped',
+            savedToLibrary: false,
+            turnId,
+          };
+          await saveMessage(stoppedMsg);
+          setMessages((curr) => [...curr.filter((m) => m.id !== assistantMsgId), stoppedMsg]);
+        } else if (hasPersistedStreaming) {
+          await deleteMessage(assistantMsgId).catch(() => {});
+        }
+
+        if (isAborted) {
+          pushToast(
+            partial ? 'Stopped. Partial response saved.' : 'Stopped.',
+            'info'
+          );
         } else {
           const aiErr =
             err instanceof AIError
@@ -463,7 +505,7 @@ export default function App() {
 
           const errMsg: ChatMessage = {
             id: generateId(),
-            chatId: activeChat.id,
+            chatId: currentChat.id,
             role: 'jennifer',
             content: aiErr.message,
             timestamp: nowIso(),
@@ -487,6 +529,7 @@ export default function App() {
           });
         }
       } finally {
+        isGeneratingRef.current = false;
         abortRef.current = null;
         setStreamingState({
           active: false,
@@ -512,13 +555,13 @@ export default function App() {
 
   const handleSend = useCallback(() => {
     const text = draft;
-    if (!text.trim() || !isConfigured || streamingState.active) return;
+    if (!text.trim() || !isConfigured || isGeneratingRef.current || streamingState.active) return;
     setDraft('');
     executeTurn(text);
   }, [draft, executeTurn, isConfigured, streamingState.active]);
 
   const handleStop = useCallback(() => {
-    abortRef.current?.abort('user_stop');
+    abortRef.current?.abort();
   }, []);
 
   // Desktop keyboard shortcuts
@@ -571,15 +614,76 @@ export default function App() {
   );
 
   const handleNewChat = useCallback(async () => {
-    if (!activeChat) return;
-    await clearChatMessages(activeChat.id);
+    if (isGeneratingRef.current || streamingState.active) return;
+    if (activeChat && messages.length === 0) {
+      setActivePanel(null);
+      composerInputRef.current?.focus();
+      return;
+    }
     const fresh = await createNewChat();
+    setChats((prev) => [fresh, ...prev]);
     setActiveChat(fresh);
     setMessages([]);
     setReferencePhoto('');
-    setNewChatModalOpen(false);
-    pushToast('Started a fresh session.', 'info');
-  }, [activeChat, pushToast]);
+    setActivePanel(null);
+    composerInputRef.current?.focus();
+    pushToast('Started a new chat. Previous chats remain saved under Chats.', 'info');
+  }, [activeChat, messages.length, pushToast, streamingState.active]);
+
+  const handleSelectChat = useCallback(
+    async (chatId: string) => {
+      if (isGeneratingRef.current || streamingState.active) return;
+      const target = chats.find((c) => c.id === chatId);
+      if (!target) return;
+      const loadedMsgs = await loadMessagesForChat(chatId);
+      setActiveChat(target);
+      setMessages(loadedMsgs);
+      setReferencePhoto(target.sessionFacts?.referencePhoto ?? '');
+      if (window.innerWidth < 768) {
+        setActivePanel(null);
+      }
+    },
+    [chats, streamingState.active]
+  );
+
+  const handleDeleteChat = useCallback(
+    async (chatId: string) => {
+      if (isGeneratingRef.current || streamingState.active) return;
+      await deleteChat(chatId);
+      const remaining = chats.filter((c) => c.id !== chatId);
+      if (activeChat?.id === chatId) {
+        if (remaining.length > 0) {
+          const next = remaining[0];
+          const nextMsgs = await loadMessagesForChat(next.id);
+          setChats(remaining);
+          setActiveChat(next);
+          setMessages(nextMsgs);
+          setReferencePhoto(next.sessionFacts?.referencePhoto ?? '');
+        } else {
+          const fresh = await createNewChat();
+          setChats([fresh]);
+          setActiveChat(fresh);
+          setMessages([]);
+          setReferencePhoto('');
+        }
+      } else {
+        setChats(remaining);
+      }
+      pushToast('Chat deleted.', 'info');
+    },
+    [activeChat?.id, chats, pushToast, streamingState.active]
+  );
+
+  const handleContinueMessage = useCallback(
+    (msg: ChatMessage) => {
+      if (!isConfigured || isGeneratingRef.current || streamingState.active) return;
+      void msg;
+      executeTurn(
+        'Please continue from exactly where your previous message left off without repeating what you already wrote.'
+      );
+    },
+    [executeTurn, isConfigured, streamingState.active]
+  );
 
   const handleErrorAction = useCallback(
     async (
@@ -624,6 +728,7 @@ export default function App() {
   );
 
   const panelTitles: Record<Exclude<ActivePanel, null>, string> = {
+    chats: `Chats (${chats.length})`,
     settings: 'Settings',
     library: `Content Library (${library.length})`,
     experts: 'Specialist Experts',
@@ -673,12 +778,19 @@ export default function App() {
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[var(--text-muted)]">
           <button
             type="button"
-            onClick={() =>
-              messages.length > 0 ? setNewChatModalOpen(true) : composerInputRef.current?.focus()
-            }
+            onClick={handleNewChat}
             className="hover:text-[var(--text)] hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0"
           >
             New chat
+          </button>
+          <button
+            type="button"
+            onClick={() => setActivePanel((p) => (p === 'chats' ? null : 'chats'))}
+            className={`hover:text-[var(--text)] hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 ${
+              activePanel === 'chats' ? 'text-[var(--text)] underline' : ''
+            }`}
+          >
+            Chats
           </button>
           <button
             type="button"
@@ -764,6 +876,7 @@ export default function App() {
             onEnableDemoMode={handleEnableDemoMode}
             onSaveToLibrary={handleSaveToLibrary}
             onErrorAction={handleErrorAction}
+            onContinue={handleContinueMessage}
             onCopy={handleCopyText}
           />
 
@@ -840,6 +953,17 @@ export default function App() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+              {activePanel === 'chats' && (
+                <ChatsPanel
+                  chats={chats}
+                  activeChatId={activeChat?.id ?? null}
+                  disabled={streamingState.active}
+                  onSelectChat={handleSelectChat}
+                  onNewChat={handleNewChat}
+                  onDeleteChat={handleDeleteChat}
+                />
+              )}
+
               {activePanel === 'settings' && (
                 <SettingsPanel
                   settings={settings}
@@ -953,11 +1077,21 @@ export default function App() {
               type="button"
               onClick={() => {
                 setMobileMenuOpen(false);
-                if (messages.length > 0) setNewChatModalOpen(true);
+                handleNewChat();
               }}
               className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
             >
               New chat
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setActivePanel('chats');
+              }}
+              className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
+            >
+              Chats ({chats.length})
             </button>
             <button
               type="button"
@@ -1002,15 +1136,6 @@ export default function App() {
           </div>
         </div>
       )}
-
-      <ConfirmModal
-        open={newChatModalOpen}
-        title="Start a new chat?"
-        description="This clears the current conversation messages from view. Anything you saved to the Content Library remains stored."
-        confirmLabel="Start new chat"
-        onConfirm={handleNewChat}
-        onCancel={() => setNewChatModalOpen(false)}
-      />
 
       <ImportExportModal
         open={importExportOpen}

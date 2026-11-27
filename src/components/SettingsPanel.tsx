@@ -9,7 +9,15 @@ import {
 } from 'lucide-react';
 import { APP_VERSION, PRIVACY_NOTICE } from '../constants';
 import { isWebCryptoAvailable, loadApiKey, saveApiKey } from '../storage/crypto';
-import type { AppSettings, LanguagePref, ModelInfo, ProviderId, ThemeMode } from '../types';
+import { getLastModelForProvider } from '../storage/entities';
+import type {
+  AppSettings,
+  LanguagePref,
+  ModelInfo,
+  ProviderId,
+  ResponseMode,
+  ThemeMode,
+} from '../types';
 import { formatDateTime } from '../utils/dates';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -95,9 +103,10 @@ export function SettingsPanel({
   };
 
   const handleProviderChange = async (provider: ProviderId) => {
+    const savedModel = provider === 'mock' ? 'hedetangen-demo-v1' : getLastModelForProvider(provider);
     await onUpdateSettings({
       provider,
-      model: provider === 'mock' ? 'hedetangen-demo-v1' : '',
+      model: savedModel,
     });
     flashSaved('Provider');
   };
@@ -357,27 +366,64 @@ export function SettingsPanel({
         </section>
       )}
 
-      {/* 4. Temperature */}
-      <section className="p-4 rounded-[22px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] space-y-2.5">
-        <div className="flex items-center justify-between text-xs">
-          <h3 className="font-semibold text-[var(--text-muted)]">4. Temperature</h3>
-          <span className="font-mono-tabular text-[var(--text)]">
-            {settings.temperature.toFixed(1)} · {tempLabel}
-          </span>
+      {/* 4. Temperature & Response Mode */}
+      <section className="p-4 rounded-[22px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] space-y-4">
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between text-xs">
+            <h3 className="font-semibold text-[var(--text-muted)]">4. Temperature</h3>
+            <span className="font-mono-tabular text-[var(--text)]">
+              {settings.temperature.toFixed(1)} · {tempLabel}
+            </span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="1.5"
+            step="0.1"
+            value={settings.temperature}
+            onChange={async (e) => {
+              await onUpdateSettings({ temperature: Number(e.target.value) });
+              flashSaved('Temperature');
+            }}
+            aria-label="Temperature"
+            className="w-full accent-[#181817] dark:accent-[#EBEE2C]"
+          />
         </div>
-        <input
-          type="range"
-          min="0"
-          max="1.5"
-          step="0.1"
-          value={settings.temperature}
-          onChange={async (e) => {
-            await onUpdateSettings({ temperature: Number(e.target.value) });
-            flashSaved('Temperature');
-          }}
-          aria-label="Temperature"
-          className="w-full accent-[#181817] dark:accent-[#EBEE2C]"
-        />
+
+        {settings.provider !== 'mock' && (
+          <div className="space-y-2 pt-1 border-t border-[var(--border)]">
+            <h3 className="text-xs font-semibold text-[var(--text-muted)] pt-1">Response Mode</h3>
+            <div className="grid grid-cols-2 gap-1 p-1 rounded-full bg-[var(--surface-muted)] border border-[var(--border)]">
+              {(
+                [
+                  { id: 'direct', label: 'Direct (Fast)' },
+                  { id: 'team', label: 'Team (Multi-step)' },
+                ] as Array<{ id: ResponseMode; label: string }>
+              ).map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={async () => {
+                    await onUpdateSettings({ responseMode: m.id });
+                    flashSaved('Mode');
+                  }}
+                  className={`min-h-[38px] px-2 py-1 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
+                    (settings.responseMode ?? 'direct') === m.id
+                      ? 'bg-[var(--lime)] text-[#181817] shadow-sm'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-[var(--text-faint)] leading-relaxed">
+              {(settings.responseMode ?? 'direct') === 'team'
+                ? 'Runs Planner + Specialist Experts + Synthesis (uses more API calls/tokens).'
+                : 'Single reliable streaming response with full Brand DNA & studio capabilities.'}
+            </p>
+          </div>
+        )}
       </section>
 
       {/* 5. Language & Theme */}

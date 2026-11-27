@@ -1,10 +1,11 @@
 export type ProviderId = 'groq' | 'openrouter' | 'openai' | 'mock';
 export type LanguagePref = 'auto' | 'sv' | 'en' | 'bilingual';
 export type ThemeMode = 'light' | 'dark';
+export type ResponseMode = 'direct' | 'team';
 export type MessageRole = 'user' | 'jennifer' | 'expert' | 'system';
 export type MessageStatus = 'complete' | 'streaming' | 'stopped' | 'error';
 export type LibraryItemType = 'copy' | 'campaign' | 'research' | 'visual-brief' | 'note';
-export type ActivePanel = 'settings' | 'library' | 'experts' | 'guardrails' | null;
+export type ActivePanel = 'settings' | 'library' | 'experts' | 'guardrails' | 'chats' | null;
 
 export interface Expert {
   id: string;
@@ -55,6 +56,7 @@ export interface AppSettings {
   rememberKey: boolean;
   strictMode: boolean;
   debug: boolean;
+  responseMode?: ResponseMode;
 }
 
 export interface SessionFacts {

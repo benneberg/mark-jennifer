@@ -244,6 +244,7 @@ export const SETTINGS_SCHEMA: JsonSchemaNode = {
     rememberKey: { type: 'boolean' },
     strictMode: { type: 'boolean' },
     debug: { type: 'boolean' },
+    responseMode: { type: 'string', enum: ['direct', 'team'] },
   },
 };
 

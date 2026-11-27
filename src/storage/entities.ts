@@ -43,6 +43,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   rememberKey: true,
   strictMode: true,
   debug: false,
+  responseMode: 'direct',
 };
 
 interface SettingEntry {
@@ -193,12 +194,41 @@ export async function loadSettings(): Promise<AppSettings> {
     rememberKey: typeof map.rememberKey === 'boolean' ? map.rememberKey : DEFAULT_SETTINGS.rememberKey,
     strictMode: true,
     debug: typeof map.debug === 'boolean' ? map.debug : DEFAULT_SETTINGS.debug,
+    responseMode: map.responseMode === 'team' ? 'team' : 'direct',
   };
   return merged;
 }
 
+export function getLastModelForProvider(provider: ProviderId): string {
+  if (provider === 'mock') return 'hedetangen-demo-v1';
+  try {
+    const raw = localStorage.getItem(LS_KEYS.LAST_MODEL_BY_PROVIDER);
+    if (!raw) return '';
+    const parsed = JSON.parse(raw) as Record<string, string>;
+    return typeof parsed[provider] === 'string' ? parsed[provider] : '';
+  } catch {
+    return '';
+  }
+}
+
+function saveLastModelForProvider(provider: ProviderId, model: string): void {
+  if (!model.trim() || provider === 'mock') return;
+  try {
+    const raw = localStorage.getItem(LS_KEYS.LAST_MODEL_BY_PROVIDER);
+    const parsed = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    parsed[provider] = model.trim();
+    localStorage.setItem(LS_KEYS.LAST_MODEL_BY_PROVIDER, JSON.stringify(parsed));
+  } catch {
+    // Non-fatal
+  }
+}
+
 export async function saveSettings(settings: AppSettings): Promise<void> {
-  const normalized: AppSettings = { ...settings, strictMode: true };
+  const normalized: AppSettings = {
+    ...settings,
+    strictMode: true,
+    responseMode: settings.responseMode === 'team' ? 'team' : 'direct',
+  };
   const check = validateSchema(normalized, SETTINGS_SCHEMA);
   if (!check.valid) {
     throw new Error(check.errors.map((e) => `${e.path}: ${e.message}`).join('; '));
@@ -210,12 +240,18 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
   localStorage.setItem(LS_KEYS.THEME, normalized.theme);
   localStorage.setItem(LS_KEYS.LAST_PROVIDER, normalized.provider);
   localStorage.setItem(LS_KEYS.LAST_MODEL, normalized.model);
+  saveLastModelForProvider(normalized.provider, normalized.model);
 }
 
-export async function getOrCreateActiveChat(): Promise<Chat> {
+export async function loadAllChats(): Promise<Chat[]> {
   const chats = await idbGetAll<Chat>('chats');
   const validChats = chats.filter((c) => validateSchema(c, CHAT_SCHEMA).valid);
   validChats.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return validChats;
+}
+
+export async function getOrCreateActiveChat(): Promise<Chat> {
+  const validChats = await loadAllChats();
   if (validChats.length > 0) {
     return validChats[0];
   }
@@ -226,7 +262,7 @@ export async function createNewChat(title = 'New marketing session'): Promise<Ch
   const ts = nowIso();
   const chat: Chat = {
     id: generateId(),
-    title,
+    title: title.slice(0, 120) || 'New marketing session',
     createdAt: ts,
     updatedAt: ts,
   };
@@ -234,10 +270,53 @@ export async function createNewChat(title = 'New marketing session'): Promise<Ch
   return chat;
 }
 
+function sanitizeChatForStorage(chat: Chat): Chat {
+  const facts = chat.sessionFacts
+    ? {
+        ...(chat.sessionFacts.constraints
+          ? { constraints: chat.sessionFacts.constraints.slice(0, 20).map((s) => s.slice(0, 300)) }
+          : {}),
+        ...(chat.sessionFacts.audience
+          ? { audience: chat.sessionFacts.audience.slice(0, 20).map((s) => s.slice(0, 300)) }
+          : {}),
+        ...(chat.sessionFacts.budget
+          ? { budget: chat.sessionFacts.budget.slice(0, 200) }
+          : {}),
+        ...(chat.sessionFacts.awards
+          ? { awards: chat.sessionFacts.awards.slice(0, 20).map((s) => s.slice(0, 300)) }
+          : {}),
+        ...(chat.sessionFacts.channels
+          ? { channels: chat.sessionFacts.channels.slice(0, 20).map((s) => s.slice(0, 120)) }
+          : {}),
+        ...(chat.sessionFacts.focus
+          ? { focus: chat.sessionFacts.focus.slice(0, 400) }
+          : {}),
+        ...(chat.sessionFacts.referencePhoto
+          ? { referencePhoto: chat.sessionFacts.referencePhoto.slice(0, 1000) }
+          : {}),
+        ...(chat.sessionFacts.notes
+          ? { notes: chat.sessionFacts.notes.slice(0, 20).map((s) => s.slice(0, 300)) }
+          : {}),
+      }
+    : undefined;
+
+  return {
+    ...chat,
+    title: (chat.title || 'New marketing session').slice(0, 120),
+    ...(facts && Object.keys(facts).length > 0 ? { sessionFacts: facts } : { sessionFacts: undefined }),
+  };
+}
+
 export async function updateChat(chat: Chat): Promise<void> {
-  const check = validateSchema(chat, CHAT_SCHEMA);
+  const sanitized = sanitizeChatForStorage(chat);
+  const check = validateSchema(sanitized, CHAT_SCHEMA);
   if (!check.valid) return;
-  await idbPut('chats', chat);
+  await idbPut('chats', sanitized);
+}
+
+export async function deleteChat(chatId: string): Promise<void> {
+  await clearChatMessages(chatId);
+  await idbDelete('chats', chatId);
 }
 
 export async function loadMessagesForChat(chatId: string): Promise<ChatMessage[]> {
@@ -248,11 +327,21 @@ export async function loadMessagesForChat(chatId: string): Promise<ChatMessage[]
 }
 
 export async function saveMessage(msg: ChatMessage): Promise<void> {
-  const check = validateSchema(msg, MESSAGE_SCHEMA);
+  const sanitized: ChatMessage = {
+    ...msg,
+    content: (msg.content || ' ').slice(0, 60000),
+    ...(msg.handoffText !== undefined
+      ? { handoffText: msg.handoffText.slice(0, 2000) }
+      : {}),
+    ...(msg.delegatedExperts !== undefined
+      ? { delegatedExperts: msg.delegatedExperts.slice(0, 10).map((e) => e.slice(0, 60)) }
+      : {}),
+  };
+  const check = validateSchema(sanitized, MESSAGE_SCHEMA);
   if (!check.valid) {
     throw new Error(check.errors.map((e) => `${e.path}: ${e.message}`).join('; '));
   }
-  await idbPut('messages', msg);
+  await idbPut('messages', sanitized);
 }
 
 export async function deleteMessage(id: string): Promise<void> {
@@ -579,6 +668,7 @@ export async function clearAllStudioData(): Promise<void> {
   localStorage.removeItem(LS_KEYS.THEME);
   localStorage.removeItem(LS_KEYS.LAST_PROVIDER);
   localStorage.removeItem(LS_KEYS.LAST_MODEL);
+  localStorage.removeItem(LS_KEYS.LAST_MODEL_BY_PROVIDER);
   localStorage.removeItem(LS_KEYS.ONBOARDED);
   localStorage.removeItem(LS_KEYS.RAIL_PINNED);
 }

@@ -37,6 +37,7 @@ interface ChatListProps {
     msg: ChatMessage,
     altModelId?: string
   ) => void;
+  onContinue?: (msg: ChatMessage) => void;
   onCopy: (text: string) => void;
 }
 
@@ -51,6 +52,7 @@ export function ChatList({
   onEnableDemoMode,
   onSaveToLibrary,
   onErrorAction,
+  onContinue,
   onCopy,
 }: ChatListProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -260,7 +262,7 @@ export function ChatList({
                   <SafeMarkdown content={msg.content} />
                   {msg.status === 'stopped' && (
                     <span className="inline-block mt-1 text-xs text-[var(--text-faint)]">
-                      — stopped
+                      — stopped (saved)
                     </span>
                   )}
                 </div>
@@ -298,6 +300,16 @@ export function ChatList({
                     />
                     <span>{msg.savedToLibrary ? 'Saved to library' : 'Save to library'}</span>
                   </button>
+
+                  {msg.status === 'stopped' && onContinue && isConfigured && !streamingState.active && (
+                    <button
+                      type="button"
+                      onClick={() => onContinue(msg)}
+                      className="min-h-[36px] inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] transition-colors"
+                    >
+                      Continue
+                    </button>
+                  )}
                 </div>
               </div>
 

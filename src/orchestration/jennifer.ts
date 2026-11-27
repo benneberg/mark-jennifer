@@ -1,4 +1,5 @@
 import {
+  DIRECT_CHAT_MAX_TOKENS,
   EXPERT_MAX_TOKENS,
   PLANNER_MAX_TOKENS,
   SYNTHESIS_MAX_TOKENS,
@@ -24,6 +25,7 @@ import {
 } from './context';
 import { type DelegationDirective, parseDelegation } from './delegation';
 import {
+  buildDirectTeamPrompt,
   buildExpertPrompt,
   buildJenniferPrompt,
   buildSynthesisPrompt,
@@ -54,6 +56,16 @@ function escapeXmlValue(value: string): string {
 
 function escapeXmlAttr(value: string): string {
   return escapeXmlValue(value).replace(/"/g, '&quot;');
+}
+
+function isAbortSignalError(err: unknown, signal: AbortSignal): boolean {
+  return signal.aborted || (err instanceof DOMException && err.name === 'AbortError');
+}
+
+function clampHandoff(text?: string): string | undefined {
+  const clean = text?.trim();
+  if (!clean) return undefined;
+  return clean.slice(0, 1900);
 }
 
 function buildFallbackDirectives(
@@ -194,6 +206,15 @@ function buildFallbackDirectives(
   return { response, delegates: delegates.slice(0, 3) };
 }
 
+function assembleFallbackExpertOutput(
+  outputs: Array<{ expert: string; content?: string; error?: string }>
+): string {
+  const sections = outputs
+    .filter((o) => Boolean(o.content?.trim()))
+    .map((o) => o.content!.trim());
+  return sections.join('\n\n---\n\n');
+}
+
 export async function runJenniferTurn(params: {
   userMessage: string;
   history: ChatMessage[];
@@ -237,7 +258,63 @@ export async function runJenniferTurn(params: {
   const detectedLanguage = detectMessageLanguage(userMessage);
   const allowClarifying = !hasPriorJennifer;
 
-  // Pass 1: Jennifer planning call (buffered)
+  const runDirectStreaming = async (): Promise<TurnResult> => {
+    callbacks.onStatus('Jennifer is writing…');
+    const directMessages: ChatCompletionMessage[] = [
+      {
+        role: 'system',
+        content: buildDirectTeamPrompt({
+          guardrails,
+          experts,
+          settings,
+          sessionFacts: prePlanFacts,
+          referencePhoto,
+          allowClarifying,
+          detectedLanguage,
+        }),
+      },
+      ...trimmedHistory,
+      { role: 'user', content: userMessage },
+    ];
+
+    callCount++;
+    const directRes = await provider.chat({
+      model: modelId,
+      messages: directMessages,
+      temperature: settings.temperature,
+      maxTokens: DIRECT_CHAT_MAX_TOKENS,
+      signal,
+      onToken: callbacks.onToken,
+      onRetryWait: (waitMs) =>
+        callbacks.onStatus(`Rate-limit pause — resuming in ${Math.ceil(waitMs / 1000)}s…`),
+    });
+
+    const content = directRes.content.trim();
+    if (!content) {
+      throw new AIError({
+        code: 'PROVIDER_ERROR',
+        message: 'The model returned an empty response. Please try again or pick another model.',
+        provider: settings.provider,
+      });
+    }
+
+    callbacks.onStatus(null);
+    return {
+      content,
+      delegatedExperts: [],
+      updatedFacts: prePlanFacts,
+      callCount,
+      durationMs: Math.round(performance.now() - startTime),
+    };
+  };
+
+  // Default for live providers: reliable 1-call streaming chat unless Team mode explicitly selected
+  const useMultiStep = settings.provider === 'mock' || settings.responseMode === 'team';
+  if (!useMultiStep) {
+    return runDirectStreaming();
+  }
+
+  // Pass 1: Jennifer planning call (internal streaming on live providers to prevent idle proxy timeouts)
   callbacks.onStatus('Jennifer is thinking…');
   const planMessages: ChatCompletionMessage[] = [
     {
@@ -256,20 +333,37 @@ export async function runJenniferTurn(params: {
     { role: 'user', content: userMessage },
   ];
 
-  callCount++;
-  const firstPass = await provider.chat({
-    model: modelId,
-    messages: planMessages,
-    temperature: 0.4,
-    maxTokens: PLANNER_MAX_TOKENS,
-    signal,
-    onRetryWait: (waitMs) =>
-      callbacks.onStatus(`Rate-limit pause — resuming in ${Math.ceil(waitMs / 1000)}s…`),
-  });
+  let firstPassContent = '';
+  try {
+    callCount++;
+    const firstPass = await provider.chat({
+      model: modelId,
+      messages: planMessages,
+      temperature: 0.4,
+      maxTokens: PLANNER_MAX_TOKENS,
+      streamInternal: settings.provider !== 'mock',
+      signal,
+      onRetryWait: (waitMs) =>
+        callbacks.onStatus(`Rate-limit pause — resuming in ${Math.ceil(waitMs / 1000)}s…`),
+    });
+    firstPassContent = firstPass.content;
+  } catch (err) {
+    if (isAbortSignalError(err, signal)) throw err;
+    if (settings.provider !== 'mock') {
+      callbacks.onStatus('Switching to direct response…');
+      return runDirectStreaming();
+    }
+    throw err;
+  }
 
-  const plan = parseDelegation(firstPass.content);
+  if (!firstPassContent.trim() && settings.provider !== 'mock') {
+    callbacks.onStatus('Switching to direct response…');
+    return runDirectStreaming();
+  }
+
+  const plan = parseDelegation(firstPassContent);
   if (plan.parseWarn) {
-    callbacks.onParseWarn?.(firstPass.content);
+    callbacks.onParseWarn?.(firstPassContent);
   }
 
   const updatedFacts = mergeSessionFacts(prePlanFacts, plan.facts);
@@ -287,7 +381,17 @@ export async function runJenniferTurn(params: {
   // Direct answer (no delegation)
   if (plan.delegates.length === 0) {
     callbacks.onStatus(null);
-    const directText = plan.response || firstPass.content;
+    const directText = (plan.response || firstPassContent).trim();
+    if (!directText) {
+      if (settings.provider !== 'mock') {
+        return runDirectStreaming();
+      }
+      throw new AIError({
+        code: 'PROVIDER_ERROR',
+        message: 'The model returned an empty response.',
+        provider: settings.provider,
+      });
+    }
     callbacks.onToken(directText);
     return {
       content: directText,
@@ -300,7 +404,7 @@ export async function runJenniferTurn(params: {
 
   // Pass 2: Execute delegated experts sequentially (capped at MAX_DELEGATES_PER_TURN = 3)
   const plannedNames = plan.delegates.map((d) => d.expert);
-  const handoffText = plan.response || 'Working on this with your Brand DNA guardrails.';
+  const handoffText = clampHandoff(plan.response) ?? 'Working on this with your Brand DNA guardrails.';
   callbacks.onHandoff(handoffText, plannedNames);
 
   const expertOutputs: Array<{ expert: string; content?: string; error?: string }> = [];
@@ -323,9 +427,10 @@ export async function runJenniferTurn(params: {
     callbacks.onStatus(`${expert.name} is working…`);
 
     const priorBlock =
-      expertOutputs.length > 0
-        ? `Prior specialist outputs in this turn:\n${expertOutputs
-            .map((o) => `[${o.expert}]: ${o.content ?? o.error}`)
+      expertOutputs.some((o) => Boolean(o.content))
+        ? `Prior specialist notes in this turn:\n${expertOutputs
+            .filter((o) => Boolean(o.content))
+            .map((o) => `[${o.expert}]: ${o.content!.slice(0, 1200)}`)
             .join('\n\n')}\n\n`
         : '';
 
@@ -351,22 +456,56 @@ export async function runJenniferTurn(params: {
       },
     ];
 
-    callCount++;
-    const expertResult = await provider.chat({
-      model: modelId,
-      messages: expertMessages,
-      temperature: expert.temperature ?? settings.temperature,
-      maxTokens: EXPERT_MAX_TOKENS,
-      signal,
-      onRetryWait: (waitMs) =>
-        callbacks.onStatus(
-          `${expert.name}: rate-limit pause — resuming in ${Math.ceil(waitMs / 1000)}s…`
-        ),
-    });
+    try {
+      callCount++;
+      const expertResult = await provider.chat({
+        model: modelId,
+        messages: expertMessages,
+        temperature: expert.temperature ?? settings.temperature,
+        maxTokens: EXPERT_MAX_TOKENS,
+        streamInternal: settings.provider !== 'mock',
+        signal,
+        onRetryWait: (waitMs) =>
+          callbacks.onStatus(
+            `${expert.name}: rate-limit pause — resuming in ${Math.ceil(waitMs / 1000)}s…`
+          ),
+      });
 
-    expertOutputs.push({
-      expert: expert.name,
-      content: expertResult.content,
+      if (expertResult.content.trim()) {
+        expertOutputs.push({
+          expert: expert.name,
+          content: expertResult.content,
+        });
+      } else {
+        expertOutputs.push({
+          expert: expert.name,
+          error: `${expert.name} returned an empty response.`,
+        });
+      }
+    } catch (err) {
+      if (isAbortSignalError(err, signal)) throw err;
+      const msg = err instanceof Error ? err.message : 'Specialist step interrupted';
+      expertOutputs.push({
+        expert: expert.name,
+        error: msg,
+      });
+      // If an expert got rate-limited/timed out, break early and synthesize what we already have
+      if (err instanceof AIError && (err.code === 'RATE_LIMIT' || err.code === 'TIMEOUT')) {
+        break;
+      }
+    }
+  }
+
+  const succeededExperts = expertOutputs.filter((o) => Boolean(o.content?.trim()));
+  if (succeededExperts.length === 0) {
+    if (settings.provider !== 'mock') {
+      callbacks.onStatus('Switching to direct response…');
+      return runDirectStreaming();
+    }
+    throw new AIError({
+      code: 'PROVIDER_ERROR',
+      message: expertOutputs[0]?.error || 'Specialists could not complete this request.',
+      provider: settings.provider,
     });
   }
 
@@ -407,26 +546,67 @@ export async function runJenniferTurn(params: {
     },
   ];
 
-  callCount++;
-  const synthesisResult = await provider.chat({
-    model: modelId,
-    messages: synthesisMessages,
-    temperature: settings.temperature,
-    maxTokens: SYNTHESIS_MAX_TOKENS,
-    signal,
-    onToken: callbacks.onToken,
-    onRetryWait: (waitMs) =>
-      callbacks.onStatus(`Rate-limit pause — finalizing in ${Math.ceil(waitMs / 1000)}s…`),
-  });
+  try {
+    callCount++;
+    const synthesisResult = await provider.chat({
+      model: modelId,
+      messages: synthesisMessages,
+      temperature: settings.temperature,
+      maxTokens: SYNTHESIS_MAX_TOKENS,
+      signal,
+      onToken: callbacks.onToken,
+      onRetryWait: (waitMs) =>
+        callbacks.onStatus(`Rate-limit pause — finalizing in ${Math.ceil(waitMs / 1000)}s…`),
+    });
 
-  callbacks.onStatus(null);
-  return {
-    content: synthesisResult.content,
-    handoffText,
-    delegatedExperts: plannedNames,
-    updatedFacts,
-    truncatedDelegates: plan.truncatedCount || undefined,
-    callCount,
-    durationMs: Math.round(performance.now() - startTime),
-  };
+    const finalContent = synthesisResult.content.trim();
+    if (!finalContent) {
+      const assembled = assembleFallbackExpertOutput(expertOutputs);
+      if (assembled) {
+        callbacks.onToken(assembled);
+        callbacks.onStatus(null);
+        return {
+          content: assembled,
+          handoffText,
+          delegatedExperts: succeededExperts.map((e) => e.expert),
+          updatedFacts,
+          truncatedDelegates: plan.truncatedCount || undefined,
+          callCount,
+          durationMs: Math.round(performance.now() - startTime),
+        };
+      }
+    }
+
+    callbacks.onStatus(null);
+    return {
+      content: finalContent,
+      handoffText,
+      delegatedExperts: plannedNames,
+      updatedFacts,
+      truncatedDelegates: plan.truncatedCount || undefined,
+      callCount,
+      durationMs: Math.round(performance.now() - startTime),
+    };
+  } catch (err) {
+    if (isAbortSignalError(err, signal)) throw err;
+    // Preserve partial synthesis OR fall back cleanly to assembled completed expert outputs
+    if (err instanceof AIError && err.partialContent?.trim()) {
+      throw err;
+    }
+    const assembled = assembleFallbackExpertOutput(expertOutputs);
+    if (assembled && settings.provider !== 'mock') {
+      callbacks.onToken(assembled);
+      callbacks.onStatus(null);
+      return {
+        content: assembled,
+        handoffText,
+        delegatedExperts: succeededExperts.map((e) => e.expert),
+        updatedFacts,
+        truncatedDelegates: plan.truncatedCount || undefined,
+        callCount,
+        durationMs: Math.round(performance.now() - startTime),
+      };
+    }
+    throw err;
+  }
 }

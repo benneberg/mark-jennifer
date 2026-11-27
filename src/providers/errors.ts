@@ -5,6 +5,7 @@ export class AIError extends Error {
   provider: ProviderId;
   status?: number;
   retryAfterMs?: number;
+  partialContent?: string;
   raw?: unknown;
 
   constructor({
@@ -13,6 +14,7 @@ export class AIError extends Error {
     provider,
     status,
     retryAfterMs,
+    partialContent,
     raw,
   }: {
     code: AIErrorCode;
@@ -20,6 +22,7 @@ export class AIError extends Error {
     provider: ProviderId;
     status?: number;
     retryAfterMs?: number;
+    partialContent?: string;
     raw?: unknown;
   }) {
     super(message);
@@ -28,6 +31,7 @@ export class AIError extends Error {
     this.provider = provider;
     this.status = status;
     this.retryAfterMs = retryAfterMs;
+    this.partialContent = partialContent;
     this.raw = raw;
   }
 }

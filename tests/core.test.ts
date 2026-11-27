@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  DIRECT_CHAT_MAX_TOKENS,
   EXPERT_MAX_TOKENS,
   HISTORY_MAX_EXPERT_MESSAGES,
   MAX_DELEGATES_PER_TURN,
@@ -211,9 +212,10 @@ test('MockProvider routes Strategist cleanly without colliding with Analyst and 
     debug: false,
   };
 
-  assert.equal(PLANNER_MAX_TOKENS, 420);
-  assert.equal(EXPERT_MAX_TOKENS, 950);
-  assert.equal(SYNTHESIS_MAX_TOKENS, 1350);
+  assert.equal(PLANNER_MAX_TOKENS, 750);
+  assert.equal(EXPERT_MAX_TOKENS, 1200);
+  assert.equal(SYNTHESIS_MAX_TOKENS, 2400);
+  assert.equal(DIRECT_CHAT_MAX_TOKENS, 3200);
 
   // Underspecified Turn 1 should ask a clarifying question directly (1 call)
   const turn1 = await runJenniferTurn({
@@ -369,5 +371,98 @@ test('detectMessageLanguage identifies Turn 3 Swedish and disables repeat clarif
   assert.equal(groq429.code, 'RATE_LIMIT');
   assert.equal(groq429.retryAfterMs, 4320);
 });
+
+test('runOpenAICompatibleChat preserves partialContent on mid-stream SSE error and handles clean user aborts', async () => {
+  const { runOpenAICompatibleChat, fetchWithTimeout } = await import('../src/providers/base.ts');
+
+  // 1. User abort must throw AbortError (not NETWORK) even when signal is already aborted
+  const abortedCtrl = new AbortController();
+  abortedCtrl.abort();
+  await assert.rejects(
+    () => fetchWithTimeout('groq', 'https://example.invalid', { method: 'GET' }, abortedCtrl.signal),
+    (err: unknown) => err instanceof DOMException && err.name === 'AbortError'
+  );
+
+  // 2. Mid-stream CRLF SSE chunks followed by mid-stream SSE error preserves partialContent
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = (async () => {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(
+            encoder.encode(
+              'data: {"choices":[{"delta":{"content":"Hello "}}]}\r\n\r\n' +
+                'data: {"choices":[{"delta":{"content":"from Hedetangen"}}]}\r\n\r\n'
+            )
+          );
+          controller.enqueue(
+            encoder.encode('data: {"error":{"message":"Upstream stream interrupted","code":503}}\r\n\r\n')
+          );
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream' },
+      });
+    }) as typeof fetch;
+
+    const streamedChunks: string[] = [];
+    await assert.rejects(
+      () =>
+        runOpenAICompatibleChat(
+          'openrouter',
+          'https://example.test/v1',
+          { Authorization: 'Bearer test' },
+          {
+            model: 'test-model',
+            messages: [{ role: 'user', content: 'hi' }],
+            onToken: (d) => streamedChunks.push(d),
+          }
+        ),
+      (err: unknown) =>
+        err instanceof AIError &&
+        err.code === 'PROVIDER_ERROR' &&
+        err.partialContent === 'Hello from Hedetangen'
+    );
+    assert.equal(streamedChunks.join(''), 'Hello from Hedetangen');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('buildDirectTeamPrompt includes Brand DNA, active experts, and SV/EN copy preservation', async () => {
+  const { buildDirectTeamPrompt } = await import('../src/orchestration/prompts.ts');
+  const guardrails = createSeedGuardrails();
+  const experts = createSeedExperts();
+  const settings: AppSettings = {
+    provider: 'groq',
+    model: 'llama-3.3-70b-versatile',
+    temperature: 0.7,
+    language: 'auto',
+    machinePrompt: '',
+    theme: 'light',
+    rememberKey: true,
+    strictMode: true,
+    debug: false,
+    responseMode: 'direct',
+  };
+
+  const prompt = buildDirectTeamPrompt({
+    guardrails,
+    experts,
+    settings,
+    sessionFacts: { budget: '3000 SEK max ad spend' },
+    allowClarifying: false,
+    detectedLanguage: 'sv',
+  });
+  assert.ok(prompt.includes('<honesty_rule>'));
+  assert.ok(prompt.includes('Copywriter:'));
+  assert.ok(prompt.includes('3000 SEK max ad spend'));
+  assert.ok(prompt.includes('SV:'));
+  assert.ok(prompt.includes('CLARIFYING QUESTIONS ARE DISABLED FOR THIS TURN'));
+});
+
 
 
