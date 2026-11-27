@@ -8,8 +8,10 @@ import {
   CheckCircle2,
   Copy,
   FileText,
+  Loader2,
   MessageSquare,
   Plus,
+  RefreshCw,
   Trash2,
 } from 'lucide-react';
 import {
@@ -33,10 +35,17 @@ interface PackageViewProps {
   packages: CampaignPackage[];
   activePackageId: string | null;
   businessProfile: BusinessProfile;
+  regeneratingDeliverableId?: string | null;
   onSelectPackage: (id: string) => void;
   onNewPackage: () => void;
+  onNewWinterPackage?: () => void;
   onToggleChecklistTask: (pkgId: string, taskId: string) => Promise<void>;
   onToggleDeliverableApprove: (pkgId: string, deliverableId: string) => Promise<void>;
+  onRegenerateDeliverable: (
+    pkg: CampaignPackage,
+    deliverable: CampaignDeliverable,
+    instruction: string
+  ) => Promise<void>;
   onSaveDeliverableToLibrary: (
     pkg: CampaignPackage,
     deliverable: CampaignDeliverable,
@@ -71,10 +80,13 @@ export function PackageView({
   packages,
   activePackageId,
   businessProfile,
+  regeneratingDeliverableId = null,
   onSelectPackage,
   onNewPackage,
+  onNewWinterPackage,
   onToggleChecklistTask,
   onToggleDeliverableApprove,
+  onRegenerateDeliverable,
   onSaveDeliverableToLibrary,
   onAskJenniferRevise,
   onDeletePackage,
@@ -83,6 +95,8 @@ export function PackageView({
 }: PackageViewProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CampaignPackage | null>(null);
+  const [tweakOpenId, setTweakOpenId] = useState<string | null>(null);
+  const [tweakNote, setTweakNote] = useState('');
 
   const activePkg = useMemo(
     () => packages.find((p) => p.id === activePackageId) ?? packages[0] ?? null,
@@ -121,16 +135,25 @@ export function PackageView({
           <p className="text-sm text-[var(--text-muted)] leading-relaxed">
             Build finished, ready-to-launch marketing packages — strategy, phased action
             checklist, bilingual copy, `.ics` content calendar, and verified visual prompts —
-            validated against Hedetangen&apos;s Honesty Rule.
+            checked against your honesty rules.
           </p>
-          <div className="pt-2">
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
+            {onNewWinterPackage && (
+              <button
+                type="button"
+                onClick={onNewWinterPackage}
+                className="min-h-[44px] inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] shadow-[var(--shadow)]"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Start Winter Bookings Package</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={onNewPackage}
-              className="min-h-[44px] inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] shadow-[var(--shadow)]"
+              className="min-h-[44px] inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-full glass-surface border border-[var(--border)] text-[var(--text)] hover:border-[var(--border-strong)]"
             >
-              <Plus className="w-4 h-4" />
-              <span>Build First Campaign Package</span>
+              <span>Custom Campaign</span>
             </button>
           </div>
         </div>
@@ -210,13 +233,13 @@ export function PackageView({
                 {activePkg.lintSummary.passed ? (
                   <span className="inline-flex items-center gap-1.5 text-[var(--success)]">
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Honesty Lint Passed</span>
+                    <span>Verified against your honesty rules</span>
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-[var(--danger)]">
                     <AlertTriangle className="w-4 h-4" />
                     <span>
-                      {activePkg.lintSummary.errorCount} Honesty Warning(s)
+                      {activePkg.lintSummary.errorCount} item(s) need review
                     </span>
                   </span>
                 )}
@@ -276,7 +299,7 @@ export function PackageView({
                 className="min-h-[42px] inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-full glass-surface border border-[var(--border)] text-[var(--text)] hover:border-[var(--border-strong)]"
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-                <span>Ask Jennifer to Revise</span>
+                <span>Discuss with Jennifer</span>
               </button>
 
               <button
@@ -401,6 +424,8 @@ export function PackageView({
             </div>
 
             {activePkg.deliverables.map((d) => {
+              const isRegeneratingThis = regeneratingDeliverableId === d.id;
+              const isTweakingThis = tweakOpenId === d.id;
               const calRows =
                 d.kind === 'calendar' &&
                 d.structured &&
@@ -419,10 +444,10 @@ export function PackageView({
                       <h3 className="text-base font-medium text-[var(--text)]">{d.title}</h3>
                       <div className="text-[11px] font-mono-tabular text-[var(--text-muted)] mt-0.5">
                         {d.status === 'approved' ? 'Approved' : 'Draft'}
-                        {d.repaired ? ' · Auto-repaired for compliance' : ''}
+                        {d.repaired ? ' · Adjusted to match your rules' : ''}
                         {d.lintIssues.length === 0
-                          ? ' · Honesty Lint Passed'
-                          : ` · ${d.lintIssues.length} lint issue(s)`}
+                          ? ' · Honesty rules verified'
+                          : ` · ${d.lintIssues.length} note(s) to check`}
                       </div>
                     </div>
 
@@ -438,6 +463,26 @@ export function PackageView({
                       >
                         <Check className="w-3.5 h-3.5" />
                         <span>{d.status === 'approved' ? 'Approved' : 'Approve'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={Boolean(regeneratingDeliverableId)}
+                        onClick={() => {
+                          if (isTweakingThis) {
+                            setTweakOpenId(null);
+                            setTweakNote('');
+                          } else {
+                            setTweakOpenId(d.id);
+                            setTweakNote('');
+                          }
+                        }}
+                        className="min-h-[36px] inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40"
+                      >
+                        <RefreshCw
+                          className={`w-3.5 h-3.5 ${isRegeneratingThis ? 'animate-spin' : ''}`}
+                        />
+                        <span>{isRegeneratingThis ? 'Updating…' : 'Tweak'}</span>
                       </button>
 
                       <button
@@ -474,6 +519,42 @@ export function PackageView({
                       </button>
                     </div>
                   </div>
+
+                  {isTweakingThis && (
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const note = tweakNote.trim();
+                        await onRegenerateDeliverable(activePkg, d, note);
+                        setTweakOpenId(null);
+                        setTweakNote('');
+                      }}
+                      className="p-3 rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] flex flex-col sm:flex-row gap-2"
+                    >
+                      <input
+                        type="text"
+                        value={tweakNote}
+                        onChange={(e) => setTweakNote(e.target.value)}
+                        placeholder="What should change? e.g. Make the tone warmer and focus on midweek winter stays"
+                        disabled={isRegeneratingThis}
+                        className="flex-1 min-h-[38px] px-3 py-1.5 text-xs rounded-[12px] bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isRegeneratingThis}
+                        className="min-h-[38px] inline-flex items-center justify-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] disabled:opacity-50 shrink-0"
+                      >
+                        {isRegeneratingThis ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Updating…</span>
+                          </>
+                        ) : (
+                          <span>Update Deliverable</span>
+                        )}
+                      </button>
+                    </form>
+                  )}
 
                   {d.lintIssues.length > 0 && (
                     <div className="p-3 rounded-[14px] bg-[var(--surface-muted)] border border-[var(--danger)] text-xs text-[var(--text)] space-y-1">
