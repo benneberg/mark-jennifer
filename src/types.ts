@@ -5,7 +5,16 @@ export type ResponseMode = 'direct' | 'team';
 export type MessageRole = 'user' | 'jennifer' | 'expert' | 'system';
 export type MessageStatus = 'complete' | 'streaming' | 'stopped' | 'error';
 export type LibraryItemType = 'copy' | 'campaign' | 'research' | 'visual-brief' | 'note';
-export type ActivePanel = 'settings' | 'library' | 'experts' | 'guardrails' | 'chats' | null;
+export type ActivePanel =
+  | 'settings'
+  | 'library'
+  | 'experts'
+  | 'guardrails'
+  | 'chats'
+  | 'profile'
+  | null;
+
+export type WorkspaceView = 'chat' | 'campaigns' | 'modules';
 
 export interface Expert {
   id: string;
@@ -172,6 +181,121 @@ export interface DebugEntry {
   details?: unknown;
 }
 
+export interface BusinessProfile {
+  businessName: string;
+  owners: string[];
+  location: string;
+  tagline: string;
+  website: string;
+  accommodation: string;
+  unitCapacityGuests: number;
+  defaultRatePerPersonNightSek: number;
+  offerings: string[];
+  extras: string[];
+  verifiedPress: string[];
+  voice: string;
+  defaultChannels: string[];
+  updatedAt: string;
+}
+
+export type CampaignDeliverableKind =
+  | 'social'
+  | 'email'
+  | 'ad'
+  | 'calendar'
+  | 'video'
+  | 'landing'
+  | 'research';
+
+export interface HonestyLintIssue {
+  code: 'INVENTED_STRUCTURE' | 'WEATHER_GUARANTEE' | 'UNSUPPLIED_PRICE_OR_DISCOUNT';
+  severity: 'error' | 'warning';
+  message: string;
+  snippet?: string;
+}
+
+export interface CampaignIntake {
+  goal: string;
+  audiences: string[];
+  language: LanguagePref;
+  channels: string[];
+  deliverables: CampaignDeliverableKind[];
+  dateWindow: string;
+  openNightsOrCapacity: string;
+  coreOffer: string;
+  priceAnchor?: string;
+  budgetCeiling: string;
+  hoursPerWeek: string;
+  referencePhoto?: string;
+  notes?: string;
+}
+
+export interface CampaignChecklistTask {
+  id: string;
+  phase: string;
+  text: string;
+  owner?: string;
+  done: boolean;
+}
+
+export interface CampaignStrategyPhase {
+  title: string;
+  timing: string;
+  tasks: string[];
+}
+
+export interface CampaignStrategy {
+  headline: string;
+  positioning: string;
+  rankedChannels: Array<{
+    channel: string;
+    priority: number;
+    rationale: string;
+  }>;
+  phases: CampaignStrategyPhase[];
+  assumptions: string[];
+  risks: string[];
+  stopSpendThreshold: string;
+}
+
+export interface CampaignCalendarItem {
+  date: string;
+  channel: string;
+  item: string;
+  notes: string;
+  cta?: string;
+}
+
+export interface CampaignDeliverable {
+  id: string;
+  kind: CampaignDeliverableKind;
+  title: string;
+  markdown: string;
+  structured: unknown;
+  lintIssues: HonestyLintIssue[];
+  repaired: boolean;
+  status: 'draft' | 'approved';
+  createdAt: string;
+}
+
+export interface CampaignPackage {
+  id: string;
+  name: string;
+  status: 'draft' | 'ready' | 'delivered';
+  intake: CampaignIntake;
+  strategy: CampaignStrategy;
+  checklist: CampaignChecklistTask[];
+  deliverables: CampaignDeliverable[];
+  lintSummary: {
+    passed: boolean;
+    errorCount: number;
+    warningCount: number;
+  };
+  sourceChatId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ExportPackage {
   schemaVersion: 1;
   exportedAt: string;
@@ -183,6 +307,8 @@ export interface ExportPackage {
   guardrails: Guardrails;
   library: LibraryItem[];
   settings: Omit<AppSettings, 'rememberKey'>;
+  businessProfile?: BusinessProfile;
+  packages?: CampaignPackage[];
   chats?: Array<{
     chat: Chat;
     messages: ChatMessage[];

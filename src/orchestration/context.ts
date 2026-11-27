@@ -79,14 +79,12 @@ export function extractDeterministicFacts(
   const lower = text.toLowerCase();
 
   const constraints: string[] = [];
-  if (/(just us two|two of us|two founders|bara vi två|1\.5\s*fte)/i.test(text)) {
-    constraints.push('Two-person team operating at reduced capacity (~1.5 FTE)');
-  }
-  if (/(half days?|halvdagar|recovering|hospital|sjukhus)/i.test(text)) {
-    constraints.push('One founder working half days while recovering');
-  }
-  if (/(baby|månaders|month old|newborn|bebis)/i.test(text)) {
-    constraints.push('Founders caring for an infant at home (keep cadence minimal and practical)');
+  if (
+    /(just us two|two of us|two founders|bara vi två|half days?|halvdagar|limited capacity|reduced capacity|part[- ]?time|\b\d+(?:\.\d+)?\s*fte\b|\b\d+\s*(?:h|hrs|hours|timmar)\s*(?:per|\/|a)\s*(?:week|vecka)\b)/i.test(
+      text
+    )
+  ) {
+    constraints.push('Limited owner capacity — keep weekly cadence lean');
   }
   if (/(not much money|inte så mycket pengar|tight budget|låg budget|liten budget)/i.test(text)) {
     constraints.push('Tight ad budget — prioritize zero-cost owned channels first');
@@ -114,9 +112,6 @@ export function extractDeterministicFacts(
   }
 
   const awards: string[] = [];
-  if (/visit\s+sweden/i.test(text)) {
-    awards.push('Featured by Visit Sweden as one of Sweden\'s "hidden island escapes"');
-  }
   const wonMatch =
     text.match(/\b(?:we won|we've won|won)\s+([^.!?\n]{3,100})/i) ??
     text.match(/\baward(?:s)?\s*[:\-]\s*([^.!?\n]{3,100})/i);

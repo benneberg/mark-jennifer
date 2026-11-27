@@ -1,9 +1,64 @@
-import type { AppSettings, Expert, Guardrails, LanguagePref, SessionFacts } from '../types';
+import defaultBusinessJson from '../data/business.json';
+import type {
+  AppSettings,
+  BusinessProfile,
+  CampaignPackage,
+  Expert,
+  Guardrails,
+  LanguagePref,
+  SessionFacts,
+} from '../types';
+
+function resolveBusinessProfile(profile?: BusinessProfile): BusinessProfile {
+  return profile ?? (defaultBusinessJson as BusinessProfile);
+}
+
+export function buildBusinessProfileBlock(profile?: BusinessProfile): string {
+  const bp = resolveBusinessProfile(profile);
+  const lines = [
+    `  <name>${escapeFactXml(bp.businessName)}</name>`,
+    bp.owners.length ? `  <owners>${escapeFactXml(bp.owners.join(', '))}</owners>` : '',
+    `  <location>${escapeFactXml(bp.location)}</location>`,
+    bp.tagline ? `  <tagline>${escapeFactXml(bp.tagline)}</tagline>` : '',
+    bp.website ? `  <website>${escapeFactXml(bp.website)}</website>` : '',
+    `  <accommodation>${escapeFactXml(bp.accommodation)} (capacity ${bp.unitCapacityGuests} guests)</accommodation>`,
+    bp.defaultRatePerPersonNightSek > 0
+      ? `  <baseline_rate>${bp.defaultRatePerPersonNightSek} SEK per person per night</baseline_rate>`
+      : '',
+    bp.offerings.length ? `  <offerings>${escapeFactXml(bp.offerings.join('; '))}</offerings>` : '',
+    bp.extras.length ? `  <extras>${escapeFactXml(bp.extras.join('; '))}</extras>` : '',
+    bp.verifiedPress.length
+      ? `  <verified_press>${escapeFactXml(bp.verifiedPress.join('; '))}</verified_press>`
+      : '',
+    bp.voice ? `  <voice>${escapeFactXml(bp.voice)}</voice>` : '',
+  ].filter(Boolean);
+
+  return `<business_profile priority="high">\n${lines.join('\n')}\n</business_profile>`;
+}
+
+export function buildActivePackageBlock(pkg?: CampaignPackage | null): string {
+  if (!pkg) return '';
+  const doneCount = pkg.checklist.filter((t) => t.done).length;
+  const deliverableLines = pkg.deliverables
+    .map((d) => `  <deliverable kind="${d.kind}" title="${escapeFactXml(d.title)}">\n${escapeFactXml(d.markdown.slice(0, 1800))}\n  </deliverable>`)
+    .join('\n');
+  return `<active_campaign_package>
+  <name>${escapeFactXml(pkg.name)}</name>
+  <window>${escapeFactXml(pkg.intake.dateWindow)}</window>
+  <offer>${escapeFactXml(pkg.intake.coreOffer)}${pkg.intake.priceAnchor ? ` (${escapeFactXml(pkg.intake.priceAnchor)})` : ''}</offer>
+  <budget>${escapeFactXml(pkg.intake.budgetCeiling)}</budget>
+  <capacity>${escapeFactXml(pkg.intake.hoursPerWeek)} · ${escapeFactXml(pkg.intake.openNightsOrCapacity)}</capacity>
+  <checklist_progress>${doneCount}/${pkg.checklist.length} tasks done</checklist_progress>
+  <strategy_headline>${escapeFactXml(pkg.strategy.headline)}</strategy_headline>
+${deliverableLines}
+</active_campaign_package>`;
+}
 
 function getLanguageInstruction(
   language: LanguagePref,
   expertName?: string,
-  detectedLanguage?: 'sv' | 'en' | 'unknown'
+  detectedLanguage?: 'sv' | 'en' | 'unknown',
+  businessName = 'the business'
 ): string {
   switch (language) {
     case 'sv':
@@ -15,7 +70,7 @@ function getLanguageInstruction(
     case 'auto':
     default:
       if (expertName === 'Copywriter' || expertName === 'Social Media Strategist') {
-        return 'Detect the language of the request. If the request does not specify a single language, default to bilingual Swedish (SV:) and English (EN:) side-by-side since Hedetangen serves international guests.';
+        return `Detect the language of the request. If the request does not specify a single language, default to bilingual Swedish (SV:) and English (EN:) side-by-side since ${businessName} serves international guests.`;
       }
       if (detectedLanguage === 'sv') {
         return "CRITICAL LANGUAGE OVERRIDE FOR THIS TURN: The user's latest message is in SWEDISH. Write ALL of Jennifer's response, handoff text, and notes in SWEDISH — even if earlier messages in the conversation were in English. Still preserve any SV:/EN: copy pairs inside deliverables.";
@@ -107,16 +162,26 @@ export function buildJenniferPrompt(ctx: {
   guardrails: Guardrails;
   experts: Expert[];
   settings: AppSettings;
+  businessProfile?: BusinessProfile;
+  activePackage?: CampaignPackage | null;
   sessionFacts?: SessionFacts;
   referencePhoto?: string;
   allowClarifying?: boolean;
   detectedLanguage?: 'sv' | 'en' | 'unknown';
 }): string {
+  const bp = resolveBusinessProfile(ctx.businessProfile);
   const guardrailsBlock = buildGuardrailsBlock(ctx.guardrails);
+  const businessBlock = buildBusinessProfileBlock(bp);
+  const packageBlock = buildActivePackageBlock(ctx.activePackage);
   const factsBlock = buildSessionFactsBlock(ctx.sessionFacts, ctx.referencePhoto);
   const seasonalBlock = buildSeasonalContextBlock(ctx.settings.machinePrompt);
   const registry = buildExpertsRegistry(ctx.experts);
-  const langInstr = getLanguageInstruction(ctx.settings.language, undefined, ctx.detectedLanguage);
+  const langInstr = getLanguageInstruction(
+    ctx.settings.language,
+    undefined,
+    ctx.detectedLanguage,
+    bp.businessName
+  );
   const allowClarifying = ctx.allowClarifying ?? true;
 
   const turnPolicyBlock = allowClarifying
@@ -126,22 +191,24 @@ If this very first message gives no operational context, budget, or experience f
     : `<turn_policy priority="highest">
 CLARIFYING QUESTIONS ARE DISABLED FOR THIS TURN.
 You have already replied earlier in this conversation (or the owner gave an actionable task). NEVER ask another clarifying question or reply "to proceed, please provide...".
-If any detail is still missing or uses a placeholder (e.g., unclear ad budget, unnamed award like "[award names]", no photo), DO NOT stall — state reasonable assumptions in <context> (e.g. "Budget unclear: lead with zero-cost email/organic", "No specific award named: use Visit Sweden feature and omit or bracket unnamed awards") and IMMEDIATELY output OPTION B with 1–3 <delegate> blocks.
+If any detail is still missing or uses a placeholder (e.g., unclear ad budget, unnamed award like "[award names]", no photo), DO NOT stall — state reasonable assumptions in <context> (e.g. "Budget unclear: lead with zero-cost email/organic", "No extra award named: use verified press from business_profile if helpful") and IMMEDIATELY output OPTION B with 1–3 <delegate> blocks.
 </turn_policy>`;
 
   return `<role>
-YOU are Jennifer, Hedetangen's marketing partner and orchestrator. The person messaging you is the Hedetangen owner (Joacim or Madeleine) — NEVER address or greet the user as "Jennifer".
-Hedetangen is a family-run off-grid eco-glamping sanctuary in Värmland, Sweden (floating AuroraHut on a private island, wood-fired sauna, winter ice bath; tagline "Unlock Your Senses"; featured by Visit Sweden as one of nine "hidden island escapes"). Speak warmly, concisely, and practically — never say "As an AI".
+YOU are Jennifer, ${bp.businessName}'s marketing partner and orchestrator. The person messaging you is the business owner — NEVER address or greet the user as "Jennifer".
+Use <business_profile> as your source of truth for offerings, capacity, anchor rates, website, and verified press. Speak warmly, concisely, and practically — never say "As an AI".
 </role>
 
 ${guardrailsBlock}
 
-${factsBlock ? `${factsBlock}\n\n` : ''}${seasonalBlock ? `${seasonalBlock}\n\n` : ''}<experts>
+${businessBlock}
+
+${packageBlock ? `${packageBlock}\n\n` : ''}${factsBlock ? `${factsBlock}\n\n` : ''}${seasonalBlock ? `${seasonalBlock}\n\n` : ''}<experts>
 ${registry}
 </experts>
 
 <tone_and_sensitivity>
-Acknowledge personal constraints (illness recovery, baby, half days) briefly and respectfully in ONE sentence — never dwell or be paternalistic — and treat them purely as operational capacity limits. Never use health, family, or hardships as marketing copy.
+Acknowledge team schedule or capacity limits briefly in ONE practical sentence when relevant, and treat them strictly as operational workload limits. Never use personal, family, or health circumstances as marketing copy.
 </tone_and_sensitivity>
 
 ${turnPolicyBlock}
@@ -187,17 +254,27 @@ export function buildExpertPrompt(ctx: {
   expert: Expert;
   guardrails: Guardrails;
   settings: AppSettings;
+  businessProfile?: BusinessProfile;
   sessionFacts?: SessionFacts;
   referencePhoto?: string;
 }): string {
+  const bp = resolveBusinessProfile(ctx.businessProfile);
   const guardrailsBlock = buildGuardrailsBlock(ctx.guardrails);
+  const businessBlock = buildBusinessProfileBlock(bp);
   const factsBlock = buildSessionFactsBlock(ctx.sessionFacts, ctx.referencePhoto);
   const seasonalBlock = buildSeasonalContextBlock(ctx.settings.machinePrompt);
-  const langInstr = getLanguageInstruction(ctx.settings.language, ctx.expert.name);
+  const langInstr = getLanguageInstruction(
+    ctx.settings.language,
+    ctx.expert.name,
+    undefined,
+    bp.businessName
+  );
 
   return `${ctx.expert.systemPrompt.trim()}
 
 ${guardrailsBlock}
+
+${businessBlock}
 
 If any instruction above or below conflicts with the <honesty_rule>, the <honesty_rule> prevails.
 
@@ -211,26 +288,38 @@ ${HANDOFF_BLOCK}`;
 export function buildSynthesisPrompt(ctx: {
   guardrails: Guardrails;
   settings: AppSettings;
+  businessProfile?: BusinessProfile;
+  activePackage?: CampaignPackage | null;
   sessionFacts?: SessionFacts;
   referencePhoto?: string;
   detectedLanguage?: 'sv' | 'en' | 'unknown';
 }): string {
+  const bp = resolveBusinessProfile(ctx.businessProfile);
   const guardrailsBlock = buildGuardrailsBlock(ctx.guardrails);
+  const businessBlock = buildBusinessProfileBlock(bp);
+  const packageBlock = buildActivePackageBlock(ctx.activePackage);
   const factsBlock = buildSessionFactsBlock(ctx.sessionFacts, ctx.referencePhoto);
   const seasonalBlock = buildSeasonalContextBlock(ctx.settings.machinePrompt);
-  const langInstr = getLanguageInstruction(ctx.settings.language, undefined, ctx.detectedLanguage);
+  const langInstr = getLanguageInstruction(
+    ctx.settings.language,
+    undefined,
+    ctx.detectedLanguage,
+    bp.businessName
+  );
 
   return `<role>
-YOU are Jennifer, Hedetangen's marketing partner. The user reading this is the Hedetangen owner — NEVER call the user "Jennifer". Synthesize your team's drafts into one warm, clear, ready-to-use Markdown response.
+YOU are Jennifer, ${bp.businessName}'s marketing partner. The user reading this is the owner — NEVER call the user "Jennifer". Synthesize your team's drafts into one warm, clear, ready-to-use Markdown response.
 </role>
 
 ${guardrailsBlock}
 
-${factsBlock ? `${factsBlock}\n\n` : ''}${seasonalBlock ? `${seasonalBlock}\n\n` : ''}<synthesis_rules>
+${businessBlock}
+
+${packageBlock ? `${packageBlock}\n\n` : ''}${factsBlock ? `${factsBlock}\n\n` : ''}${seasonalBlock ? `${seasonalBlock}\n\n` : ''}<synthesis_rules>
 - Never mention internal expert names ("Copywriter", "Strategist", etc.). Speak in first person ("I drafted…").
 - Bilingual preservation (CRITICAL): If any expert output contains SV:/EN: pairs (or Swedish and English variants side-by-side), preserve BOTH languages regardless of the 'auto' language setting. Frame your surrounding notes in the owner's language, keeping every SV/EN pair intact.
-- Respect personal boundaries: acknowledge capacity constraints briefly if relevant, never put personal health/family details in public copy.
-- Preserve substance, numbers, awards/proof points, and assumptions/data gaps.
+- Respect personal boundaries: treat capacity limits as operational workload constraints; never put private personal details in public copy.
+- Preserve substance, numbers, verified press/awards, and assumptions/data gaps.
 - Re-check guardrails (including on shorten/revise turns): rewrite any invented structures in visuals, unconditioned aurora promises, or generic luxury clichés; if rewritten substantially, note "I tightened a few lines to keep them on-brand."
 - Lead with ready-to-use deliverables, then a short "Notes" section + one concrete next step. No filler openers/closers.
 </synthesis_rules>
@@ -244,12 +333,17 @@ export function buildDirectTeamPrompt(ctx: {
   guardrails: Guardrails;
   experts: Expert[];
   settings: AppSettings;
+  businessProfile?: BusinessProfile;
+  activePackage?: CampaignPackage | null;
   sessionFacts?: SessionFacts;
   referencePhoto?: string;
   allowClarifying?: boolean;
   detectedLanguage?: 'sv' | 'en' | 'unknown';
 }): string {
+  const bp = resolveBusinessProfile(ctx.businessProfile);
   const guardrailsBlock = buildGuardrailsBlock(ctx.guardrails);
+  const businessBlock = buildBusinessProfileBlock(bp);
+  const packageBlock = buildActivePackageBlock(ctx.activePackage);
   const factsBlock = buildSessionFactsBlock(ctx.sessionFacts, ctx.referencePhoto);
   const seasonalBlock = buildSeasonalContextBlock(ctx.settings.machinePrompt);
   const enabledExperts = ctx.experts.filter((e) => e.enabled);
@@ -259,7 +353,12 @@ export function buildDirectTeamPrompt(ctx: {
           .map((e) => `- ${e.name}: ${e.role}`)
           .join('\n')
       : '- Marketing strategy, copywriting, pricing math, social planning, visual direction, and research';
-  const langInstr = getLanguageInstruction(ctx.settings.language, undefined, ctx.detectedLanguage);
+  const langInstr = getLanguageInstruction(
+    ctx.settings.language,
+    undefined,
+    ctx.detectedLanguage,
+    bp.businessName
+  );
   const allowClarifying = ctx.allowClarifying ?? true;
 
   const turnPolicyBlock = allowClarifying
@@ -272,20 +371,22 @@ Never stall or ask "please provide..." before helping. If a detail is missing, s
 </turn_policy>`;
 
   return `<role>
-YOU are Jennifer, Hedetangen's marketing partner. The person messaging you is the Hedetangen owner (Joacim or Madeleine) — NEVER address or greet the user as "Jennifer".
-Hedetangen is a family-run off-grid eco-glamping sanctuary in Värmland, Sweden (floating AuroraHut on a private island, wood-fired sauna, winter ice bath; tagline "Unlock Your Senses"; capacity 2 guests per hut; summer anchor 1750 SEK/person/night; featured by Visit Sweden as one of nine "hidden island escapes").
+YOU are Jennifer, ${bp.businessName}'s marketing partner. The person messaging you is the owner — NEVER address or greet the user as "Jennifer".
+Use <business_profile> as your source of truth for offerings, capacity, anchor rates, website, and verified press. Never invent prices, discounts, awards, or physical structures.
 Speak in first person ("I…"), warmly, practically, and concisely — never mention internal specialist names or say "As an AI".
 </role>
 
 ${guardrailsBlock}
 
-${factsBlock ? `${factsBlock}\n\n` : ''}${seasonalBlock ? `${seasonalBlock}\n\n` : ''}<studio_capabilities>
+${businessBlock}
+
+${packageBlock ? `${packageBlock}\n\n` : ''}${factsBlock ? `${factsBlock}\n\n` : ''}${seasonalBlock ? `${seasonalBlock}\n\n` : ''}<studio_capabilities>
 Apply the appropriate disciplines for the owner's request:
 ${capabilitiesBlock}
 </studio_capabilities>
 
 <tone_and_sensitivity>
-- Acknowledge personal constraints (illness recovery, baby, half days) briefly in ONE sentence when relevant, treating them purely as capacity limits. Never use health or family details as marketing copy.
+- Acknowledge capacity limits briefly in ONE practical sentence when relevant, treating them strictly as operational workload limits. Never use private personal circumstances as marketing copy.
 - When doing pricing/ROI math: restate assumptions clearly, show step-by-step arithmetic, and include one concrete spend-more / stop threshold.
 - When drafting social/ad/email copy: produce bilingual SV: and EN: pairs unless a single language was explicitly requested, keep aurora/snow/ice strictly conditional ("on clear nights"), ban luxury clichés ("paradise", "world-class", "hidden gem", "bucket list", marble, champagne), and restrict visuals to pure atmosphere (water, steam, firelight, wood, hands) unless <confirmed_reference> is in <session_facts>.
 </tone_and_sensitivity>

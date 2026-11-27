@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Menu, Moon, PanelRightClose, PanelRightOpen, Sun, X } from 'lucide-react';
+import { generateCampaignPackage } from './campaign/engine';
+import { BusinessProfileEditor } from './components/BusinessProfileEditor';
 import { ChatsPanel } from './components/ChatsPanel';
 import { ChatList } from './components/ChatList';
 import { Composer } from './components/Composer';
@@ -9,6 +11,8 @@ import { EyeEmblem, useGlobalEyeTracker } from './components/EyeEmblem';
 import { GuardrailsEditor } from './components/GuardrailsEditor';
 import { ImportExportModal } from './components/ImportExportModal';
 import { LibraryPanel } from './components/LibraryPanel';
+import { ModulesView } from './components/ModulesView';
+import { PackageView } from './components/PackageView';
 import { SettingsPanel } from './components/SettingsPanel';
 import { ToastContainer } from './components/ToastContainer';
 import { Wizard } from './components/Wizard';
@@ -18,7 +22,7 @@ import { createSeedGuardrails } from './data/seed-guardrails';
 import { runJenniferTurn } from './orchestration/jennifer';
 import { createProvider, fetchAndCacheModels } from './providers';
 import { AIError } from './providers/errors';
-import { hasApiKey } from './storage/crypto';
+import { hasApiKey, saveApiKey } from './storage/crypto';
 import {
   clearAllStudioData,
   createNewChat,
@@ -26,27 +30,36 @@ import {
   deleteChat,
   deleteLibraryItem,
   deleteMessage,
-  clearTurnInFlight,
+  deletePackage,
   ensureSeedData,
+  getDefaultBusinessProfile,
   getOrCreateActiveChat,
   loadAllChats,
+  loadBusinessProfile,
   loadExperts,
   loadGuardrails,
   loadLibrary,
   loadMessagesForChat,
+  loadPackages,
   loadSettings,
-  markTurnInFlight,
   removeExpert,
+  resetBusinessProfile,
+  saveBusinessProfile,
   saveExpert,
   saveGuardrails,
   saveLibraryItem,
   saveMessage,
+  savePackage,
   saveSettings,
   updateChat,
 } from './storage/entities';
 import type {
   ActivePanel,
   AppSettings,
+  BusinessProfile,
+  CampaignDeliverable,
+  CampaignIntake,
+  CampaignPackage,
   Chat,
   ChatMessage,
   DebugEntry,
@@ -57,21 +70,26 @@ import type {
   ModelInfo,
   ProviderId,
   ToastItem,
+  WorkspaceView,
 } from './types';
 import { nowIso } from './utils/dates';
 import { generateId } from './utils/id';
-import { safeGetItem, safeSetItem } from './utils/safe-storage';
 
 export default function App() {
   const [ready, setReady] = useState(false);
   const [loadingChat, setLoadingChat] = useState(true);
-  const [bootError, setBootError] = useState<string | null>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [hasKey, setHasKey] = useState(false);
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [modelsFetchedAt, setModelsFetchedAt] = useState<string | null>(null);
   const [experts, setExperts] = useState<Expert[]>([]);
   const [guardrails, setGuardrails] = useState<Guardrails>(() => createSeedGuardrails());
+  const [businessProfile, setBusinessProfile] = useState<BusinessProfile>(() =>
+    getDefaultBusinessProfile()
+  );
+  const [packages, setPackages] = useState<CampaignPackage[]>([]);
+  const [activePackageId, setActivePackageId] = useState<string | null>(null);
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('chat');
   const [library, setLibrary] = useState<LibraryItem[]>([]);
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
@@ -80,10 +98,14 @@ export default function App() {
   const [referencePhoto, setReferencePhoto] = useState('');
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [railPinned, setRailPinned] = useState<boolean>(
-    () => safeGetItem(LS_KEYS.RAIL_PINNED) === 'true'
+    () => localStorage.getItem(LS_KEYS.RAIL_PINNED) === 'true'
   );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardDraft, setWizardDraft] = useState<Partial<CampaignIntake> | null>(null);
+  const [pkgGenerating, setPkgGenerating] = useState(false);
+  const [pkgProgressLabel, setPkgProgressLabel] = useState<string | null>(null);
+  const pkgAbortRef = useRef<AbortController | null>(null);
   const [importExportOpen, setImportExportOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [debugOpen, setDebugOpen] = useState(
@@ -148,13 +170,23 @@ export default function App() {
 
   const bootstrapStudio = useCallback(async () => {
     setLoadingChat(true);
-    setBootError(null);
     try {
       const { skippedCount } = await ensureSeedData();
-      const [loadedSettings, expRes, loadedGuardrails, libRes, chat, allChats] = await Promise.all([
+      const [
+        loadedSettings,
+        expRes,
+        loadedGuardrails,
+        loadedProfile,
+        loadedPackages,
+        libRes,
+        chat,
+        allChats,
+      ] = await Promise.all([
         loadSettings(),
         loadExperts(),
         loadGuardrails(),
+        loadBusinessProfile(),
+        loadPackages(),
         loadLibrary(),
         getOrCreateActiveChat(),
         loadAllChats(),
@@ -166,6 +198,9 @@ export default function App() {
       setSettings(loadedSettings);
       setExperts(expRes.experts);
       setGuardrails(loadedGuardrails);
+      setBusinessProfile(loadedProfile);
+      setPackages(loadedPackages);
+      setActivePackageId((curr) => curr ?? loadedPackages[0]?.id ?? null);
       setLibrary(libRes.items);
       setChats(allChats.length > 0 ? allChats : [chat]);
       setActiveChat(chat);
@@ -188,12 +223,6 @@ export default function App() {
           // Non-fatal on boot
         }
       }
-    } catch (err) {
-      setBootError(
-        err instanceof Error
-          ? err.message
-          : 'Local storage is unavailable in this browser context.'
-      );
     } finally {
       setLoadingChat(false);
       setReady(true);
@@ -260,7 +289,7 @@ export default function App() {
     setModels(demoModels.models);
     setModelsFetchedAt(demoModels.fetchedAt);
     setHasKey(true);
-    safeSetItem(LS_KEYS.ONBOARDED, 'true');
+    localStorage.setItem(LS_KEYS.ONBOARDED, 'true');
     pushToast('Demo Mode active — try asking Jennifer anything.', 'success');
   }, [handleUpdateSettings, pushToast]);
 
@@ -281,7 +310,7 @@ export default function App() {
           await handleUpdateSettings({ model: preferred.id });
         }
       }
-      safeSetItem(LS_KEYS.ONBOARDED, 'true');
+      localStorage.setItem(LS_KEYS.ONBOARDED, 'true');
       pushToast(`Loaded ${res.models.length} models.`, 'success');
     },
     [handleUpdateSettings, pushToast, settings.model]
@@ -314,22 +343,6 @@ export default function App() {
     const curated = preferredOrder.find((id) => candidates.some((c) => c.id === id));
     return curated ?? candidates[0]?.id;
   }, [models, settings.model, settings.provider]);
-
-  const persistChat = useCallback(
-    async (chat: Chat) => {
-      try {
-        await updateChat(chat);
-      } catch (err) {
-        pushToast(
-          `Conversation could not be saved: ${
-            err instanceof Error ? err.message : 'validation error'
-          }`,
-          'danger'
-        );
-      }
-    },
-    [pushToast]
-  );
 
   const executeTurn = useCallback(
     async (userText: string, overrideSettings?: AppSettings, retryErrorMsgId?: string) => {
@@ -376,7 +389,7 @@ export default function App() {
         currentChat = { ...currentChat, title: nextTitle, updatedAt: nowIso() };
         setActiveChat(currentChat);
         setChats((prev) => [currentChat, ...prev.filter((c) => c.id !== currentChat.id)]);
-        await persistChat(currentChat);
+        await updateChat(currentChat);
       }
 
       const controller = new AbortController();
@@ -388,7 +401,6 @@ export default function App() {
       const assistantMsgId = generateId();
       const assistantTs = nowIso();
       let lastDbPersistAt = 0;
-      let lastPersistedLength = 0;
       let hasPersistedStreaming = false;
 
       setStreamingState({
@@ -400,12 +412,9 @@ export default function App() {
       });
 
       try {
-        // Crash recovery marker: best-effort, must never fail the turn itself.
-        await markTurnInFlight({
-          messageId: assistantMsgId,
-          chatId: currentChat.id,
-          startedAt: assistantTs,
-        }).catch(() => {});
+        const activePkgForChat =
+          packages.find((p) => p.id === activePackageId) ?? packages[0] ?? null;
+
         const result = await runJenniferTurn({
           userMessage: trimmed,
           history: prevHistory,
@@ -414,6 +423,8 @@ export default function App() {
           settings: activeSettings,
           guardrails,
           experts,
+          businessProfile,
+          activePackage: activePkgForChat,
           signal: controller.signal,
           callbacks: {
             onStatus: (status) => {
@@ -432,13 +443,9 @@ export default function App() {
               const nextBuf = streamBufferRef.current;
               setStreamingState((s) => ({ ...s, buffer: nextBuf }));
 
-              // Checkpointing the whole response on every tick was O(n^2) writes on
-              // mobile storage; require real progress before persisting again.
               const nowMs = Date.now();
-              const grewEnough = nextBuf.length - lastPersistedLength >= 400;
-              if (nextBuf.trim() && grewEnough && nowMs - lastDbPersistAt >= 1200) {
+              if (nextBuf.trim() && nowMs - lastDbPersistAt >= 650) {
                 lastDbPersistAt = nowMs;
-                lastPersistedLength = nextBuf.length;
                 hasPersistedStreaming = true;
                 saveMessage({
                   id: assistantMsgId,
@@ -487,7 +494,7 @@ export default function App() {
         };
         setActiveChat(updatedChat);
         setChats((prev) => [updatedChat, ...prev.filter((c) => c.id !== updatedChat.id)]);
-        await persistChat(updatedChat);
+        await updateChat(updatedChat);
 
         addDebugEntry({
           type: 'turn',
@@ -567,7 +574,6 @@ export default function App() {
           });
         }
       } finally {
-        await clearTurnInFlight().catch(() => {});
         isGeneratingRef.current = false;
         abortRef.current = null;
         setStreamingState({
@@ -581,11 +587,13 @@ export default function App() {
     },
     [
       activeChat,
+      activePackageId,
       addDebugEntry,
+      businessProfile,
       experts,
       guardrails,
       messages,
-      persistChat,
+      packages,
       pushToast,
       referencePhoto,
       settings,
@@ -642,21 +650,13 @@ export default function App() {
         sourceMessageId: msg.id,
         createdAt: nowIso(),
       };
+      await saveLibraryItem(item);
+      setLibrary((prev) => [item, ...prev]);
 
-      try {
-        await saveLibraryItem(item);
-        setLibrary((prev) => [item, ...prev]);
-
-        const updatedMsg: ChatMessage = { ...msg, savedToLibrary: true };
-        await saveMessage(updatedMsg);
-        setMessages((prev) => prev.map((m) => (m.id === msg.id ? updatedMsg : m)));
-        pushToast('Saved to Content Library.', 'success');
-      } catch (err) {
-        pushToast(
-          `Could not save to library: ${err instanceof Error ? err.message : 'unknown error'}`,
-          'danger'
-        );
-      }
+      const updatedMsg: ChatMessage = { ...msg, savedToLibrary: true };
+      await saveMessage(updatedMsg);
+      setMessages((prev) => prev.map((m) => (m.id === msg.id ? updatedMsg : m)));
+      pushToast('Saved to Content Library.', 'success');
     },
     [pushToast]
   );
@@ -775,40 +775,124 @@ export default function App() {
     [pushToast]
   );
 
+  const handleGeneratePackage = useCallback(
+    async (intake: CampaignIntake) => {
+      if (!isConfigured) {
+        pushToast('Add an API key or enable Demo Mode in Settings first.', 'info');
+        setActivePanel('settings');
+        return;
+      }
+      if (pkgGenerating) return;
+
+      const controller = new AbortController();
+      pkgAbortRef.current = controller;
+      setPkgGenerating(true);
+      setPkgProgressLabel('Starting Campaign Package Engine…');
+
+      try {
+        const pkg = await generateCampaignPackage({
+          intake,
+          settings,
+          guardrails,
+          businessProfile,
+          sourceChatId: activeChat?.id,
+          signal: controller.signal,
+          onProgress: (label, cur, total) => {
+            setPkgProgressLabel(`Step ${cur}/${total}: ${label}`);
+          },
+        });
+
+        await savePackage(pkg);
+        setPackages((prev) => [pkg, ...prev]);
+        setActivePackageId(pkg.id);
+        setWizardOpen(false);
+        setWizardDraft(null);
+        setWorkspaceView('campaigns');
+        pushToast('Campaign Package built & verified.', 'success');
+      } catch (err) {
+        const aborted =
+          controller.signal.aborted || (err instanceof DOMException && err.name === 'AbortError');
+        if (aborted) {
+          pushToast('Campaign package build stopped.', 'info');
+        } else {
+          pushToast(
+            err instanceof Error ? err.message : 'Failed to build campaign package.',
+            'danger'
+          );
+        }
+      } finally {
+        setPkgGenerating(false);
+        setPkgProgressLabel(null);
+        pkgAbortRef.current = null;
+      }
+    },
+    [activeChat?.id, businessProfile, guardrails, isConfigured, pkgGenerating, pushToast, settings]
+  );
+
+  const handleToggleChecklistTask = useCallback(async (pkgId: string, taskId: string) => {
+    setPackages((prev) => {
+      const target = prev.find((p) => p.id === pkgId);
+      if (!target) return prev;
+      const updated: CampaignPackage = {
+        ...target,
+        checklist: target.checklist.map((t) => (t.id === taskId ? { ...t, done: !t.done } : t)),
+        updatedAt: nowIso(),
+      };
+      savePackage(updated).catch(() => {});
+      return prev.map((p) => (p.id === pkgId ? updated : p));
+    });
+  }, []);
+
+  const handleToggleDeliverableApprove = useCallback(
+    async (pkgId: string, deliverableId: string) => {
+      setPackages((prev) => {
+        const target = prev.find((p) => p.id === pkgId);
+        if (!target) return prev;
+        const updated: CampaignPackage = {
+          ...target,
+          deliverables: target.deliverables.map((d) =>
+            d.id === deliverableId
+              ? { ...d, status: d.status === 'approved' ? 'draft' : 'approved' }
+              : d
+          ),
+          updatedAt: nowIso(),
+        };
+        savePackage(updated).catch(() => {});
+        return prev.map((p) => (p.id === pkgId ? updated : p));
+      });
+    },
+    []
+  );
+
+  const handleSaveDeliverableToLibrary = useCallback(
+    async (
+      pkgName: string | null,
+      deliverable: CampaignDeliverable,
+      type: LibraryItemType
+    ) => {
+      const item: LibraryItem = {
+        id: generateId(),
+        title: pkgName ? `${pkgName} — ${deliverable.title}` : deliverable.title,
+        content: deliverable.markdown,
+        type,
+        tags: ['hedetangen', deliverable.kind],
+        createdAt: nowIso(),
+      };
+      await saveLibraryItem(item);
+      setLibrary((prev) => [item, ...prev]);
+      pushToast('Saved deliverable to Content Library.', 'success');
+    },
+    [pushToast]
+  );
+
   const panelTitles: Record<Exclude<ActivePanel, null>, string> = {
     chats: `Chats (${chats.length})`,
     settings: 'Settings',
     library: `Content Library (${library.length})`,
     experts: 'Specialist Experts',
     guardrails: 'Brand DNA Guardrails',
+    profile: 'Business Profile',
   };
-
-  if (bootError) {
-    return (
-      <div className="min-h-dvh flex items-center justify-center p-6 text-[var(--text)]">
-        <div className="max-w-md w-full space-y-3 p-6 rounded-[24px] glass-surface border border-[var(--border)]">
-          <EyeEmblem size="lg" />
-          <h1 className="text-lg font-semibold">The studio could not open its local database</h1>
-          <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-            {bootError}
-          </p>
-          <p className="text-xs text-[var(--text-faint)] leading-relaxed">
-            Private browsing, blocked storage, or a full disk can cause this. Nothing has been
-            deleted — reopen the app in a normal window, then export a backup from Settings.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              void bootstrapStudio();
-            }}
-            className="min-h-[42px] px-4 py-2 text-sm font-semibold rounded-full bg-[var(--lime)] text-[#181817]"
-          >
-            Try again
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   if (!ready) {
     return (
@@ -836,6 +920,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => {
+              setWorkspaceView('chat');
               setActivePanel(null);
               composerInputRef.current?.focus();
             }}
@@ -849,23 +934,34 @@ export default function App() {
           </button>
         </div>
 
-        {/* Zone 2: Clean single-line text links (desktop) */}
+        {/* Zone 2: Clean single-line text links (desktop, max 5 links) */}
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[var(--text-muted)]">
           <button
             type="button"
-            onClick={handleNewChat}
-            className="hover:text-[var(--text)] hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0"
+            onClick={() => setWorkspaceView('chat')}
+            className={`hover:text-[var(--text)] hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 ${
+              workspaceView === 'chat' && !activePanel ? 'text-[var(--text)] underline' : ''
+            }`}
           >
-            New chat
+            Chat
           </button>
           <button
             type="button"
-            onClick={() => setActivePanel((p) => (p === 'chats' ? null : 'chats'))}
+            onClick={() => setWorkspaceView('campaigns')}
             className={`hover:text-[var(--text)] hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 ${
-              activePanel === 'chats' ? 'text-[var(--text)] underline' : ''
+              workspaceView === 'campaigns' ? 'text-[var(--text)] underline' : ''
             }`}
           >
-            Chats
+            Campaigns{packages.length > 0 ? ` (${packages.length})` : ''}
+          </button>
+          <button
+            type="button"
+            onClick={() => setWorkspaceView('modules')}
+            className={`hover:text-[var(--text)] hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 ${
+              workspaceView === 'modules' ? 'text-[var(--text)] underline' : ''
+            }`}
+          >
+            Modules
           </button>
           <button
             type="button"
@@ -875,15 +971,6 @@ export default function App() {
             }`}
           >
             Brand DNA
-          </button>
-          <button
-            type="button"
-            onClick={() => setActivePanel((p) => (p === 'experts' ? null : 'experts'))}
-            className={`hover:text-[var(--text)] hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 ${
-              activePanel === 'experts' ? 'text-[var(--text)] underline' : ''
-            }`}
-          >
-            Experts
           </button>
           <button
             type="button"
@@ -937,53 +1024,148 @@ export default function App() {
       {/* Main Workspace: Chat column + Collapsible / Pinnable Right Rail */}
       <div className="flex-1 min-h-0 flex relative">
         <main className="flex-1 min-w-0 flex flex-col">
-          <ChatList
-            messages={messages}
-            loading={loadingChat}
-            isConfigured={isConfigured}
-            streamingState={streamingState}
-            altModelId={altModelId}
-            onSelectSuggestion={(text) => {
-              setDraft(text);
-              composerInputRef.current?.focus();
-            }}
-            onOpenSettings={() => setActivePanel('settings')}
-            onEnableDemoMode={handleEnableDemoMode}
-            onSaveToLibrary={handleSaveToLibrary}
-            onErrorAction={handleErrorAction}
-            onContinue={handleContinueMessage}
-            onCopy={handleCopyText}
-          />
+          {workspaceView === 'chat' && (
+            <>
+              <div className="px-4 sm:px-6 py-2 border-b border-[var(--border)] flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleNewChat}
+                    className="font-medium hover:text-[var(--text)] transition-colors"
+                  >
+                    + New chat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActivePanel((p) => (p === 'chats' ? null : 'chats'))}
+                    className="font-medium hover:text-[var(--text)] transition-colors"
+                  >
+                    Chats ({chats.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActivePanel((p) => (p === 'experts' ? null : 'experts'))}
+                    className="hidden sm:inline font-medium hover:text-[var(--text)] transition-colors"
+                  >
+                    Experts
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActivePanel((p) => (p === 'profile' ? null : 'profile'))}
+                    className="hidden sm:inline font-medium hover:text-[var(--text)] transition-colors"
+                  >
+                    Business Profile
+                  </button>
+                </div>
 
-          {wizardOpen ? (
-            <Wizard
-              guardrails={guardrails}
-              defaultLanguage={settings.language}
-              onCancel={() => setWizardOpen(false)}
-              onGenerate={(prompt) => {
-                setWizardOpen(false);
-                if (!isConfigured) {
-                  setDraft(prompt);
-                  pushToast('Add an API key or enable Demo Mode to send this brief.', 'info');
-                  return;
-                }
-                executeTurn(prompt);
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWizardDraft(null);
+                    setWizardOpen(true);
+                  }}
+                  className="font-semibold text-[var(--text)] hover:text-[var(--tangerine)] transition-colors"
+                >
+                  Build Campaign Package →
+                </button>
+              </div>
+
+              <ChatList
+                messages={messages}
+                loading={loadingChat}
+                isConfigured={isConfigured}
+                streamingState={streamingState}
+                altModelId={altModelId}
+                businessProfile={businessProfile}
+                onSelectSuggestion={(text) => {
+                  setDraft(text);
+                  composerInputRef.current?.focus();
+                }}
+                onOpenSettings={() => setActivePanel('settings')}
+                onEnableDemoMode={handleEnableDemoMode}
+                onOpenCampaignBuilder={(prefill) => {
+                  setWizardDraft(prefill);
+                  setWizardOpen(true);
+                }}
+                onSaveToLibrary={handleSaveToLibrary}
+                onErrorAction={handleErrorAction}
+                onContinue={handleContinueMessage}
+                onCopy={handleCopyText}
+              />
+
+              <Composer
+                draft={draft}
+                onDraftChange={setDraft}
+                referencePhoto={referencePhoto}
+                onReferencePhotoChange={setReferencePhoto}
+                onSend={handleSend}
+                onStop={handleStop}
+                onOpenWizard={() => {
+                  setWizardDraft(null);
+                  setWizardOpen(true);
+                }}
+                onOpenSettings={() => setActivePanel('settings')}
+                onEnableDemoMode={handleEnableDemoMode}
+                isStreaming={streamingState.active}
+                isConfigured={isConfigured}
+                inputRef={composerInputRef}
+              />
+            </>
+          )}
+
+          {workspaceView === 'campaigns' && (
+            <PackageView
+              packages={packages}
+              activePackageId={activePackageId}
+              businessProfile={businessProfile}
+              onSelectPackage={setActivePackageId}
+              onNewPackage={() => {
+                setWizardDraft(null);
+                setWizardOpen(true);
               }}
+              onToggleChecklistTask={handleToggleChecklistTask}
+              onToggleDeliverableApprove={handleToggleDeliverableApprove}
+              onSaveDeliverableToLibrary={(pkg, d, type) =>
+                handleSaveDeliverableToLibrary(pkg.name, d, type)
+              }
+              onAskJenniferRevise={(pkg) => {
+                setActivePackageId(pkg.id);
+                setWorkspaceView('chat');
+                setDraft(
+                  `For our active campaign "${pkg.name}", please help revise: `
+                );
+                window.setTimeout(() => composerInputRef.current?.focus(), 50);
+              }}
+              onDeletePackage={async (id) => {
+                await deletePackage(id);
+                setPackages((prev) => {
+                  const next = prev.filter((p) => p.id !== id);
+                  if (activePackageId === id) {
+                    setActivePackageId(next[0]?.id ?? null);
+                  }
+                  return next;
+                });
+                pushToast('Campaign package deleted.', 'info');
+              }}
+              onCopy={handleCopyText}
+              onNotify={pushToast}
             />
-          ) : (
-            <Composer
-              draft={draft}
-              onDraftChange={setDraft}
-              referencePhoto={referencePhoto}
-              onReferencePhotoChange={setReferencePhoto}
-              onSend={handleSend}
-              onStop={handleStop}
-              onOpenWizard={() => setWizardOpen(true)}
+          )}
+
+          {workspaceView === 'modules' && (
+            <ModulesView
+              settings={settings}
+              guardrails={guardrails}
+              businessProfile={businessProfile}
+              packages={packages}
+              isConfigured={isConfigured}
               onOpenSettings={() => setActivePanel('settings')}
               onEnableDemoMode={handleEnableDemoMode}
-              isStreaming={streamingState.active}
-              isConfigured={isConfigured}
-              inputRef={composerInputRef}
+              onSaveToLibrary={(deliverable, type) =>
+                handleSaveDeliverableToLibrary(null, deliverable, type)
+              }
+              onCopy={handleCopyText}
+              onNotify={pushToast}
             />
           )}
         </main>
@@ -1004,7 +1186,7 @@ export default function App() {
                   onClick={() => {
                     const next = !railPinned;
                     setRailPinned(next);
-                    safeSetItem(LS_KEYS.RAIL_PINNED, String(next));
+                    localStorage.setItem(LS_KEYS.RAIL_PINNED, String(next));
                   }}
                   title={railPinned ? 'Unpin panel' : 'Pin panel on desktop'}
                   aria-label={railPinned ? 'Unpin panel' : 'Pin panel'}
@@ -1049,9 +1231,11 @@ export default function App() {
                   onRefreshModels={handleRefreshModels}
                   onOpenExperts={() => setActivePanel('experts')}
                   onOpenGuardrails={() => setActivePanel('guardrails')}
+                  onOpenProfile={() => setActivePanel('profile')}
                   onOpenImportExport={() => setImportExportOpen(true)}
                   onClearAllData={async () => {
                     await clearAllStudioData();
+                    await saveApiKey('groq', '', false);
                     setActivePanel(null);
                     await bootstrapStudio();
                     pushToast('All studio data cleared.', 'info');
@@ -1117,6 +1301,21 @@ export default function App() {
                   onNotify={pushToast}
                 />
               )}
+
+              {activePanel === 'profile' && (
+                <BusinessProfileEditor
+                  profile={businessProfile}
+                  onSaveProfile={async (next) => {
+                    const saved = await saveBusinessProfile(next);
+                    setBusinessProfile(saved);
+                  }}
+                  onResetProfile={async () => {
+                    const restored = await resetBusinessProfile();
+                    setBusinessProfile(restored);
+                  }}
+                  onNotify={pushToast}
+                />
+              )}
             </div>
           </aside>
         )}
@@ -1151,6 +1350,37 @@ export default function App() {
               type="button"
               onClick={() => {
                 setMobileMenuOpen(false);
+                setWorkspaceView('chat');
+              }}
+              className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
+            >
+              Chat
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setWorkspaceView('campaigns');
+              }}
+              className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
+            >
+              Campaign Packages ({packages.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setWorkspaceView('modules');
+              }}
+              className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
+            >
+              Studio Modules
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setWorkspaceView('chat');
                 handleNewChat();
               }}
               className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
@@ -1166,6 +1396,16 @@ export default function App() {
               className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
             >
               Chats ({chats.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setActivePanel('profile');
+              }}
+              className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
+            >
+              Business Profile
             </button>
             <button
               type="button"
@@ -1209,6 +1449,25 @@ export default function App() {
             </button>
           </div>
         </div>
+      )}
+
+      {wizardOpen && (
+        <Wizard
+          guardrails={guardrails}
+          businessProfile={businessProfile}
+          defaultLanguage={settings.language}
+          initialDraft={wizardDraft}
+          isGenerating={pkgGenerating}
+          progressLabel={pkgProgressLabel}
+          onCancel={() => {
+            if (!pkgGenerating) {
+              setWizardOpen(false);
+              setWizardDraft(null);
+            }
+          }}
+          onStop={() => pkgAbortRef.current?.abort()}
+          onGeneratePackage={handleGeneratePackage}
+        />
       )}
 
       <ImportExportModal

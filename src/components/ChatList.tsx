@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bookmark, Check, Copy } from 'lucide-react';
+import { Bookmark, Check, Copy, Layers } from 'lucide-react';
 import { CHAT_DISPLAY_CAP } from '../constants';
+import { detectCampaignIntent } from '../orchestration/router';
 import { humanizeAIError, AIError } from '../providers/errors';
-import type { ChatMessage, LibraryItemType } from '../types';
+import type {
+  BusinessProfile,
+  CampaignIntake,
+  ChatMessage,
+  LibraryItemType,
+} from '../types';
 import { formatTime } from '../utils/dates';
 import { SafeMarkdown } from '../utils/markdown';
 import { EyeEmblem } from './EyeEmblem';
@@ -25,9 +31,11 @@ interface ChatListProps {
     buffer: string;
   };
   altModelId?: string;
+  businessProfile?: BusinessProfile;
   onSelectSuggestion: (text: string) => void;
   onOpenSettings: () => void;
   onEnableDemoMode: () => void;
+  onOpenCampaignBuilder?: (prefill: Partial<CampaignIntake>) => void;
   onSaveToLibrary: (
     msg: ChatMessage,
     payload: { title: string; type: LibraryItemType; tags: string[] }
@@ -47,9 +55,11 @@ export function ChatList({
   isConfigured,
   streamingState,
   altModelId,
+  businessProfile,
   onSelectSuggestion,
   onOpenSettings,
   onEnableDemoMode,
+  onOpenCampaignBuilder,
   onSaveToLibrary,
   onErrorAction,
   onContinue,
@@ -194,7 +204,7 @@ export function ChatList({
           </div>
         )}
 
-        {visibleMessages.map((msg) => {
+        {visibleMessages.map((msg, msgIdx) => {
           if (msg.role === 'user') {
             return (
               <div key={msg.id} className="flex flex-col items-end gap-1">
@@ -318,6 +328,27 @@ export function ChatList({
                       Continue
                     </button>
                   )}
+
+                  {(() => {
+                    if (!onOpenCampaignBuilder || msg.status === 'stopped') return null;
+                    const precedingUser = [...visibleMessages.slice(0, msgIdx)]
+                      .reverse()
+                      .find((m) => m.role === 'user');
+                    const routeSuggestion = precedingUser
+                      ? detectCampaignIntent(precedingUser.content, businessProfile)
+                      : null;
+                    if (!routeSuggestion) return null;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => onOpenCampaignBuilder(routeSuggestion.prefill)}
+                        className="min-h-[36px] inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] transition-colors"
+                      >
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>{routeSuggestion.label}</span>
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
 

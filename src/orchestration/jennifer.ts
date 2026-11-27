@@ -8,12 +8,15 @@ import { createProvider } from '../providers';
 import { AIError } from '../providers/errors';
 import type {
   AppSettings,
+  BusinessProfile,
+  CampaignPackage,
   ChatCompletionMessage,
   ChatMessage,
   Expert,
   Guardrails,
   SessionFacts,
 } from '../types';
+import defaultBusinessJson from '../data/business.json';
 import {
   detectMessageLanguage,
   extractDeterministicFacts,
@@ -72,7 +75,8 @@ function buildFallbackDirectives(
   userMessage: string,
   facts: SessionFacts,
   experts: Expert[],
-  detectedLanguage: 'sv' | 'en' | 'unknown'
+  detectedLanguage: 'sv' | 'en' | 'unknown',
+  businessProfile: BusinessProfile
 ): { response: string; delegates: DelegationDirective[] } {
   const lower = userMessage.toLowerCase();
   const pick = (name: string) => Boolean(resolveExpert(name, experts));
@@ -91,12 +95,21 @@ function buildFallbackDirectives(
     lower
   );
 
+  const audienceNote = facts.audience?.join('; ') || 'existing guest & inquiry list';
+  const pressNote =
+    facts.awards?.join('; ') || businessProfile.verifiedPress.join('; ') || 'verified press in business profile';
+  const capacityNote = facts.constraints?.join('; ') || 'lean small-team capacity';
+  const baselineRateNote =
+    businessProfile.defaultRatePerPersonNightSek > 0
+      ? `Baseline rate ${businessProfile.defaultRatePerPersonNightSek} SEK/person/night; unit capacity ${businessProfile.unitCapacityGuests} guests.`
+      : `Unit capacity ${businessProfile.unitCapacityGuests} guests.`;
+
   if (hasEmail) {
     if (pick('Copywriter')) {
       delegates.push({
         expert: 'Copywriter',
-        task: `Draft a ready-to-send email for Hedetangen's past-guest and inquiry list based on: ${userMessage}`,
-        context: `Use pinned session facts (${facts.audience?.join(', ') || '200 previous guests + inquiries'}; ${facts.awards?.join('; ') || 'Visit Sweden hidden island escapes'}). Do not mention personal family or health details.`,
+        task: `Draft a ready-to-send email for ${businessProfile.businessName}'s audience based on: ${userMessage}`,
+        context: `Use session facts (${audienceNote}; ${pressNote}). Do not use personal circumstances as marketing copy.`,
         constraints: 'Ready to paste into an email tool, one clear CTA, aurora/weather strictly conditional.',
       });
     }
@@ -104,7 +117,7 @@ function buildFallbackDirectives(
     if (pick('Copywriter')) {
       delegates.push({
         expert: 'Copywriter',
-        task: `Revise and shorten all prior Instagram caption variants per user feedback: ${userMessage}`,
+        task: `Revise and shorten all prior caption variants per user feedback: ${userMessage}`,
         context: 'See recent messages in conversation history and preserve verified proof points and conditional weather language.',
         constraints: 'Bilingual SV: and EN: pairs, noticeably shorter and less poetic, one CTA each, atmosphere-only visual directions.',
       });
@@ -113,24 +126,24 @@ function buildFallbackDirectives(
     if (pick('Marketing Strategist')) {
       delegates.push({
         expert: 'Marketing Strategist',
-        task: `Update the winter campaign plan using the budget and constraints: ${userMessage}`,
-        context: `Respect team capacity (${facts.constraints?.join('; ') || '1.5 FTE'}) and prioritize owned email list before paid ads.`,
-        constraints: 'Ranked channels (email first), realistic 2-week timeline.',
+        task: `Update the campaign plan using the stated budget and constraints: ${userMessage}`,
+        context: `Respect team capacity (${capacityNote}) and prioritize owned channels before paid ads.`,
+        constraints: 'Ranked channels (owned list first), realistic timeline scaled to owner hours.',
       });
     }
     if (pick('Business & Pricing Analyst')) {
       delegates.push({
         expert: 'Business & Pricing Analyst',
         task: `Calculate break-even booking math and a concrete spend more / stop threshold: ${userMessage}`,
-        context: `Budget: ${facts.budget ?? 'stated in user message'}. Capacity 2 guests/hut; summer anchor 1750 SEK/person/night.`,
+        context: `Budget: ${facts.budget ?? 'stated in user message'}. ${baselineRateNote}`,
         constraints: 'State all assumptions explicitly, show step-by-step arithmetic, give one concrete stop/spend threshold.',
       });
     }
     if (hasAwardsOrSample && pick('Copywriter')) {
       delegates.push({
         expert: 'Copywriter',
-        task: `Draft 3 bilingual SV/EN Instagram ad variants using verified trust proof: ${userMessage}`,
-        context: `Awards/press: ${facts.awards?.join('; ') || 'Visit Sweden hidden island escapes'}. Never invent fake awards; use [INSERT AWARD NAME] only if unnamed.`,
+        task: `Draft 3 bilingual SV/EN ad variants using verified trust proof: ${userMessage}`,
+        context: `Verified press/awards: ${pressNote}. Never invent fake awards; use [INSERT AWARD NAME] only if unnamed.`,
         constraints: 'Bilingual SV: and EN: pairs, one CTA each, atmosphere-only visuals, conditional aurora/weather.',
       });
     }
@@ -138,8 +151,8 @@ function buildFallbackDirectives(
     if (pick('Copywriter')) {
       delegates.push({
         expert: 'Copywriter',
-        task: `Draft 3 bilingual SV/EN Instagram variants using verified proof and placeholder if awards are unnamed: ${userMessage}`,
-        context: `Use verified Visit Sweden mention and clearly bracket [INSERT AWARD NAME] if user asked for sample award names — never invent real award names.`,
+        task: `Draft 3 bilingual SV/EN variants using verified proof and placeholder if awards are unnamed: ${userMessage}`,
+        context: `Use verified press (${pressNote}) and bracket [INSERT AWARD NAME] if awards are unnamed — never invent award names.`,
         constraints: 'Bilingual SV: and EN: pairs, atmosphere-only visual direction, one CTA per variant.',
       });
     }
@@ -147,40 +160,40 @@ function buildFallbackDirectives(
     if (pick('Marketing Strategist')) {
       delegates.push({
         expert: 'Marketing Strategist',
-        task: `Create a prioritized action plan for this week within the owner's operational constraints: ${userMessage}`,
-        context: `Team constraints: ${facts.constraints?.join('; ') || '1.5 FTE'}. Audience: ${facts.audience?.join('; ') || 'existing email list'}. Never use personal/health details as copy.`,
+        task: `Create a prioritized action plan for this week within operational constraints: ${userMessage}`,
+        context: `Team constraints: ${capacityNote}. Audience: ${audienceNote}. Never use personal circumstances as copy.`,
         constraints: 'Prioritize owned email list #1, organic iPhone social #2, paid ads only after budget clarity.',
       });
     }
     if (pick('Social Media Strategist')) {
       delegates.push({
         expert: 'Social Media Strategist',
-        task: 'Create a minimal 2-week iPhone-shootable content calendar matching ~1.5 FTE capacity.',
-        context: '1–2 posts/week maximum; winter sauna and ice bath focus; pure atmosphere unless reference photo supplied.',
-        constraints: 'Realistic 1.5 FTE cadence, atmosphere-only shoot notes, max 8 hashtags.',
+        task: 'Create a minimal iPhone-shootable content cadence matching stated owner capacity.',
+        context: '1–2 posts/week maximum when capacity is limited; pure atmosphere unless reference photo supplied.',
+        constraints: 'Realistic lean cadence, atmosphere-only shoot notes, max 8 hashtags.',
       });
     }
   } else if (hasCampaign) {
     if (pick('Marketing Strategist')) {
       delegates.push({
         expert: 'Marketing Strategist',
-        task: `Build a focused winter campaign plan respecting tight budget and capacity: ${userMessage}`,
-        context: `Constraints: ${facts.constraints?.join('; ') || 'reduced capacity'}. Audience: ${facts.audience?.join('; ') || 'email list + Instagram'}.`,
-        constraints: 'Zero-budget-first owned channels ranked #1, practical 2-week scope.',
+        task: `Build a focused campaign plan respecting stated budget and capacity: ${userMessage}`,
+        context: `Constraints: ${capacityNote}. Audience: ${audienceNote}.`,
+        constraints: 'Zero-budget-first owned channels ranked #1, practical timeline.',
       });
     }
     if (pick('Copywriter')) {
       delegates.push({
         expert: 'Copywriter',
-        task: `Draft 3 bilingual SV/EN Instagram campaign variants: ${userMessage}`,
-        context: `Focus: ${facts.focus ?? 'winter sauna and ice bath'}. Conditional aurora/weather language only.`,
+        task: `Draft 3 bilingual SV/EN campaign variants: ${userMessage}`,
+        context: `Focus: ${facts.focus ?? businessProfile.offerings.slice(0, 3).join(', ')}. Conditional aurora/weather language only.`,
         constraints: 'Native SV: and EN: pairs, one CTA each, atmosphere-only visual direction.',
       });
     }
     if (pick('Visual Director')) {
       delegates.push({
         expert: 'Visual Director',
-        task: 'Create 4 iPhone-shootable atmospheric visual briefs for winter sauna and ice bath.',
+        task: 'Create 4 iPhone-shootable atmospheric visual briefs aligned with Brand DNA.',
         context: facts.referencePhoto ? `Confirmed reference: ${facts.referencePhoto}` : 'No reference photo supplied — atmosphere only (no invented structures).',
         constraints: 'Single slow camera move or static frame, one sensory feeling per shot.',
       });
@@ -193,7 +206,7 @@ function buildFallbackDirectives(
       delegates.push({
         expert: fallbackExpert.name,
         task: userMessage,
-        context: 'Use pinned session facts and Brand DNA guardrails; state assumptions for any missing details.',
+        context: 'Use pinned session facts, business profile, and Brand DNA guardrails; state assumptions for any missing details.',
         constraints: 'Actionable, ready-to-use output honoring Honesty Rule.',
       });
     }
@@ -223,6 +236,8 @@ export async function runJenniferTurn(params: {
   settings: AppSettings;
   guardrails: Guardrails;
   experts: Expert[];
+  businessProfile?: BusinessProfile;
+  activePackage?: CampaignPackage | null;
   signal: AbortSignal;
   callbacks: TurnCallbacks;
 }): Promise<TurnResult> {
@@ -235,9 +250,12 @@ export async function runJenniferTurn(params: {
     settings,
     guardrails,
     experts,
+    businessProfile,
+    activePackage,
     signal,
     callbacks,
   } = params;
+  const resolvedProfile = businessProfile ?? (defaultBusinessJson as BusinessProfile);
   const provider = await createProvider(settings.provider);
   const modelId = settings.provider === 'mock' ? 'hedetangen-demo-v1' : settings.model;
 
@@ -258,7 +276,7 @@ export async function runJenniferTurn(params: {
   const detectedLanguage = detectMessageLanguage(userMessage);
   const allowClarifying = !hasPriorJennifer;
 
-  const runDirectStreaming = async (facts: SessionFacts = prePlanFacts): Promise<TurnResult> => {
+  const runDirectStreaming = async (): Promise<TurnResult> => {
     callbacks.onStatus('Jennifer is writing…');
     const directMessages: ChatCompletionMessage[] = [
       {
@@ -267,7 +285,9 @@ export async function runJenniferTurn(params: {
           guardrails,
           experts,
           settings,
-          sessionFacts: facts,
+          businessProfile: resolvedProfile,
+          activePackage,
+          sessionFacts: prePlanFacts,
           referencePhoto,
           allowClarifying,
           detectedLanguage,
@@ -283,7 +303,6 @@ export async function runJenniferTurn(params: {
       messages: directMessages,
       temperature: settings.temperature,
       maxTokens: DIRECT_CHAT_MAX_TOKENS,
-      stage: 'direct',
       signal,
       onToken: callbacks.onToken,
       onRetryWait: (waitMs) =>
@@ -303,7 +322,7 @@ export async function runJenniferTurn(params: {
     return {
       content,
       delegatedExperts: [],
-      updatedFacts: facts,
+      updatedFacts: prePlanFacts,
       callCount,
       durationMs: Math.round(performance.now() - startTime),
     };
@@ -324,6 +343,8 @@ export async function runJenniferTurn(params: {
         guardrails,
         experts,
         settings,
+        businessProfile: resolvedProfile,
+        activePackage,
         sessionFacts: prePlanFacts,
         referencePhoto,
         allowClarifying,
@@ -342,7 +363,6 @@ export async function runJenniferTurn(params: {
       messages: planMessages,
       temperature: 0.4,
       maxTokens: PLANNER_MAX_TOKENS,
-      stage: 'planner',
       streamInternal: settings.provider !== 'mock',
       signal,
       onRetryWait: (waitMs) =>
@@ -373,7 +393,13 @@ export async function runJenniferTurn(params: {
   // Anti-loop safeguard: if Jennifer already replied earlier and the user asked an actionable question/task,
   // never let the model stall in a repeated clarifying-question loop.
   if (plan.delegates.length === 0 && hasPriorJennifer && isActionableMarketingRequest(userMessage)) {
-    const fallback = buildFallbackDirectives(userMessage, updatedFacts, experts, detectedLanguage);
+    const fallback = buildFallbackDirectives(
+      userMessage,
+      updatedFacts,
+      experts,
+      detectedLanguage,
+      resolvedProfile
+    );
     if (fallback.delegates.length > 0) {
       plan.response = fallback.response;
       plan.delegates = fallback.delegates;
@@ -447,6 +473,7 @@ export async function runJenniferTurn(params: {
           expert,
           guardrails,
           settings,
+          businessProfile: resolvedProfile,
           sessionFacts: updatedFacts,
           referencePhoto,
         }),
@@ -465,7 +492,6 @@ export async function runJenniferTurn(params: {
         messages: expertMessages,
         temperature: expert.temperature ?? settings.temperature,
         maxTokens: EXPERT_MAX_TOKENS,
-        stage: 'expert',
         streamInternal: settings.provider !== 'mock',
         signal,
         onRetryWait: (waitMs) =>
@@ -503,7 +529,7 @@ export async function runJenniferTurn(params: {
   if (succeededExperts.length === 0) {
     if (settings.provider !== 'mock') {
       callbacks.onStatus('Switching to direct response…');
-      return runDirectStreaming(updatedFacts);
+      return runDirectStreaming();
     }
     throw new AIError({
       code: 'PROVIDER_ERROR',
@@ -534,6 +560,8 @@ export async function runJenniferTurn(params: {
       content: buildSynthesisPrompt({
         guardrails,
         settings,
+        businessProfile: resolvedProfile,
+        activePackage,
         sessionFacts: updatedFacts,
         referencePhoto,
         detectedLanguage,
@@ -556,7 +584,6 @@ export async function runJenniferTurn(params: {
       messages: synthesisMessages,
       temperature: settings.temperature,
       maxTokens: SYNTHESIS_MAX_TOKENS,
-      stage: 'synthesis',
       signal,
       onToken: callbacks.onToken,
       onRetryWait: (waitMs) =>
@@ -585,7 +612,7 @@ export async function runJenniferTurn(params: {
     return {
       content: finalContent,
       handoffText,
-      delegatedExperts: succeededExperts.map((e) => e.expert),
+      delegatedExperts: plannedNames,
       updatedFacts,
       truncatedDelegates: plan.truncatedCount || undefined,
       callCount,

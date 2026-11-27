@@ -1,0 +1,31 @@
+{
+  "businessName": "Hedetangen",
+  "owners": ["Joacim", "Madeleine"],
+  "location": "Värmland, Sweden",
+  "tagline": "Unlock Your Senses",
+  "website": "https://hedetangen.com",
+  "accommodation": "Floating AuroraHut on a private island",
+  "unitCapacityGuests": 2,
+  "defaultRatePerPersonNightSek": 1750,
+  "offerings": [
+    "Floating AuroraHut with 360° panoramic windows",
+    "Wood-fired sauna by the lake",
+    "Winter ice bath",
+    "Private island lake and forest access",
+    "Local food on the grill"
+  ],
+  "extras": [
+    "Fishing permits",
+    "Sauna sessions",
+    "Mountain bikes",
+    "Telescope",
+    "Mini projector",
+    "SJÖ&HAV outdoor care products"
+  ],
+  "verifiedPress": [
+    "Featured by Visit Sweden as one of Sweden's nine \"hidden island escapes\""
+  ],
+  "voice": "Genuine, understated luxury in raw Swedish nature. Warm, quiet, confident, sensory. Short sentences and specific details over adjectives.",
+  "defaultChannels": ["Email", "Instagram", "Facebook", "Website"],
+  "updatedAt": "2026-01-15T10:00:00.000Z"
+}

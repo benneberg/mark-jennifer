@@ -6,6 +6,7 @@ export type StoreName =
   | 'chats'
   | 'messages'
   | 'library'
+  | 'packages'
   | 'settings'
   | 'keys'
   | 'crypto'
@@ -50,6 +51,12 @@ function runMigrations(db: IDBDatabase, oldVersion: number): void {
     }
     if (!db.objectStoreNames.contains('meta')) {
       db.createObjectStore('meta', { keyPath: 'key' });
+    }
+  }
+  if (oldVersion < 2) {
+    if (!db.objectStoreNames.contains('packages')) {
+      const packages = db.createObjectStore('packages', { keyPath: 'id' });
+      packages.createIndex('updatedAt', 'updatedAt', { unique: false });
     }
   }
 }
@@ -180,6 +187,7 @@ export async function idbClearAllStores(): Promise<void> {
     'chats',
     'messages',
     'library',
+    'packages',
     'settings',
     'keys',
     'crypto',

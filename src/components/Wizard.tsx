@@ -1,81 +1,183 @@
-import { useState } from 'react';
-import { Lock, X } from 'lucide-react';
-import type { Guardrails, LanguagePref } from '../types';
+import { useEffect, useState } from 'react';
+import { Loader2, Lock, Square, X } from 'lucide-react';
+import { DELIVERABLE_TITLES } from '../campaign/engine';
+import type {
+  BusinessProfile,
+  CampaignDeliverableKind,
+  CampaignIntake,
+  Guardrails,
+  LanguagePref,
+} from '../types';
 
 interface WizardProps {
   guardrails: Guardrails;
+  businessProfile: BusinessProfile;
   defaultLanguage: LanguagePref;
+  initialDraft?: Partial<CampaignIntake> | null;
+  isGenerating?: boolean;
+  progressLabel?: string | null;
   onCancel: () => void;
-  onGenerate: (prompt: string) => void;
+  onStop?: () => void;
+  onGeneratePackage: (intake: CampaignIntake) => void;
 }
 
-const GOALS = ['Awareness', 'Bookings', 'Off-season', 'Partnerships'] as const;
+const GOALS = ['Bookings', 'Off-season', 'Awareness', 'Partnerships'] as const;
+
 const AUDIENCES = [
   "Couples' reset",
-  'Milestone celebration',
-  'Winter aurora & sauna',
-  'International road-trippers',
-  'Locals gifting',
+  'Past guests & warm inquiries',
+  'Winter sauna & ice bath',
+  'Slow-travel road-trippers',
+  'Gift & milestone stays',
 ] as const;
+
 const LANGUAGES: Array<{ id: LanguagePref; label: string }> = [
   { id: 'auto', label: 'Auto' },
   { id: 'sv', label: 'Svenska' },
   { id: 'en', label: 'English' },
   { id: 'bilingual', label: 'Bilingual' },
 ];
-const CHANNELS = ['Instagram', 'Facebook', 'Email', 'Website', 'Google Ads'] as const;
-const OUTPUTS = [
-  'Captions',
-  'Ad variants',
-  'Email sequence',
-  'Landing page sections',
-  'Visual brief',
-  'Content calendar',
-] as const;
 
-export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: WizardProps) {
+const CHANNELS = ['Email', 'Instagram', 'Website', 'Facebook', 'Google Ads'] as const;
+
+const DELIVERABLES: CampaignDeliverableKind[] = [
+  'social',
+  'email',
+  'ad',
+  'calendar',
+  'video',
+  'landing',
+];
+
+const BUDGET_PRESETS = [
+  '0 SEK (owned channels only)',
+  '1500 SEK max ad spend',
+  '3000 SEK max ad spend',
+];
+
+const HOURS_PRESETS = ['2–4 hrs/week', '4–6 hrs/week', '6–10 hrs/week'];
+
+export function Wizard({
+  guardrails,
+  businessProfile,
+  defaultLanguage,
+  initialDraft,
+  isGenerating = false,
+  progressLabel = null,
+  onCancel,
+  onStop,
+  onGeneratePackage,
+}: WizardProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [goal, setGoal] = useState<string>('Bookings');
-  const [audiences, setAudiences] = useState<string[]>(["Couples' reset"]);
-  const [language, setLanguage] = useState<LanguagePref>(defaultLanguage);
-  const [channels, setChannels] = useState<string[]>(['Instagram']);
-  const [outputs, setOutputs] = useState<string[]>(['Captions']);
-  const [notes, setNotes] = useState('');
+  const [goal, setGoal] = useState<string>(initialDraft?.goal ?? 'Bookings');
+  const [dateWindow, setDateWindow] = useState<string>(
+    initialDraft?.dateWindow ?? 'Next 4–6 weeks'
+  );
+  const [openNightsOrCapacity, setOpenNightsOrCapacity] = useState<string>(
+    initialDraft?.openNightsOrCapacity ??
+      `Private ${businessProfile.unitCapacityGuests}-guest stay · open weekends & weekdays`
+  );
+  const [coreOffer, setCoreOffer] = useState<string>(
+    initialDraft?.coreOffer ??
+      (businessProfile.offerings.slice(0, 2).join(' + ') || 'Private island overnight stay')
+  );
+  const [priceAnchor, setPriceAnchor] = useState<string>(
+    initialDraft?.priceAnchor ??
+      (businessProfile.defaultRatePerPersonNightSek > 0
+        ? `${businessProfile.defaultRatePerPersonNightSek} SEK per person / night`
+        : '')
+  );
+  const [referencePhoto, setReferencePhoto] = useState<string>(
+    initialDraft?.referencePhoto ?? ''
+  );
 
-  const toggleItem = (list: string[], setList: (v: string[]) => void, item: string) => {
+  const [audiences, setAudiences] = useState<string[]>(
+    initialDraft?.audiences?.length ? initialDraft.audiences : ["Couples' reset"]
+  );
+  const [language, setLanguage] = useState<LanguagePref>(
+    initialDraft?.language ?? defaultLanguage
+  );
+  const [channels, setChannels] = useState<string[]>(
+    initialDraft?.channels?.length
+      ? initialDraft.channels
+      : businessProfile.defaultChannels.slice(0, 3)
+  );
+  const [deliverables, setDeliverables] = useState<CampaignDeliverableKind[]>(
+    initialDraft?.deliverables?.length
+      ? initialDraft.deliverables
+      : ['social', 'email', 'calendar']
+  );
+  const [budgetCeiling, setBudgetCeiling] = useState<string>(
+    initialDraft?.budgetCeiling ?? '0 SEK (owned channels only)'
+  );
+  const [hoursPerWeek, setHoursPerWeek] = useState<string>(
+    initialDraft?.hoursPerWeek ?? '3–5 hrs/week'
+  );
+  const [notes, setNotes] = useState<string>(initialDraft?.notes ?? '');
+
+  useEffect(() => {
+    if (!initialDraft) return;
+    if (initialDraft.goal) setGoal(initialDraft.goal);
+    if (initialDraft.dateWindow) setDateWindow(initialDraft.dateWindow);
+    if (initialDraft.coreOffer) setCoreOffer(initialDraft.coreOffer);
+    if (initialDraft.channels?.length) setChannels(initialDraft.channels);
+    if (initialDraft.deliverables?.length) setDeliverables(initialDraft.deliverables);
+    if (initialDraft.budgetCeiling) setBudgetCeiling(initialDraft.budgetCeiling);
+    if (initialDraft.hoursPerWeek) setHoursPerWeek(initialDraft.hoursPerWeek);
+  }, [initialDraft]);
+
+  const toggleStr = (list: string[], setList: (v: string[]) => void, item: string) => {
     setList(list.includes(item) ? list.filter((i) => i !== item) : [...list, item]);
   };
 
-  const canNextStep1 = Boolean(goal) && audiences.length > 0;
-  const canNextStep2 = channels.length > 0 && outputs.length > 0;
-
-  const handleSubmit = () => {
-    const langLabel = LANGUAGES.find((l) => l.id === language)?.label ?? language;
-    const prompt = [
-      `Campaign Builder Brief:`,
-      `- Objective: ${goal}`,
-      `- Audience occasion(s): ${audiences.join(', ')}`,
-      `- Language: ${langLabel}`,
-      `- Channel(s): ${channels.join(', ')}`,
-      `- Deliverables requested: ${outputs.join(', ')}`,
-      notes.trim() ? `- Additional context: ${notes.trim()}` : '',
-      ``,
-      `Please create a cohesive campaign plan and ready-to-use deliverables following Hedetangen's Brand DNA and honesty rule.`,
-    ]
-      .filter(Boolean)
-      .join('\n');
-    onGenerate(prompt);
+  const toggleDeliverable = (kind: CampaignDeliverableKind) => {
+    setDeliverables((prev) =>
+      prev.includes(kind) ? prev.filter((k) => k !== kind) : [...prev, kind]
+    );
   };
 
+  const canNextStep1 =
+    Boolean(goal) && Boolean(dateWindow.trim()) && Boolean(coreOffer.trim());
+  const canNextStep2 =
+    audiences.length > 0 && channels.length > 0 && deliverables.length > 0;
+
+  const buildIntake = (): CampaignIntake => ({
+    goal,
+    audiences,
+    language,
+    channels,
+    deliverables,
+    dateWindow: dateWindow.trim(),
+    openNightsOrCapacity: openNightsOrCapacity.trim() || 'Standard unit availability',
+    coreOffer: coreOffer.trim(),
+    priceAnchor: priceAnchor.trim() || undefined,
+    budgetCeiling: budgetCeiling.trim() || '0 SEK (owned channels only)',
+    hoursPerWeek: hoursPerWeek.trim() || '3–5 hrs/week',
+    referencePhoto: referencePhoto.trim() || undefined,
+    notes: notes.trim() || undefined,
+  });
+
+  const fieldCls =
+    'w-full min-h-[42px] px-3.5 py-2 text-sm rounded-[14px] bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none';
+
   return (
-    <div className="sticky bottom-0 z-20 px-3 sm:px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">
-      <div className="max-w-[780px] mx-auto rounded-[28px] glass-surface border border-[var(--border)] shadow-[var(--shadow-md)] p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
+    <div
+      className="fixed inset-0 z-40 bg-[rgba(24,24,23,0.45)] backdrop-blur-[4px] flex items-end sm:items-center justify-center p-0 sm:p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isGenerating) onCancel();
+      }}
+    >
+      <div className="w-full max-w-[780px] max-h-[92dvh] flex flex-col rounded-t-[28px] sm:rounded-[28px] bg-[var(--bg)] border border-[var(--border)] shadow-[var(--shadow-md)] overflow-hidden">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between gap-3 shrink-0">
           <div>
             <h2 className="text-base font-semibold tracking-tight text-[var(--text)]">
-              Campaign Builder
+              Campaign Package Builder
             </h2>
-            <p className="text-xs text-[var(--text-muted)]">Step {step} of 3</p>
+            <p className="text-xs text-[var(--text-muted)]">
+              Step <span className="font-mono-tabular">{step}</span> of 3 · Deterministic JSON +
+              Honesty Lint
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5" aria-hidden="true">
@@ -90,184 +192,348 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
             </div>
             <button
               type="button"
+              disabled={isGenerating}
               onClick={onCancel}
               aria-label="Close Campaign Builder"
-              className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)]"
+              className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {step === 1 && (
-          <div className="mt-4 space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
-                Primary goal
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 rounded-full bg-[var(--surface-muted)] border border-[var(--border)]">
-                {GOALS.map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => setGoal(g)}
-                    className={`min-h-[38px] px-3 py-1 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
-                      goal === g
-                        ? 'bg-[var(--lime)] text-[#181817] shadow-sm'
-                        : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                    }`}
-                  >
-                    {g}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
-                Audience occasion
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {AUDIENCES.map((a) => {
-                  const active = audiences.includes(a);
-                  return (
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {step === 1 && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
+                  Primary Goal
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 rounded-full bg-[var(--surface-muted)] border border-[var(--border)]">
+                  {GOALS.map((g) => (
                     <button
-                      key={a}
+                      key={g}
                       type="button"
-                      onClick={() => toggleItem(audiences, setAudiences, a)}
-                      className={`min-h-[38px] px-3.5 py-1.5 text-xs font-semibold rounded-full border transition-all ${
-                        active
-                          ? 'bg-[var(--lime)] border-transparent text-[#181817]'
-                          : 'bg-[var(--surface-muted)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                      onClick={() => setGoal(g)}
+                      className={`min-h-[38px] px-3 py-1 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
+                        goal === g
+                          ? 'bg-[var(--lime)] text-[#181817] shadow-sm'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                       }`}
                     >
-                      {a}
+                      {g}
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
+                    Campaign Dates / Window
+                  </label>
+                  <input
+                    type="text"
+                    value={dateWindow}
+                    onChange={(e) => setDateWindow(e.target.value)}
+                    placeholder="e.g. Jan–Feb 2027 (next 6 weeks)"
+                    className={fieldCls}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
+                    Open Nights / Capacity
+                  </label>
+                  <input
+                    type="text"
+                    value={openNightsOrCapacity}
+                    onChange={(e) => setOpenNightsOrCapacity(e.target.value)}
+                    placeholder="e.g. 12 open weekend nights"
+                    className={fieldCls}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
+                  Core Offer
+                </label>
+                <input
+                  type="text"
+                  value={coreOffer}
+                  onChange={(e) => setCoreOffer(e.target.value)}
+                  placeholder="e.g. Wood-fired sauna, cold lake plunge & private overnight stay"
+                  className={fieldCls}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
+                    Price / Anchor (optional — blank omits prices)
+                  </label>
+                  <input
+                    type="text"
+                    value={priceAnchor}
+                    onChange={(e) => setPriceAnchor(e.target.value)}
+                    placeholder="e.g. 1750 SEK per person / night"
+                    className={fieldCls}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
+                    Confirmed Reference Photo (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={referencePhoto}
+                    onChange={(e) => setReferencePhoto(e.target.value)}
+                    placeholder="Blank = atmosphere-only shots (no invented cabins)"
+                    className={fieldCls}
+                  />
+                </div>
               </div>
             </div>
+          )}
 
-            <div>
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
-                Language
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 rounded-full bg-[var(--surface-muted)] border border-[var(--border)]">
-                {LANGUAGES.map((l) => (
-                  <button
-                    key={l.id}
-                    type="button"
-                    onClick={() => setLanguage(l.id)}
-                    className={`min-h-[38px] px-3 py-1 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
-                      language === l.id
-                        ? 'bg-[var(--lime)] text-[#181817] shadow-sm'
-                        : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                    }`}
-                  >
-                    {l.label}
-                  </button>
-                ))}
+          {step === 2 && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
+                    Budget Ceiling
+                  </label>
+                  <input
+                    type="text"
+                    value={budgetCeiling}
+                    onChange={(e) => setBudgetCeiling(e.target.value)}
+                    className={fieldCls}
+                  />
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {BUDGET_PRESETS.map((b) => (
+                      <button
+                        key={b}
+                        type="button"
+                        onClick={() => setBudgetCeiling(b)}
+                        className="text-[11px] px-2.5 py-1 rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
+                      >
+                        {b}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
+                    Owner Capacity (hours/week)
+                  </label>
+                  <input
+                    type="text"
+                    value={hoursPerWeek}
+                    onChange={(e) => setHoursPerWeek(e.target.value)}
+                    className={fieldCls}
+                  />
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {HOURS_PRESETS.map((h) => (
+                      <button
+                        key={h}
+                        type="button"
+                        onClick={() => setHoursPerWeek(h)}
+                        className="text-[11px] px-2.5 py-1 rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
+                      >
+                        {h}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
 
-        {step === 2 && (
-          <div className="mt-4 space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
-                Channels
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {CHANNELS.map((ch) => {
-                  const active = channels.includes(ch);
-                  return (
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
+                  Language
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 rounded-full bg-[var(--surface-muted)] border border-[var(--border)]">
+                  {LANGUAGES.map((l) => (
                     <button
-                      key={ch}
+                      key={l.id}
                       type="button"
-                      onClick={() => toggleItem(channels, setChannels, ch)}
-                      className={`min-h-[38px] px-3.5 py-1.5 text-xs font-semibold rounded-full border transition-all ${
-                        active
-                          ? 'bg-[var(--lime)] border-transparent text-[#181817]'
-                          : 'bg-[var(--surface-muted)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                      onClick={() => setLanguage(l.id)}
+                      className={`min-h-[38px] px-3 py-1 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
+                        language === l.id
+                          ? 'bg-[var(--lime)] text-[#181817] shadow-sm'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                       }`}
                     >
-                      {ch}
+                      {l.label}
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
+                  Channels
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {CHANNELS.map((ch) => {
+                    const active = channels.includes(ch);
+                    return (
+                      <button
+                        key={ch}
+                        type="button"
+                        onClick={() => toggleStr(channels, setChannels, ch)}
+                        className={`min-h-[38px] px-3.5 py-1.5 text-xs font-semibold rounded-full border transition-all ${
+                          active
+                            ? 'bg-[var(--lime)] border-transparent text-[#181817]'
+                            : 'bg-[var(--surface-muted)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                        }`}
+                      >
+                        {ch}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
+                  Package Deliverables (1 structured JSON call each)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {DELIVERABLES.map((kind) => {
+                    const active = deliverables.includes(kind);
+                    return (
+                      <button
+                        key={kind}
+                        type="button"
+                        onClick={() => toggleDeliverable(kind)}
+                        className={`min-h-[38px] px-3.5 py-1.5 text-xs font-semibold rounded-full border transition-all ${
+                          active
+                            ? 'bg-[var(--lime)] border-transparent text-[#181817]'
+                            : 'bg-[var(--surface-muted)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                        }`}
+                      >
+                        {DELIVERABLE_TITLES[kind]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
+                  Audience Occasions
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {AUDIENCES.map((a) => {
+                    const active = audiences.includes(a);
+                    return (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() => toggleStr(audiences, setAudiences, a)}
+                        className={`min-h-[38px] px-3.5 py-1.5 text-xs font-semibold rounded-full border transition-all ${
+                          active
+                            ? 'bg-[var(--lime)] border-transparent text-[#181817]'
+                            : 'bg-[var(--surface-muted)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                        }`}
+                      >
+                        {a}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
+                  Extra Operational Notes (optional)
+                </label>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="e.g. Mention 200 past guests and 100 warm email inquiries"
+                  className={fieldCls}
+                />
               </div>
             </div>
+          )}
 
-            <div>
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
-                Deliverables
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {OUTPUTS.map((out) => {
-                  const active = outputs.includes(out);
-                  return (
+          {step === 3 && (
+            <div className="space-y-3">
+              <div className="p-4 rounded-[18px] bg-[var(--surface-muted)] border border-[var(--border)] text-xs space-y-1.5">
+                <div className="font-semibold text-[var(--text)] text-sm">
+                  {goal} · {dateWindow}
+                </div>
+                <p className="text-[var(--text-muted)]">
+                  <strong>Offer:</strong> {coreOffer}
+                </p>
+                <p className="text-[var(--text-muted)]">
+                  <strong>Capacity &amp; Anchor:</strong> {openNightsOrCapacity}
+                  {priceAnchor.trim() ? ` · ${priceAnchor.trim()}` : ' · No promotional pricing'}
+                </p>
+                <p className="text-[var(--text-muted)]">
+                  <strong>Budget &amp; Time:</strong> {budgetCeiling} · {hoursPerWeek}
+                </p>
+                <p className="text-[var(--text-muted)]">
+                  <strong>Channels:</strong> {channels.join(', ')}
+                </p>
+                <p className="text-[var(--text-muted)]">
+                  <strong>Deliverables:</strong>{' '}
+                  {deliverables.map((d) => DELIVERABLE_TITLES[d]).join(', ')}
+                </p>
+                <p className="text-[var(--text-muted)]">
+                  <strong>Visual mode:</strong>{' '}
+                  {referencePhoto.trim()
+                    ? `Confirmed reference: ${referencePhoto.trim()}`
+                    : 'Atmosphere-only (no cabins/structures allowed)'}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-[18px] bg-[var(--sand)] dark:bg-[#1C1C1A] border border-[var(--border)] text-xs space-y-1.5 text-[#181817] dark:text-[#F4EFE4]">
+                <div className="flex items-center gap-1.5 font-semibold">
+                  <Lock className="w-3.5 h-3.5 text-[var(--tangerine)]" />
+                  <span>Deterministic Honesty Lint (Enforced on Every Output)</span>
+                </div>
+                <p className="leading-relaxed opacity-85">{guardrails.honestyRule}</p>
+                <p className="opacity-70">
+                  Every deliverable is validated against strict JSON schemas and checked for
+                  invented structures, weather guarantees, or unapproved prices/discounts before
+                  appearing in your Campaign Package.
+                </p>
+              </div>
+
+              {isGenerating && progressLabel && (
+                <div className="flex items-center justify-between gap-3 p-3.5 rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)]">
+                  <div className="flex items-center gap-2.5 text-xs font-medium text-[var(--text)]">
+                    <Loader2 className="w-4 h-4 animate-spin text-[var(--tangerine)] shrink-0" />
+                    <span>{progressLabel}</span>
+                  </div>
+                  {onStop && (
                     <button
-                      key={out}
                       type="button"
-                      onClick={() => toggleItem(outputs, setOutputs, out)}
-                      className={`min-h-[38px] px-3.5 py-1.5 text-xs font-semibold rounded-full border transition-all ${
-                        active
-                          ? 'bg-[var(--lime)] border-transparent text-[#181817]'
-                          : 'bg-[var(--surface-muted)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
-                      }`}
+                      onClick={onStop}
+                      className="min-h-[34px] inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-[var(--tangerine)] text-[#181817]"
                     >
-                      {out}
+                      <Square className="w-3 h-3 fill-current" />
+                      <span>Stop</span>
                     </button>
-                  );
-                })}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
+          )}
+        </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
-                Seasonal focus or dates (optional)
-              </label>
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g. Late August weekends, 1750 SEK/person"
-                className="w-full px-3.5 py-2.5 text-sm rounded-[16px] bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--text)] focus:outline-none"
-              />
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="mt-4 space-y-3">
-            <div className="p-3.5 rounded-[18px] bg-[var(--surface-muted)] border border-[var(--border)] text-xs space-y-1.5">
-              <div className="font-semibold text-[var(--text)]">Campaign Summary</div>
-              <p className="text-[var(--text-muted)]">
-                {goal} · {audiences.join(', ')} · {channels.join(', ')}
-              </p>
-              <p className="text-[var(--text-muted)]">Deliverables: {outputs.join(', ')}</p>
-              {notes.trim() && <p className="text-[var(--text-muted)]">Notes: {notes.trim()}</p>}
-            </div>
-
-            <div className="p-3.5 rounded-[18px] bg-[var(--sand)] dark:bg-[#1C1C1A] border border-[var(--border)] text-xs space-y-1.5 text-[#181817] dark:text-[#F4EFE4]">
-              <div className="flex items-center gap-1.5 font-semibold">
-                <Lock className="w-3.5 h-3.5 text-[var(--tangerine)]" />
-                <span>Brand Guardrails (always applied)</span>
-              </div>
-              <p className="leading-relaxed opacity-85">{guardrails.honestyRule}</p>
-              <p className="opacity-65">
-                Avoid: {guardrails.editable.avoid.slice(0, 4).join(' · ')}
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-5 flex items-center justify-between gap-2 pt-3 border-t border-[var(--border)]">
+        {/* Footer */}
+        <div className="px-5 py-3.5 border-t border-[var(--border)] flex items-center justify-between gap-2 shrink-0">
           <button
             type="button"
+            disabled={isGenerating}
             onClick={step === 1 ? onCancel : () => setStep((s) => (s === 3 ? 2 : 1))}
-            className="min-h-[42px] px-4 py-2 text-sm font-medium rounded-full border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-muted)] transition-colors"
+            className="min-h-[42px] px-4 py-2 text-sm font-medium rounded-full border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-muted)] disabled:opacity-40"
           >
             {step === 1 ? 'Cancel' : 'Back'}
           </button>
@@ -277,17 +543,18 @@ export function Wizard({ guardrails, defaultLanguage, onCancel, onGenerate }: Wi
               type="button"
               disabled={(step === 1 && !canNextStep1) || (step === 2 && !canNextStep2)}
               onClick={() => setStep((s) => (s === 1 ? 2 : 3))}
-              className="min-h-[42px] px-5 py-2 text-sm font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] disabled:opacity-40 transition-colors"
+              className="min-h-[42px] px-5 py-2 text-sm font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] disabled:opacity-40"
             >
               Next
             </button>
           ) : (
             <button
               type="button"
-              onClick={handleSubmit}
-              className="min-h-[42px] px-5 py-2 text-sm font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] transition-colors"
+              disabled={isGenerating}
+              onClick={() => onGeneratePackage(buildIntake())}
+              className="min-h-[42px] px-5 py-2 text-sm font-semibold rounded-full bg-[var(--lime)] hover:bg-[var(--lime-hover)] text-[#181817] disabled:opacity-50"
             >
-              Generate
+              {isGenerating ? 'Building Package…' : 'Build Campaign Package'}
             </button>
           )}
         </div>

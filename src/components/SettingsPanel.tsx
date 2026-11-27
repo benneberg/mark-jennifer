@@ -35,6 +35,7 @@ interface SettingsPanelProps {
   onRefreshModels: () => Promise<void>;
   onOpenExperts: () => void;
   onOpenGuardrails: () => void;
+  onOpenProfile: () => void;
   onOpenImportExport: () => void;
   onClearAllData: () => Promise<void>;
   onUnlockDebug: () => void;
@@ -63,6 +64,7 @@ export function SettingsPanel({
   onRefreshModels,
   onOpenExperts,
   onOpenGuardrails,
+  onOpenProfile,
   onOpenImportExport,
   onClearAllData,
   onUnlockDebug,
@@ -536,6 +538,13 @@ export function SettingsPanel({
       <section className="p-4 rounded-[22px] glass-surface border border-[var(--border)] shadow-[var(--shadow)] space-y-2.5">
         <h3 className="text-xs font-semibold text-[var(--text-muted)]">Studio Configuration</h3>
         <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onOpenProfile}
+            className="col-span-2 min-h-[42px] px-3 py-2 text-xs font-semibold rounded-full border border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text)] hover:border-[var(--border-strong)]"
+          >
+            Business Profile
+          </button>
           <button
             type="button"
             onClick={onOpenGuardrails}

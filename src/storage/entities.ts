@@ -1,8 +1,11 @@
 import { APP_NAME, APP_VERSION, LS_KEYS, SCHEMA_VERSION } from '../constants';
+import defaultBusinessJson from '../data/business.json';
 import { createSeedExperts } from '../data/seed-experts';
 import { createSeedGuardrails, IMMUTABLE_HONESTY_RULE } from '../data/seed-guardrails';
 import type {
   AppSettings,
+  BusinessProfile,
+  CampaignPackage,
   Chat,
   ChatMessage,
   Expert,
@@ -14,26 +17,25 @@ import type {
 } from '../types';
 import { nowIso } from '../utils/dates';
 import { generateId } from '../utils/id';
-import { safeGetItem, safeRemoveItem, safeSetItem } from '../utils/safe-storage';
 import {
+  BUSINESS_PROFILE_SCHEMA,
+  CAMPAIGN_PACKAGE_SCHEMA,
   CHAT_SCHEMA,
   EXPERT_SCHEMA,
-  type JsonSchemaNode,
   GUARDRAILS_SCHEMA,
   LIBRARY_ITEM_SCHEMA,
   MESSAGE_SCHEMA,
   SETTINGS_SCHEMA,
   validateSchema,
 } from '../utils/validate';
-import { clearAllApiKeyMaterial } from './crypto';
 import {
   idbClearAllStores,
+  idbClearStore,
   idbDelete,
   idbGet,
   idbGetAll,
   idbGetAllByIndex,
   idbPut,
-  idbTransaction,
 } from './db';
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -79,8 +81,8 @@ export async function ensureSeedData(): Promise<{ skippedCount: number }> {
     }
     await idbPut('meta', { key: 'seeded', value: true });
     await idbPut('meta', { key: 'schemaVersion', value: SCHEMA_VERSION });
-    await idbPut('meta', { key: 'seedPromptsVersion', value: 2 });
-  } else if ((seedPromptVersion?.value ?? 1) < 2) {
+    await idbPut('meta', { key: 'seedPromptsVersion', value: 3 });
+  } else if ((seedPromptVersion?.value ?? 1) < 3) {
     const freshSeeds = createSeedExperts(nowIso());
     const freshById = new Map(freshSeeds.map((s) => [s.id, s]));
     for (const exp of existingExperts) {
@@ -92,7 +94,7 @@ export async function ensureSeedData(): Promise<{ skippedCount: number }> {
         });
       }
     }
-    await idbPut('meta', { key: 'seedPromptsVersion', value: 2 });
+    await idbPut('meta', { key: 'seedPromptsVersion', value: 3 });
   }
 
   // Seed guardrails if missing
@@ -105,7 +107,7 @@ export async function ensureSeedData(): Promise<{ skippedCount: number }> {
   // Seed settings if missing
   const existingSettings = await idbGetAll<SettingEntry>('settings');
   if (existingSettings.length === 0) {
-    const themeFromLs = safeGetItem(LS_KEYS.THEME);
+    const themeFromLs = localStorage.getItem(LS_KEYS.THEME);
     const initial: AppSettings = {
       ...DEFAULT_SETTINGS,
       theme: themeFromLs === 'dark' ? 'dark' : 'light',
@@ -113,9 +115,13 @@ export async function ensureSeedData(): Promise<{ skippedCount: number }> {
     await saveSettings(initial);
   }
 
-  // Crash recovery: an in-flight turn leaves a marker behind, so we only touch
-  // the single message that was streaming instead of scanning the whole store.
-  await recoverInterruptedTurn();
+  // Crash recovery: rewrite any stuck streaming messages to stopped
+  const allMessages = await idbGetAll<ChatMessage>('messages');
+  for (const msg of allMessages) {
+    if (msg.status === 'streaming') {
+      await idbPut('messages', { ...msg, status: 'stopped' });
+    }
+  }
 
   return { skippedCount };
 }
@@ -201,7 +207,7 @@ export async function loadSettings(): Promise<AppSettings> {
 export function getLastModelForProvider(provider: ProviderId): string {
   if (provider === 'mock') return 'hedetangen-demo-v1';
   try {
-    const raw = safeGetItem(LS_KEYS.LAST_MODEL_BY_PROVIDER);
+    const raw = localStorage.getItem(LS_KEYS.LAST_MODEL_BY_PROVIDER);
     if (!raw) return '';
     const parsed = JSON.parse(raw) as Record<string, string>;
     return typeof parsed[provider] === 'string' ? parsed[provider] : '';
@@ -213,10 +219,10 @@ export function getLastModelForProvider(provider: ProviderId): string {
 function saveLastModelForProvider(provider: ProviderId, model: string): void {
   if (!model.trim() || provider === 'mock') return;
   try {
-    const raw = safeGetItem(LS_KEYS.LAST_MODEL_BY_PROVIDER);
+    const raw = localStorage.getItem(LS_KEYS.LAST_MODEL_BY_PROVIDER);
     const parsed = raw ? (JSON.parse(raw) as Record<string, string>) : {};
     parsed[provider] = model.trim();
-    safeSetItem(LS_KEYS.LAST_MODEL_BY_PROVIDER, JSON.stringify(parsed));
+    localStorage.setItem(LS_KEYS.LAST_MODEL_BY_PROVIDER, JSON.stringify(parsed));
   } catch {
     // Non-fatal
   }
@@ -236,9 +242,9 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
   for (const [key, value] of entries) {
     await idbPut<SettingEntry>('settings', { key, value });
   }
-  safeSetItem(LS_KEYS.THEME, normalized.theme);
-  safeSetItem(LS_KEYS.LAST_PROVIDER, normalized.provider);
-  safeSetItem(LS_KEYS.LAST_MODEL, normalized.model);
+  localStorage.setItem(LS_KEYS.THEME, normalized.theme);
+  localStorage.setItem(LS_KEYS.LAST_PROVIDER, normalized.provider);
+  localStorage.setItem(LS_KEYS.LAST_MODEL, normalized.model);
   saveLastModelForProvider(normalized.provider, normalized.model);
 }
 
@@ -309,11 +315,7 @@ function sanitizeChatForStorage(chat: Chat): Chat {
 export async function updateChat(chat: Chat): Promise<void> {
   const sanitized = sanitizeChatForStorage(chat);
   const check = validateSchema(sanitized, CHAT_SCHEMA);
-  if (!check.valid) {
-    // Never fail silently: callers show a toast so session facts are not lost
-    // without the owner noticing.
-    throw new Error(check.errors.map((e) => `${e.path}: ${e.message}`).join('; '));
-  }
+  if (!check.valid) return;
   await idbPut('chats', sanitized);
 }
 
@@ -385,6 +387,70 @@ export async function deleteLibraryItem(id: string): Promise<void> {
   await idbDelete('library', id);
 }
 
+export function getDefaultBusinessProfile(): BusinessProfile {
+  return structuredClone(defaultBusinessJson) as BusinessProfile;
+}
+
+export async function loadBusinessProfile(): Promise<BusinessProfile> {
+  const entry = await idbGet<MetaEntry<BusinessProfile>>('meta', 'businessProfile');
+  if (entry?.value && validateSchema(entry.value, BUSINESS_PROFILE_SCHEMA).valid) {
+    return entry.value;
+  }
+  const fallback = getDefaultBusinessProfile();
+  await idbPut<MetaEntry<BusinessProfile>>('meta', {
+    key: 'businessProfile',
+    value: fallback,
+  });
+  return fallback;
+}
+
+export async function saveBusinessProfile(profile: BusinessProfile): Promise<BusinessProfile> {
+  const next: BusinessProfile = {
+    ...profile,
+    updatedAt: nowIso(),
+  };
+  const check = validateSchema(next, BUSINESS_PROFILE_SCHEMA);
+  if (!check.valid) {
+    throw new Error(check.errors.map((e) => `${e.path}: ${e.message}`).join('; '));
+  }
+  await idbPut<MetaEntry<BusinessProfile>>('meta', {
+    key: 'businessProfile',
+    value: next,
+  });
+  return next;
+}
+
+export async function resetBusinessProfile(): Promise<BusinessProfile> {
+  const fresh: BusinessProfile = {
+    ...getDefaultBusinessProfile(),
+    updatedAt: nowIso(),
+  };
+  await idbPut<MetaEntry<BusinessProfile>>('meta', {
+    key: 'businessProfile',
+    value: fresh,
+  });
+  return fresh;
+}
+
+export async function loadPackages(): Promise<CampaignPackage[]> {
+  const raw = await idbGetAll<CampaignPackage>('packages');
+  const valid = raw.filter((p) => validateSchema(p, CAMPAIGN_PACKAGE_SCHEMA).valid);
+  valid.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return valid;
+}
+
+export async function savePackage(pkg: CampaignPackage): Promise<void> {
+  const check = validateSchema(pkg, CAMPAIGN_PACKAGE_SCHEMA);
+  if (!check.valid) {
+    throw new Error(check.errors.map((e) => `${e.path}: ${e.message}`).join('; '));
+  }
+  await idbPut('packages', pkg);
+}
+
+export async function deletePackage(id: string): Promise<void> {
+  await idbDelete('packages', id);
+}
+
 export interface CachedModelsRecord {
   models: ModelInfo[];
   fetchedAt: string;
@@ -405,12 +471,15 @@ export async function saveCachedModels(provider: ProviderId, models: ModelInfo[]
 }
 
 export async function buildExportPackage(includeChats: boolean): Promise<ExportPackage> {
-  const [{ experts }, guardrails, { items: library }, settings] = await Promise.all([
-    loadExperts(),
-    loadGuardrails(),
-    loadLibrary(),
-    loadSettings(),
-  ]);
+  const [{ experts }, guardrails, { items: library }, settings, businessProfile, packages] =
+    await Promise.all([
+      loadExperts(),
+      loadGuardrails(),
+      loadLibrary(),
+      loadSettings(),
+      loadBusinessProfile(),
+      loadPackages(),
+    ]);
 
   const { rememberKey: _omit, ...exportableSettings } = settings;
   void _omit;
@@ -426,6 +495,8 @@ export async function buildExportPackage(includeChats: boolean): Promise<ExportP
     guardrails,
     library,
     settings: exportableSettings,
+    businessProfile,
+    packages,
   };
 
   if (includeChats) {
@@ -594,167 +665,99 @@ export async function validateImportPackage(rawText: string): Promise<ImportVali
   };
 }
 
-function assertValid(value: unknown, schema: JsonSchemaNode, label: string): void {
-  const check = validateSchema(value, schema);
-  if (!check.valid) {
-    throw new Error(
-      `${label}: ${check.errors.map((e) => `${e.path} ${e.message}`).join('; ')}`
-    );
-  }
-}
-
-/**
- * Applies a validated export package atomically: every record is checked first,
- * then all stores are written inside one IndexedDB transaction. A failure can no
- * longer leave the workspace half-replaced.
- *
- * `pkg.chats` is treated as authoritative only when it actually contains chats:
- * an empty array (typical for a fresh install exported with "include chats")
- * must never wipe the local conversations that are not in the file.
- */
 export async function applyImportPackage(
   pkg: ExportPackage,
   mode: 'merge' | 'replace'
 ): Promise<void> {
-  const { experts: existingExperts } = await loadExperts();
-  const { items: existingLibrary } = await loadLibrary();
-  const existingExpertsById = new Map(existingExperts.map((e) => [e.id, e]));
-  const existingLibraryById = new Map(existingLibrary.map((i) => [i.id, i]));
-
-  const expertsToWrite = pkg.experts.filter((incoming) => {
-    if (mode === 'replace') return true;
-    const prev = existingExpertsById.get(incoming.id);
-    return !prev || incoming.updatedAt > prev.updatedAt;
-  });
-  for (const expert of expertsToWrite) {
-    assertValid(expert, EXPERT_SCHEMA, `Expert "${expert.name}"`);
+  if (mode === 'replace') {
+    await idbClearStore('experts');
+    await idbClearStore('library');
+    if (pkg.chats) {
+      await idbClearStore('chats');
+      await idbClearStore('messages');
+    }
   }
 
-  const libraryToWrite = pkg.library.filter((incoming) => {
-    if (mode === 'replace') return true;
-    const prev = existingLibraryById.get(incoming.id);
-    if (!prev) return true;
-    const incDate = incoming.updatedAt ?? incoming.createdAt;
-    const prevDate = prev.updatedAt ?? prev.createdAt;
-    return incDate > prevDate;
-  });
-  for (const item of libraryToWrite) {
-    assertValid(item, LIBRARY_ITEM_SCHEMA, `Library item "${item.title}"`);
+  // Experts
+  if (mode === 'merge') {
+    const { experts: existing } = await loadExperts();
+    const byId = new Map(existing.map((e) => [e.id, e]));
+    for (const incoming of pkg.experts) {
+      const prev = byId.get(incoming.id);
+      if (!prev || incoming.updatedAt > prev.updatedAt) {
+        await saveExpert(incoming);
+      }
+    }
+  } else {
+    for (const incoming of pkg.experts) {
+      await saveExpert(incoming);
+    }
   }
 
-  const guardrails: Guardrails = {
+  // Guardrails (always preserve canonical honestyRule)
+  await saveGuardrails({
     ...pkg.guardrails,
-    id: 'default',
     honestyRule: IMMUTABLE_HONESTY_RULE,
-    updatedAt: nowIso(),
-  };
-  assertValid(guardrails, GUARDRAILS_SCHEMA, 'Brand DNA');
+  });
 
+  // Library
+  if (mode === 'merge') {
+    const { items: existing } = await loadLibrary();
+    const byId = new Map(existing.map((i) => [i.id, i]));
+    for (const incoming of pkg.library) {
+      const prev = byId.get(incoming.id);
+      const incDate = incoming.updatedAt ?? incoming.createdAt;
+      const prevDate = prev ? prev.updatedAt ?? prev.createdAt : '';
+      if (!prev || incDate > prevDate) {
+        await saveLibraryItem(incoming);
+      }
+    }
+  } else {
+    for (const incoming of pkg.library) {
+      await saveLibraryItem(incoming);
+    }
+  }
+
+  // Settings (preserve local rememberKey)
   const currentSettings = await loadSettings();
-  const settings: AppSettings = {
+  await saveSettings({
     ...pkg.settings,
     rememberKey: currentSettings.rememberKey,
     strictMode: true,
-  };
-  assertValid(settings, SETTINGS_SCHEMA, 'Settings');
+  });
 
-  const incomingChats = pkg.chats && pkg.chats.length > 0 ? pkg.chats : [];
-  for (const entry of incomingChats) {
-    assertValid(entry.chat, CHAT_SCHEMA, 'Chat');
-    for (const message of entry.messages) {
-      assertValid(message, MESSAGE_SCHEMA, 'Chat message');
-    }
+  if (pkg.businessProfile && validateSchema(pkg.businessProfile, BUSINESS_PROFILE_SCHEMA).valid) {
+    await saveBusinessProfile(pkg.businessProfile);
   }
 
-  const stores: Parameters<typeof idbTransaction>[0] = [
-    'experts',
-    'guardrails',
-    'library',
-    'settings',
-  ];
-  if (incomingChats.length > 0) {
-    stores.push('chats', 'messages');
-  }
-
-  await idbTransaction(stores, 'readwrite', (tx) => {
+  if (Array.isArray(pkg.packages)) {
     if (mode === 'replace') {
-      tx.objectStore('experts').clear();
-      tx.objectStore('library').clear();
+      await idbClearStore('packages');
     }
-
-    for (const expert of expertsToWrite) {
-      tx.objectStore('experts').put(expert);
-    }
-    for (const item of libraryToWrite) {
-      tx.objectStore('library').put(item);
-    }
-    tx.objectStore('guardrails').put(guardrails);
-    for (const [key, value] of Object.entries(settings)) {
-      tx.objectStore('settings').put({ key, value });
-    }
-    if (incomingChats.length > 0) {
-      if (mode === 'replace') {
-        tx.objectStore('chats').clear();
-        tx.objectStore('messages').clear();
-      }
-      for (const entry of incomingChats) {
-        tx.objectStore('chats').put(entry.chat);
-        for (const message of entry.messages) {
-          tx.objectStore('messages').put(message);
-        }
+    for (const incomingPkg of pkg.packages) {
+      if (validateSchema(incomingPkg, CAMPAIGN_PACKAGE_SCHEMA).valid) {
+        await idbPut('packages', incomingPkg);
       }
     }
-  });
-
-  safeSetItem(LS_KEYS.THEME, settings.theme);
-  safeSetItem(LS_KEYS.LAST_PROVIDER, settings.provider);
-  safeSetItem(LS_KEYS.LAST_MODEL, settings.model);
-  saveLastModelForProvider(settings.provider, settings.model);
-}
-
-const IN_FLIGHT_TURN_META_KEY = 'inFlightTurn';
-
-export interface InFlightTurnMarker {
-  messageId: string;
-  chatId: string;
-  startedAt: string;
-}
-
-/**
- * Records the single message that is currently streaming so a crash or a closed
- * tab can be recovered on the next boot without scanning every stored message.
- */
-export async function markTurnInFlight(marker: InFlightTurnMarker): Promise<void> {
-  await idbPut<MetaEntry<InFlightTurnMarker>>('meta', {
-    key: IN_FLIGHT_TURN_META_KEY,
-    value: marker,
-  });
-}
-
-export async function clearTurnInFlight(): Promise<void> {
-  await idbDelete('meta', IN_FLIGHT_TURN_META_KEY);
-}
-
-async function recoverInterruptedTurn(): Promise<void> {
-  const marker = await idbGet<MetaEntry<InFlightTurnMarker>>('meta', IN_FLIGHT_TURN_META_KEY);
-  if (!marker?.value) return;
-
-  const message = await idbGet<ChatMessage>('messages', marker.value.messageId);
-  if (message && message.status === 'streaming') {
-    await idbPut('messages', { ...message, status: 'stopped' });
   }
-  await idbDelete('meta', IN_FLIGHT_TURN_META_KEY);
+
+  // Optional chats
+  if (pkg.chats && pkg.chats.length > 0) {
+    for (const entry of pkg.chats) {
+      await idbPut('chats', entry.chat);
+      for (const m of entry.messages) {
+        await idbPut('messages', m);
+      }
+    }
+  }
 }
 
 export async function clearAllStudioData(): Promise<void> {
   await idbClearAllStores();
-  // In-memory session keys live outside IndexedDB and would otherwise keep
-  // working (and keep `hasApiKey` true) until the next page reload.
-  await clearAllApiKeyMaterial();
-  safeRemoveItem(LS_KEYS.THEME);
-  safeRemoveItem(LS_KEYS.LAST_PROVIDER);
-  safeRemoveItem(LS_KEYS.LAST_MODEL);
-  safeRemoveItem(LS_KEYS.LAST_MODEL_BY_PROVIDER);
-  safeRemoveItem(LS_KEYS.ONBOARDED);
-  safeRemoveItem(LS_KEYS.RAIL_PINNED);
+  localStorage.removeItem(LS_KEYS.THEME);
+  localStorage.removeItem(LS_KEYS.LAST_PROVIDER);
+  localStorage.removeItem(LS_KEYS.LAST_MODEL);
+  localStorage.removeItem(LS_KEYS.LAST_MODEL_BY_PROVIDER);
+  localStorage.removeItem(LS_KEYS.ONBOARDED);
+  localStorage.removeItem(LS_KEYS.RAIL_PINNED);
 }

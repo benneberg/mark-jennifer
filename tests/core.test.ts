@@ -125,23 +125,24 @@ test('parseDelegation caps delegates at MAX_DELEGATES_PER_TURN and extracts <fac
   assert.deepEqual(plan.facts?.awards, ['Visit Sweden hidden island escapes', 'Eco Award']);
 });
 
-test('extractDeterministicFacts and mergeSessionFacts retain sticky business facts and clear referencePhoto when emptied', () => {
+test('extractDeterministicFacts and mergeSessionFacts retain generic business facts without leaking personal health details', () => {
   const turn2Patch = extractDeterministicFacts(
-    "Just us two (1.5 FTE), Joacim working half days recovering from hospital and we have a 5 month old baby. We don't have much money for ads, maybe Instagram + our list of 200 previous guests and 100+ inquiries."
+    "Just us two running this, working half days recovering from hospital and we have a 5 month old baby. We don't have much money for ads, maybe Instagram + our list of 200 previous guests and 100+ inquiries."
   );
   const afterTurn2 = mergeSessionFacts(undefined, turn2Patch);
-  assert.ok(afterTurn2.constraints?.some((c) => c.includes('1.5 FTE')));
-  assert.ok(afterTurn2.constraints?.some((c) => c.includes('half days')));
+  assert.ok(afterTurn2.constraints?.some((c) => /limited owner capacity/i.test(c)));
+  assert.ok(!JSON.stringify(afterTurn2).toLowerCase().includes('hospital'));
+  assert.ok(!JSON.stringify(afterTurn2).toLowerCase().includes('baby'));
   assert.ok(afterTurn2.audience?.some((a) => a.includes('200 previous guests')));
   assert.ok(afterTurn2.audience?.some((a) => a.includes('100+')));
 
   const turn4Patch = extractDeterministicFacts(
-    'Max 3000 kr in ad spend. We were in Visit Sweden and we won Best Micro Stay.',
+    'Max 3000 kr in ad spend. We won Best Micro Stay.',
     'Wide shot of our floating AuroraHut on snow-covered lake at blue hour'
   );
   const afterTurn4 = mergeSessionFacts(afterTurn2, turn4Patch);
   assert.equal(afterTurn4.budget, '3000 SEK max ad spend');
-  assert.ok(afterTurn4.awards?.some((a) => a.includes('Visit Sweden')));
+  assert.ok(afterTurn4.awards?.some((a) => a.includes('Best Micro Stay')));
   assert.ok(afterTurn4.referencePhoto?.includes('AuroraHut'));
 
   const clearedPatch = extractDeterministicFacts('Make captions shorter', '');
@@ -463,6 +464,193 @@ test('buildDirectTeamPrompt includes Brand DNA, active experts, and SV/EN copy p
   assert.ok(prompt.includes('SV:'));
   assert.ok(prompt.includes('CLARIFYING QUESTIONS ARE DISABLED FOR THIS TURN'));
 });
+
+test('BusinessProfile defaults validate against BUSINESS_PROFILE_SCHEMA', async () => {
+  const { getDefaultBusinessProfile } = await import('../src/storage/entities.ts');
+  const { BUSINESS_PROFILE_SCHEMA } = await import('../src/utils/validate.ts');
+  const profile = getDefaultBusinessProfile();
+  const res = validateSchema(profile, BUSINESS_PROFILE_SCHEMA);
+  assert.equal(res.valid, true, JSON.stringify(res.errors));
+  assert.equal(profile.businessName, 'Hedetangen');
+  assert.ok(profile.offerings.length >= 2);
+});
+
+test('lintCampaignOutput flags invented structures, weather guarantees, and unapproved discounts/prices cleanly', async () => {
+  const { lintCampaignOutput } = await import('../src/campaign/honestyLint.ts');
+  const { getDefaultBusinessProfile } = await import('../src/storage/entities.ts');
+  const profile = getDefaultBusinessProfile();
+
+  const baseIntake = {
+    goal: 'Bookings',
+    audiences: ["Couples' reset"],
+    language: 'en' as const,
+    channels: ['Instagram', 'Email'],
+    deliverables: ['video' as const],
+    dateWindow: 'Jan–Feb 2027',
+    openNightsOrCapacity: '12 nights',
+    coreOffer: 'Sauna and overnight stay',
+    budgetCeiling: '0 SEK',
+    hoursPerWeek: '3–5 hrs/week',
+  };
+
+  // 1. Invented structure without reference photo + weather guarantee + invented discount
+  const badIssues = lintCampaignOutput({
+    kind: 'video',
+    markdown:
+      'Wide shot of our floating AuroraHut and dock. Guaranteed northern lights every night! Book now for 20% off or 999 SEK.',
+    intake: baseIntake,
+    businessProfile: profile,
+  });
+  assert.ok(badIssues.some((i) => i.code === 'INVENTED_STRUCTURE'));
+  assert.ok(badIssues.some((i) => i.code === 'WEATHER_GUARANTEE'));
+  assert.ok(badIssues.some((i) => i.code === 'UNSUPPLIED_PRICE_OR_DISCOUNT'));
+
+  // 2. Clean atmosphere-only + supplied 1750 SEK + negated instruction passes cleanly
+  const cleanIssues = lintCampaignOutput({
+    kind: 'video',
+    markdown:
+      'Steam rises across dark winter water (no buildings or huts shown). Standard stay from 1750 SEK per person on clear nights.',
+    intake: { ...baseIntake, priceAnchor: '1750 SEK per person / night' },
+    businessProfile: profile,
+  });
+  assert.equal(cleanIssues.length, 0, JSON.stringify(cleanIssues));
+
+  // 3. Structure words allowed when reference photo explicitly provided
+  const withPhotoIssues = lintCampaignOutput({
+    kind: 'video',
+    markdown: 'Slow zoom into our floating AuroraHut from the confirmed reference photo.',
+    intake: { ...baseIntake, referencePhoto: 'Wide shot of AuroraHut at blue hour' },
+    businessProfile: profile,
+  });
+  assert.equal(
+    withPhotoIssues.some((i) => i.code === 'INVENTED_STRUCTURE'),
+    false
+  );
+});
+
+test('generateCampaignPackage builds valid CampaignPackage, validates schema, and exports .ics + .zip', async () => {
+  const { generateCampaignPackage } = await import('../src/campaign/engine.ts');
+  const { buildCompletePackageZip, calendarToICS, extractCalendarItems } = await import(
+    '../src/campaign/exportPackage.ts'
+  );
+  const { getDefaultBusinessProfile } = await import('../src/storage/entities.ts');
+  const { CAMPAIGN_PACKAGE_SCHEMA } = await import('../src/utils/validate.ts');
+
+  const guardrails = createSeedGuardrails();
+  const profile = getDefaultBusinessProfile();
+  const settings: AppSettings = {
+    provider: 'mock',
+    model: 'hedetangen-demo-v1',
+    temperature: 0.3,
+    language: 'bilingual',
+    machinePrompt: '',
+    theme: 'light',
+    rememberKey: false,
+    strictMode: true,
+    debug: false,
+  };
+
+  const pkg = await generateCampaignPackage({
+    intake: {
+      goal: 'Bookings',
+      audiences: ['Past guests & warm inquiries'],
+      language: 'bilingual',
+      channels: ['Email', 'Instagram'],
+      deliverables: ['social', 'email', 'calendar', 'video'],
+      dateWindow: 'Next 6 weeks',
+      openNightsOrCapacity: '10 weekend nights',
+      coreOffer: 'Wood-fired sauna, cold lake plunge & private overnight stay',
+      priceAnchor: '1750 SEK per person / night',
+      budgetCeiling: '0 SEK (owned channels only)',
+      hoursPerWeek: '3–5 hrs/week',
+    },
+    settings,
+    guardrails,
+    businessProfile: profile,
+    signal: new AbortController().signal,
+  });
+
+  const pkgValidation = validateSchema(pkg, CAMPAIGN_PACKAGE_SCHEMA);
+  assert.equal(pkgValidation.valid, true, JSON.stringify(pkgValidation.errors));
+  assert.equal(pkg.deliverables.length, 4);
+  assert.ok(pkg.checklist.length >= 3);
+  assert.equal(pkg.lintSummary.passed, true, JSON.stringify(pkg.deliverables.map((d) => d.lintIssues)));
+
+  const calItems = extractCalendarItems(pkg.deliverables);
+  assert.ok(calItems.length >= 1);
+  const ics = calendarToICS(calItems, pkg.name);
+  assert.ok(ics.includes('BEGIN:VCALENDAR') && ics.includes('BEGIN:VEVENT'));
+
+  const zip = buildCompletePackageZip(pkg, profile);
+  assert.ok(zip.filename.endsWith('-package.zip'));
+  // PK\x03\x04 local file header magic bytes
+  assert.equal(zip.bytes[0], 0x50);
+  assert.equal(zip.bytes[1], 0x4b);
+  assert.equal(zip.bytes[2], 0x03);
+  assert.equal(zip.bytes[3], 0x04);
+});
+
+test('runOpenAICompatibleChat retries without response_format if provider returns HTTP 400', async () => {
+  const { runOpenAICompatibleChat } = await import('../src/providers/base.ts');
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+
+  try {
+    globalThis.fetch = (async (_url: RequestInfo | URL, init?: RequestInit) => {
+      calls += 1;
+      const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      if (calls === 1) {
+        assert.deepEqual(body.response_format, { type: 'json_object' });
+        return new Response(
+          JSON.stringify({ error: { message: 'response_format json_object is not supported' } }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      assert.equal(body.response_format, undefined);
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: '{"ok":true}' }, finish_reason: 'stop' }],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }) as typeof fetch;
+
+    const res = await runOpenAICompatibleChat(
+      'groq',
+      'https://example.test/v1',
+      { Authorization: 'Bearer test' },
+      {
+        model: 'test-model',
+        messages: [{ role: 'user', content: 'Return JSON' }],
+        responseFormat: 'json_object',
+      }
+    );
+    assert.equal(calls, 2);
+    assert.equal(res.content, '{"ok":true}');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('detectCampaignIntent detects booking requests and pre-fills intake safely', async () => {
+  const { detectCampaignIntent } = await import('../src/orchestration/router.ts');
+  const { getDefaultBusinessProfile } = await import('../src/storage/entities.ts');
+  const profile = getDefaultBusinessProfile();
+
+  const hit = detectCampaignIntent(
+    'We need bookings for winter sauna stays, max 3000 kr budget, Instagram and email list',
+    profile
+  );
+  assert.ok(hit);
+  assert.equal(hit.prefill.goal, 'Bookings');
+  assert.equal(hit.prefill.budgetCeiling, '3000 SEK');
+  assert.ok(hit.prefill.channels?.includes('Email'));
+  assert.ok(hit.prefill.channels?.includes('Instagram'));
+
+  const miss = detectCampaignIntent('Can you rewrite that caption shorter?', profile);
+  assert.equal(miss, null);
+});
+
 
 
 

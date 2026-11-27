@@ -62,7 +62,13 @@ export class MockProvider implements AIProvider {
     const lastUser = [...options.messages].reverse().find((m) => m.role === 'user')?.content ?? '';
     const lowerUser = lastUser.toLowerCase();
 
-    await sleep(280, options.signal);
+    await sleep(options.responseFormat === 'json_object' ? 140 : 280, options.signal);
+
+    // Structured JSON Campaign Engine steps
+    if (options.responseFormat === 'json_object') {
+      const jsonContent = this.structuredJsonResponse(sys, lastUser);
+      return { content: jsonContent, model: options.model || 'hedetangen-demo-v1', finishReason: 'stop' };
+    }
 
     // Prefer the explicit stage from the orchestrator; fall back to sniffing the
     // prompt for older callers/tests.
@@ -93,6 +99,293 @@ export class MockProvider implements AIProvider {
     const synthesized = this.synthesizeResponse(expertOutputsBlock, lowerUser, sys);
     await streamText(synthesized, options.onToken, options.signal);
     return { content: synthesized, model: options.model || 'hedetangen-demo-v1', finishReason: 'stop' };
+  }
+
+  private structuredJsonResponse(sys: string, userPrompt: string): string {
+    const schemaMatch = `${sys}\n${userPrompt}`.match(/"schema_type"\s*:\s*"([a-z]+)"/i);
+    const schemaType = schemaMatch?.[1]?.toLowerCase() ?? 'strategy';
+
+    const offerMatch = userPrompt.match(/coreOffer["']?\s*:\s*"([^"]+)"/i);
+    const windowMatch = userPrompt.match(/dateWindow["']?\s*:\s*"([^"]+)"/i);
+    const budgetMatch = userPrompt.match(/budgetCeiling["']?\s*:\s*"([^"]+)"/i);
+    const hoursMatch = userPrompt.match(/hoursPerWeek["']?\s*:\s*"([^"]+)"/i);
+    const refMatch = userPrompt.match(/referencePhoto["']?\s*:\s*"([^"]*)"/i);
+
+    const coreOffer = offerMatch?.[1] || 'Wood-fired sauna and cold-lake stay';
+    const dateWindow = windowMatch?.[1] || 'Upcoming 4-week window';
+    const budgetCeiling = budgetMatch?.[1] || '0 SEK (owned channels only)';
+    const hoursPerWeek = hoursMatch?.[1] || '4–6 hrs/week';
+    const hasRef = Boolean(refMatch?.[1]?.trim());
+
+    if (schemaType === 'strategy') {
+      return JSON.stringify({
+        headline: `${coreOffer} — Lean Direct-Booking Plan (${dateWindow})`,
+        positioning:
+          'Lead with sensory warmth and unhurried nature rather than luxury clichés. Prioritize owned guest relationships first, then low-effort authentic social.',
+        rankedChannels: [
+          {
+            channel: 'Email',
+            priority: 1,
+            rationale: 'Warmest audience with zero media spend and immediate booking intent.',
+          },
+          {
+            channel: 'Instagram',
+            priority: 2,
+            rationale: 'Atmospheric reels and carousels shot in one afternoon on an iPhone.',
+          },
+          {
+            channel: 'Website',
+            priority: 3,
+            rationale: 'Clear seasonal dates, sauna/ice-bath offer details, and direct booking link.',
+          },
+        ],
+        phases: [
+          {
+            title: 'Phase 1: Owned Outreach & Booking Page Check',
+            timing: 'Days 1–3',
+            tasks: [
+              'Confirm open nights on the booking calendar and verify booking link works on mobile',
+              'Send direct email invite to past guests and prior inquiries',
+              'Capture 4 short atmospheric iPhone clips in one 45-minute session',
+            ],
+          },
+          {
+            title: 'Phase 2: Organic Cadence & Proof',
+            timing: 'Weeks 1–2',
+            tasks: [
+              'Publish Instagram Post 1 (SV/EN) highlighting warmth and lake stillness',
+              'Publish Instagram Post 2 with verified Visit Sweden press line',
+              'Check direct booking inquiries after 7 days before spending any ad budget',
+            ],
+          },
+        ],
+        assumptions: [
+          `Owner workload capped at ${hoursPerWeek}`,
+          `Budget ceiling: ${budgetCeiling}`,
+          'Weather, snow, ice, and northern lights remain conditional and never promised',
+        ],
+        risks: [
+          'Weather variability may affect ice/aurora expectations — keep copy conditional',
+          'Limited capacity requires answering booking inquiries promptly on open days',
+        ],
+        stopSpendThreshold:
+          'Do not activate paid ads unless owned email outreach leaves open target nights; if running paid ads, pause at 50% of budget if cost per qualified inquiry exceeds expectations.',
+      });
+    }
+
+    if (schemaType === 'social') {
+      return JSON.stringify({
+        posts: [
+          {
+            platform: 'Instagram',
+            format: 'Reel',
+            hook: 'Bastu och frostig sjöluft. / Wood-fired warmth against crisp lake air.',
+            bodySv:
+              'Vedeldad bastu vid vattnet, tystnad i skogen och ett lugnt andetag långt bort från vardagen. Klara vinterkvällar visar sig ibland norrskenet ovanför trädtopparna.',
+            bodyEn:
+              'Wood-fired sauna warmth by the lake, quiet forest air, and time to slow down. On clear nights, northern lights sometimes appear above the treeline.',
+            ctaSv: 'Se lediga datum på hedetangen.com',
+            ctaEn: 'View open dates at hedetangen.com',
+            hashtags: ['#hedetangen', '#värmland', '#bastu', '#slowtravel', '#unlockyoursenses'],
+            visualDirection: hasRef
+              ? `Frame anchored to confirmed reference (${refMatch?.[1]}), single slow camera move in soft natural light.`
+              : 'Close-up of steam rising off warm birch embers and dark water ripples at blue hour (atmosphere only, no structures).',
+          },
+          {
+            platform: 'Instagram',
+            format: 'Carousel',
+            hook: 'Två platser. En stilla kväll. / Two spots. One quiet night.',
+            bodySv:
+              'Enkelt, varmt och stilla — bastu och kallt dopp i egen takt i Värmland. Uppmärksammad av Visit Sweden som en av Sveriges nio "hidden island escapes".',
+            bodyEn:
+              'Simple, warm, unhurried — sauna and cold water at your own pace in Värmland. Featured by Visit Sweden as one of Sweden\'s nine "hidden island escapes."',
+            ctaSv: 'Boka din vistelse via länken',
+            ctaEn: 'Reserve your stay via link',
+            hashtags: ['#hedetangen', '#värmland', '#swedishnature', '#winterreset'],
+            visualDirection:
+              'Three static tactile frames: frosted pine needles, lantern light on dark lake stones, hands lifting a stoneware mug (atmosphere only).',
+          },
+        ],
+      });
+    }
+
+    if (schemaType === 'email') {
+      return JSON.stringify({
+        subjectSv: 'Varm vedeldad bastu och lugna nätter vid sjön — lediga datum',
+        subjectEn: 'Wood-fired sauna and quiet nights by the lake — open dates',
+        previewText: `${coreOffer} · ${dateWindow}`,
+        bodySv:
+          'Hej!\n\nVi öppnar nu några lugna datum vid sjön för er som längtar efter vedeldad bastu, krispig luft och stillhet i Värmland. Under klara kvällar öppnar sig stjärnhimlen över vattnet — och ibland även norrskenet.\n\nUppmärksammad av Visit Sweden som en av Sveriges nio "hidden island escapes". Hör gärna av er om ett datum passar er.',
+        bodyEn:
+          'Hello again,\n\nWe are opening a small set of quiet nights by the lake for guests seeking wood-fired sauna warmth, crisp air, and unhurried stillness in Värmland. On clear evenings the sky opens wide above the water — with northern lights appearing when conditions allow.\n\nFeatured by Visit Sweden as one of Sweden\'s nine "hidden island escapes." Reply directly or check open nights below.',
+        ctaSv: 'Se lediga datum på hedetangen.com',
+        ctaEn: 'Explore open dates at hedetangen.com',
+        sendNotes: 'Send first to past guests and warm inquiries before running any paid promotion.',
+      });
+    }
+
+    if (schemaType === 'ad') {
+      return JSON.stringify({
+        variants: [
+          {
+            angle: 'Sensory stillness',
+            headlineSv: 'Bastu. Kallt vatten. Stillhet.',
+            headlineEn: 'Sauna. Cold water. Stillness.',
+            primaryTextSv:
+              'Varm vedeldad bastu vid sjön och lugna kvällar i Värmland. För två gäster åt gången.',
+            primaryTextEn:
+              'Wood-fired sauna by the lake and quiet nights in Värmland. Strictly two guests at a time.',
+            cta: 'Check open dates',
+            visualDirection:
+              'Slow static close-up of lantern glow reflecting on dark water ripples at dusk (atmosphere only).',
+          },
+          {
+            angle: 'Editorial trust',
+            headlineSv: 'Stillhet i Värmland',
+            headlineEn: 'Quiet nights in Värmland',
+            primaryTextSv:
+              'Uppmärksammad av Visit Sweden som en av nio "hidden island escapes". Klara nätter syns ibland norrsken över vattnet.',
+            primaryTextEn:
+              'Featured by Visit Sweden as one of nine "hidden island escapes." On clear nights, northern lights sometimes drift above the trees.',
+            cta: 'Learn more',
+            visualDirection:
+              'Tactile frame of glowing birch logs and rising steam in cool blue-hour light (atmosphere only).',
+          },
+        ],
+      });
+    }
+
+    if (schemaType === 'calendar') {
+      const start = new Date();
+      const fmtDate = (offsetDays: number) => {
+        const d = new Date(start.getTime() + offsetDays * 86400000);
+        return d.toISOString().slice(0, 10);
+      };
+      return JSON.stringify({
+        summary: `Lean schedule matched to ${hoursPerWeek}, starting with owned email and 1–2 atmospheric social posts per week.`,
+        items: [
+          {
+            date: fmtDate(1),
+            channel: 'Email',
+            item: 'Send past-guest & inquiry email',
+            notes: 'Highlight open dates and core sauna/lake experience; single clear booking link.',
+            cta: 'Check open nights',
+          },
+          {
+            date: fmtDate(3),
+            channel: 'Instagram',
+            item: 'Reel: Warm embers & crisp lake air (SV/EN)',
+            notes: '12s static iPhone clip of steam and firelight — atmosphere only.',
+            cta: 'Link in bio',
+          },
+          {
+            date: fmtDate(7),
+            channel: 'Instagram',
+            item: 'Carousel: Visit Sweden press & winter ritual',
+            notes: '3 tactile atmosphere stills shot in one afternoon.',
+            cta: 'Save or book',
+          },
+          {
+            date: fmtDate(10),
+            channel: 'Website',
+            item: 'Check inquiry volume & open calendar slots',
+            notes: 'Review responses before committing additional time or budget.',
+            cta: 'Update availability',
+          },
+        ],
+      });
+    }
+
+    if (schemaType === 'video') {
+      return JSON.stringify({
+        shots: [
+          {
+            shotNumber: 1,
+            durationSec: 6,
+            scene: hasRef
+              ? `Anchored to confirmed reference (${refMatch?.[1]}), gentle breeze across surrounding reeds in twilight.`
+              : 'Close-up of glowing birch embers and drifting sparks against cool twilight air.',
+            feeling: 'Quiet warmth against crisp cold',
+            camera: '1x lens, static frame, shallow depth of field',
+            lightAndColor: 'Amber firelight against muted charcoal and blue hour',
+            referenceRequired: hasRef,
+          },
+          {
+            shotNumber: 2,
+            durationSec: 5,
+            scene: 'Steam rising slowly over dark cold water with frosted pine needles in soft foreground.',
+            feeling: 'Crisp stillness before dusk',
+            camera: 'Continuous slow pan right, natural water motion only',
+            lightAndColor: 'Soft blue-hour sidelight, moss and slate tones',
+            referenceRequired: false,
+          },
+          {
+            shotNumber: 3,
+            durationSec: 6,
+            scene: 'Hands in thick wool cuffs lifting a warm stoneware mug in soft morning light.',
+            feeling: 'Unhurried comfort at dawn',
+            camera: 'Macro tactile close-up, static',
+            lightAndColor: 'Golden-hour warmth, cream and natural wood tones',
+            referenceRequired: false,
+          },
+        ],
+      });
+    }
+
+    if (schemaType === 'landing') {
+      return JSON.stringify({
+        heroHeadlineSv: 'Lugna nätter vid vattnet i Värmland',
+        heroHeadlineEn: 'Quiet nights by the water in Värmland',
+        subheadlineSv: 'Vedeldad bastu, kallt sjövatten och tid att bara vara — för två gäster åt gången.',
+        subheadlineEn: 'Wood-fired sauna, cold lake water, and unhurried stillness — strictly two guests at a time.',
+        sections: [
+          {
+            title: 'The Experience',
+            bodySv: 'En avskild vistelse med vedeldad bastu, sjö och skog precis utanför. Under klara nätter syns ibland stjärnhimmel och norrsken över vattnet.',
+            bodyEn: 'An unhurried stay with a wood-fired sauna, lake, and forest at your doorstep. On clear nights, open stars and occasional northern lights appear.',
+          },
+          {
+            title: 'Editorial Recognition',
+            bodySv: 'Uppmärksammad av Visit Sweden som en av Sveriges nio "hidden island escapes".',
+            bodyEn: 'Featured by Visit Sweden as one of Sweden\'s nine "hidden island escapes."',
+          },
+        ],
+        ctaSv: 'Se lediga datum',
+        ctaEn: 'View open dates',
+      });
+    }
+
+    // research
+    return JSON.stringify({
+      title: `Positioning & Channel Brief — ${coreOffer}`,
+      question: `How can ${coreOffer} convert high-intent guests within ${hoursPerWeek}?`,
+      findings: [
+        {
+          point: 'Direct outreach to past guests consistently outperforms cold ads for low-capacity nature stays.',
+          confidence: 'high',
+          dateContext: '2025–2026 Nordic micro-hospitality baseline',
+        },
+        {
+          point: 'Bilingual SV/EN communication captures both domestic weekenders and European road-trippers.',
+          confidence: 'high',
+          dateContext: 'Ongoing regional travel behavior',
+        },
+        {
+          point: 'Honest weather expectations (never guaranteeing aurora or ice) reduce refund friction and protect reviews.',
+          confidence: 'high',
+          dateContext: 'Seasonal eco-tourism practice',
+        },
+      ],
+      implications: [
+        'Lead every seasonal push with owned email before allocating paid ad budget.',
+        'Keep visual framing grounded in genuine sensory atmosphere rather than staged luxury.',
+      ],
+      toVerify: [
+        'Current regional event dates on Visit Värmland',
+        'Mobile checkout load time on your booking page',
+      ],
+      freshnessNote: 'Demo Mode offline synthesis — verify live seasonal listings and local dates directly.',
+    });
   }
 
   private planResponse(lower: string, original: string, sys: string, hasHistory: boolean): string {
@@ -189,17 +482,17 @@ I'll run the numbers on that pricing and ROI scenario and verify every assumptio
       )
     ) {
       return `<response>
-Thank you for sharing your capacity upfront — keeping things manageable for the two of you comes first. I'll prioritize high-return, low-effort steps starting with your existing list.
+Thank you for sharing your capacity upfront — keeping things manageable comes first. I'll prioritize high-return, low-effort steps starting with your existing list.
 </response>
 <delegate expert="Marketing Strategist">
   <task>${original}</task>
-  <context>Two founders at ~1.5 FTE (half days). Existing email list of previous guests and inquiries. Never use personal/family context as ad copy.</context>
+  <context>Small owner team operating at limited capacity. Existing email list of past guests and inquiries. Never use personal circumstances as ad copy.</context>
   <constraints>Rank owned email list #1, low-effort iPhone social #2, paid ads only after budget is clear.</constraints>
 </delegate>
 <delegate expert="Social Media Strategist">
-  <task>Propose a minimal 2-week iPhone-friendly cadence matching ~1.5 FTE capacity.</task>
+  <task>Propose a minimal 2-week iPhone-friendly cadence matching limited owner capacity.</task>
   <context>1–2 posts per week max, winter sauna & ice bath atmosphere only unless reference supplied.</context>
-  <constraints>Realistic 1.5 FTE cadence, atmosphere-only shoot notes, max 8 hashtags.</constraints>
+  <constraints>Realistic lean cadence, atmosphere-only shoot notes, max 8 hashtags.</constraints>
 </delegate>`;
     }
 
@@ -449,10 +742,12 @@ Visual direction: Slow static frame of steam drifting across icy shore stones in
     }
 
     const isSwedish = /kampanj|bastu|isbad|vintern|inte så mycket|kortare|mejl/i.test(lowerUser);
-    const hasPersonalConstraint = /baby|hospital|half day|bebis|sjukhus|halvdag/i.test(lowerUser);
+    const hasCapacityConstraint = /half day|halvdag|limited capacity|reduced capacity|just us two|fte/i.test(
+      lowerUser
+    );
 
-    const intro = hasPersonalConstraint
-      ? 'I’ve kept the plan tightly scoped to what the two of you can realistically handle right now — starting with your own guest list before spending on ads.\n\n'
+    const intro = hasCapacityConstraint
+      ? 'I’ve kept the plan tightly scoped to what you can realistically handle right now — starting with your own guest list before spending on ads.\n\n'
       : isSwedish
         ? 'Här är en fokuserad plan och tvåspråkigt material utifrån er låga budget och nuvarande kapacitet.\n\n'
         : '';
