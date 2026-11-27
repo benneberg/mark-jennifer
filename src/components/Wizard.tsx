@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Lock, Square, X } from 'lucide-react';
+import { Loader2, Lock, Snowflake, Square, X } from 'lucide-react';
 import { DELIVERABLE_TITLES } from '../campaign/engine';
+import { buildWinterBookingsPreset } from '../campaign/presets';
 import type {
   BusinessProfile,
   CampaignDeliverableKind,
@@ -43,9 +44,9 @@ const CHANNELS = ['Email', 'Instagram', 'Website', 'Facebook', 'Google Ads'] as 
 const DELIVERABLES: CampaignDeliverableKind[] = [
   'social',
   'email',
-  'ad',
-  'calendar',
   'video',
+  'calendar',
+  'ad',
   'landing',
 ];
 
@@ -105,7 +106,7 @@ export function Wizard({
   const [deliverables, setDeliverables] = useState<CampaignDeliverableKind[]>(
     initialDraft?.deliverables?.length
       ? initialDraft.deliverables
-      : ['social', 'email', 'calendar']
+      : ['social', 'email', 'video', 'calendar']
   );
   const [budgetCeiling, setBudgetCeiling] = useState<string>(
     initialDraft?.budgetCeiling ?? '0 SEK (owned channels only)'
@@ -115,16 +116,32 @@ export function Wizard({
   );
   const [notes, setNotes] = useState<string>(initialDraft?.notes ?? '');
 
+  const applyDraft = (draft: Partial<CampaignIntake>) => {
+    if (draft.goal !== undefined) setGoal(draft.goal);
+    if (draft.dateWindow !== undefined) setDateWindow(draft.dateWindow);
+    if (draft.openNightsOrCapacity !== undefined)
+      setOpenNightsOrCapacity(draft.openNightsOrCapacity);
+    if (draft.coreOffer !== undefined) setCoreOffer(draft.coreOffer);
+    if (draft.priceAnchor !== undefined) setPriceAnchor(draft.priceAnchor);
+    if (draft.referencePhoto !== undefined) setReferencePhoto(draft.referencePhoto);
+    if (draft.audiences?.length) setAudiences(draft.audiences);
+    if (draft.language !== undefined) setLanguage(draft.language);
+    if (draft.channels?.length) setChannels(draft.channels);
+    if (draft.deliverables?.length) setDeliverables(draft.deliverables);
+    if (draft.budgetCeiling !== undefined) setBudgetCeiling(draft.budgetCeiling);
+    if (draft.hoursPerWeek !== undefined) setHoursPerWeek(draft.hoursPerWeek);
+    if (draft.notes !== undefined) setNotes(draft.notes);
+  };
+
   useEffect(() => {
     if (!initialDraft) return;
-    if (initialDraft.goal) setGoal(initialDraft.goal);
-    if (initialDraft.dateWindow) setDateWindow(initialDraft.dateWindow);
-    if (initialDraft.coreOffer) setCoreOffer(initialDraft.coreOffer);
-    if (initialDraft.channels?.length) setChannels(initialDraft.channels);
-    if (initialDraft.deliverables?.length) setDeliverables(initialDraft.deliverables);
-    if (initialDraft.budgetCeiling) setBudgetCeiling(initialDraft.budgetCeiling);
-    if (initialDraft.hoursPerWeek) setHoursPerWeek(initialDraft.hoursPerWeek);
+    applyDraft(initialDraft);
   }, [initialDraft]);
+
+  const handleLoadWinterPreset = () => {
+    const preset = buildWinterBookingsPreset(businessProfile, language);
+    applyDraft(preset);
+  };
 
   const toggleStr = (list: string[], setList: (v: string[]) => void, item: string) => {
     setList(list.includes(item) ? list.filter((i) => i !== item) : [...list, item]);
@@ -175,8 +192,8 @@ export function Wizard({
               Campaign Package Builder
             </h2>
             <p className="text-xs text-[var(--text-muted)]">
-              Step <span className="font-mono-tabular">{step}</span> of 3 · Deterministic JSON +
-              Honesty Lint
+              Step <span className="font-mono-tabular">{step}</span> of 3 · Checked against your
+              Brand DNA &amp; Honesty Rules
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -206,6 +223,26 @@ export function Wizard({
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {step === 1 && (
             <div className="space-y-4">
+              <div className="p-3.5 rounded-[18px] bg-[var(--surface-muted)] border border-[var(--border)] flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="text-xs font-semibold text-[var(--text)]">
+                    Low winter bookings?
+                  </div>
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    Pre-fill a ready-to-launch winter campaign with social posts, email, video
+                    prompts &amp; schedule.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLoadWinterPreset}
+                  className="min-h-[36px] inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-full glass-surface border border-[var(--border)] text-[var(--text)] hover:border-[var(--border-strong)] shrink-0"
+                >
+                  <Snowflake className="w-3.5 h-3.5 text-[var(--tangerine)]" />
+                  <span>Load Winter Bookings Preset</span>
+                </button>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
                   Primary Goal
@@ -398,7 +435,7 @@ export function Wizard({
 
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
-                  Package Deliverables (1 structured JSON call each)
+                  Included in Your Campaign Package
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {DELIVERABLES.map((kind) => {
@@ -495,13 +532,12 @@ export function Wizard({
               <div className="p-4 rounded-[18px] bg-[var(--sand)] dark:bg-[#1C1C1A] border border-[var(--border)] text-xs space-y-1.5 text-[#181817] dark:text-[#F4EFE4]">
                 <div className="flex items-center gap-1.5 font-semibold">
                   <Lock className="w-3.5 h-3.5 text-[var(--tangerine)]" />
-                  <span>Deterministic Honesty Lint (Enforced on Every Output)</span>
+                  <span>Brand Honesty Guardrails (Checked Automatically)</span>
                 </div>
                 <p className="leading-relaxed opacity-85">{guardrails.honestyRule}</p>
                 <p className="opacity-70">
-                  Every deliverable is validated against strict JSON schemas and checked for
-                  invented structures, weather guarantees, or unapproved prices/discounts before
-                  appearing in your Campaign Package.
+                  Every item in your package is checked against your honesty rules so no invented
+                  buildings, weather guarantees, or unapproved discounts slip into your copy.
                 </p>
               </div>
 
