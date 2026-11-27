@@ -160,45 +160,72 @@ async function runStructuredJsonWithRepair<T>(params: {
 
   let lastErrors: string[] = [];
   let lastRaw = '';
+  let lastParsedOk = false;
   let repaired = false;
 
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     if (params.signal.aborted) {
       throw new DOMException('Aborted', 'AbortError');
     }
 
+    const hadPriorText = Boolean(lastRaw.trim());
     const attemptMessages: ChatCompletionMessage[] =
       attempt === 0
         ? messages
-        : [
-            ...messages,
-            { role: 'assistant', content: lastRaw || '{}' },
-            {
-              role: 'user',
-              content: `Your previous JSON failed validation or Brand Honesty checks:\n- ${lastErrors.join(
-                '\n- '
-              )}\n\nReturn ONLY a corrected valid JSON object fixing every error above.`,
-            },
-          ];
+        : !hadPriorText
+          ? [
+              ...messages,
+              {
+                role: 'user',
+                content:
+                  'Your previous attempt returned an empty response. Output ONLY a single valid JSON object matching the exact schema requested above — no thinking preamble, no markdown fences, and no prose.',
+              },
+            ]
+          : [
+              ...messages,
+              { role: 'assistant', content: lastRaw },
+              {
+                role: 'user',
+                content: `Your previous JSON failed validation or Brand Honesty checks:\n- ${lastErrors.join(
+                  '\n- '
+                )}\n\nReturn ONLY a corrected valid JSON object fixing every error above.`,
+              },
+            ];
+
+    const useJsonMode = attempt === 0 || (lastParsedOk && attempt === 1);
+    const attemptMaxTokens =
+      attempt === 0
+        ? params.maxTokens
+        : !hadPriorText
+          ? Math.max(params.maxTokens * 2, 6144)
+          : params.maxTokens;
 
     const res = await provider.chat({
       model: params.modelId,
       messages: attemptMessages,
       temperature: attempt === 0 ? params.temperature : 0.2,
-      maxTokens: params.maxTokens,
-      responseFormat: 'json_object',
+      maxTokens: attemptMaxTokens,
+      responseFormat: useJsonMode ? 'json_object' : undefined,
       signal: params.signal,
       onRetryWait: (waitMs) => params.onRetryWait?.(waitMs),
     });
 
     lastRaw = res.content;
+    lastParsedOk = false;
     const extracted = extractJsonObject(res.content);
     if (!extracted.parsed) {
-      lastErrors = [extracted.error || 'Could not parse JSON object.'];
+      const lengthHint =
+        !res.content.trim() && res.finishReason === 'length'
+          ? 'Model hit its output token limit while reasoning before outputting JSON. Try increasing max tokens or selecting a non-reasoning model.'
+          : !res.content.trim()
+            ? 'Empty response from model (this model/route returned no text content — try another model).'
+            : extracted.error || 'Could not parse JSON object.';
+      lastErrors = [lengthHint];
       repaired = true;
       continue;
     }
 
+    lastParsedOk = true;
     const check = validateParsedPayload(extracted.parsed, params.schema);
     if (!check.valid) {
       lastErrors = check.errors;
@@ -210,7 +237,7 @@ async function runStructuredJsonWithRepair<T>(params: {
     const lintIssues = params.lintFn ? params.lintFn(typed) : [];
     const lintErrors = lintIssues.filter((i) => i.severity === 'error');
 
-    if (lintErrors.length > 0 && attempt === 0) {
+    if (lintErrors.length > 0 && attempt < 2) {
       lastErrors = lintErrors.map((e) => `${e.code}: ${e.message}`);
       repaired = true;
       continue;

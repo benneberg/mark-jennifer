@@ -165,9 +165,11 @@ export function mapHttpError(
   }
 
   let parsedMessage = '';
+  let parsedCode = '';
   try {
     const json = JSON.parse(bodyText);
     parsedMessage = json?.error?.message || json?.message || '';
+    parsedCode = typeof json?.error?.code === 'string' ? json.error.code.toLowerCase() : '';
   } catch {
     parsedMessage = bodyText.slice(0, 240);
   }
@@ -184,7 +186,7 @@ export function mapHttpError(
     }
   }
 
-  if (status === 401 || status === 403) {
+  if (parsedCode === 'invalid_api_key' || parsedCode === 'authentication_error' || status === 401 || status === 403) {
     return new AIError({
       code: 'AUTH_INVALID',
       message: parsedMessage || 'Authentication failed',
@@ -192,7 +194,12 @@ export function mapHttpError(
       status,
     });
   }
-  if (status === 402 || (status === 429 && lower.includes('quota'))) {
+  if (
+    parsedCode === 'insufficient_quota' ||
+    parsedCode === 'quota_exceeded' ||
+    status === 402 ||
+    (status === 429 && lower.includes('quota'))
+  ) {
     return new AIError({
       code: 'QUOTA_EXCEEDED',
       message: parsedMessage || 'Quota exceeded',
@@ -201,7 +208,7 @@ export function mapHttpError(
       retryAfterMs,
     });
   }
-  if (status === 429) {
+  if (parsedCode === 'rate_limit_exceeded' || parsedCode === 'rate_limited' || status === 429) {
     return new AIError({
       code: 'RATE_LIMIT',
       message: parsedMessage || 'Rate limit reached',
@@ -210,7 +217,15 @@ export function mapHttpError(
       retryAfterMs,
     });
   }
-  if (status === 404) {
+  if (parsedCode === 'context_length_exceeded') {
+    return new AIError({
+      code: 'CONTEXT_TOO_LONG',
+      message: parsedMessage || 'Context length exceeded',
+      provider,
+      status,
+    });
+  }
+  if (parsedCode === 'model_not_found' || status === 404) {
     return new AIError({
       code: 'MODEL_NOT_FOUND',
       message: parsedMessage || 'Model not found',

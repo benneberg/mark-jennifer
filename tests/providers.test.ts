@@ -139,3 +139,66 @@ test('Retry-After header is converted to milliseconds on rate limits', () => {
   assert.equal(err.code, 'RATE_LIMIT');
   assert.equal(err.retryAfterMs, 7000);
 });
+
+test('OpenRouter empty content on json_object retries without response_format and boosts max_tokens', async () => {
+  const original = globalThis.fetch;
+  const bodies: Array<Record<string, unknown>> = [];
+  let calls = 0;
+
+  globalThis.fetch = (async (_url: RequestInfo | URL, init?: RequestInit) => {
+    calls += 1;
+    bodies.push(JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>);
+    if (calls === 1) {
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: { content: '', reasoning: 'Thinking too long...' },
+              finish_reason: 'length',
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    return new Response(
+      JSON.stringify({
+        choices: [{ message: { content: '{"headline":"Winter stay"}' }, finish_reason: 'stop' }],
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  }) as typeof fetch;
+
+  try {
+    const res = await runOpenAICompatibleChat(
+      'openrouter',
+      'https://openrouter.ai/api/v1',
+      { Authorization: 'Bearer test' },
+      {
+        model: 'baidu/ernie-5.5-flash-preview',
+        messages: [{ role: 'user', content: 'Return JSON' }],
+        maxTokens: 1800,
+        responseFormat: 'json_object',
+      }
+    );
+    assert.equal(calls, 2);
+    assert.deepEqual(bodies[0].response_format, { type: 'json_object' });
+    assert.deepEqual(bodies[0].reasoning, { effort: 'low' });
+    assert.equal(bodies[1].response_format, undefined);
+    assert.ok((bodies[1].max_tokens as number) >= 6144);
+    assert.equal(res.content, '{"headline":"Winter stay"}');
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('extractJsonObject strips think blocks with braces and ignores trailing brace notes', async () => {
+  const { extractJsonObject } = await import('../src/campaign/schemas.ts');
+  const raw = `<think>Drafting {schema_type: strategy} carefully...</think>
+Here is your JSON:
+{"headline":"Winter sauna","ok":true}
+Note: placeholder {ignored}`;
+  const res = extractJsonObject(raw);
+  assert.deepEqual(res.parsed, { headline: 'Winter sauna', ok: true });
+});
+

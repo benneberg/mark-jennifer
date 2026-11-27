@@ -363,6 +363,7 @@ export async function runJenniferTurn(params: {
       messages: planMessages,
       temperature: 0.4,
       maxTokens: PLANNER_MAX_TOKENS,
+      stage: 'planner',
       streamInternal: settings.provider !== 'mock',
       signal,
       onRetryWait: (waitMs) =>
@@ -492,6 +493,7 @@ export async function runJenniferTurn(params: {
         messages: expertMessages,
         temperature: expert.temperature ?? settings.temperature,
         maxTokens: EXPERT_MAX_TOKENS,
+        stage: 'expert',
         streamInternal: settings.provider !== 'mock',
         signal,
         onRetryWait: (waitMs) =>
@@ -584,6 +586,7 @@ export async function runJenniferTurn(params: {
       messages: synthesisMessages,
       temperature: settings.temperature,
       maxTokens: SYNTHESIS_MAX_TOKENS,
+      stage: 'synthesis',
       signal,
       onToken: callbacks.onToken,
       onRetryWait: (waitMs) =>

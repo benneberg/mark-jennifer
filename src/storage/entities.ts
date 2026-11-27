@@ -17,6 +17,7 @@ import type {
 } from '../types';
 import { nowIso } from '../utils/dates';
 import { generateId } from '../utils/id';
+import { safeGetItem, safeRemoveItem, safeSetItem } from '../utils/safe-storage';
 import {
   BUSINESS_PROFILE_SCHEMA,
   CAMPAIGN_PACKAGE_SCHEMA,
@@ -28,6 +29,7 @@ import {
   SETTINGS_SCHEMA,
   validateSchema,
 } from '../utils/validate';
+import { clearAllApiKeyMaterial } from './crypto';
 import {
   idbClearAllStores,
   idbClearStore,
@@ -107,7 +109,7 @@ export async function ensureSeedData(): Promise<{ skippedCount: number }> {
   // Seed settings if missing
   const existingSettings = await idbGetAll<SettingEntry>('settings');
   if (existingSettings.length === 0) {
-    const themeFromLs = localStorage.getItem(LS_KEYS.THEME);
+    const themeFromLs = safeGetItem(LS_KEYS.THEME);
     const initial: AppSettings = {
       ...DEFAULT_SETTINGS,
       theme: themeFromLs === 'dark' ? 'dark' : 'light',
@@ -207,7 +209,7 @@ export async function loadSettings(): Promise<AppSettings> {
 export function getLastModelForProvider(provider: ProviderId): string {
   if (provider === 'mock') return 'hedetangen-demo-v1';
   try {
-    const raw = localStorage.getItem(LS_KEYS.LAST_MODEL_BY_PROVIDER);
+    const raw = safeGetItem(LS_KEYS.LAST_MODEL_BY_PROVIDER);
     if (!raw) return '';
     const parsed = JSON.parse(raw) as Record<string, string>;
     return typeof parsed[provider] === 'string' ? parsed[provider] : '';
@@ -219,10 +221,10 @@ export function getLastModelForProvider(provider: ProviderId): string {
 function saveLastModelForProvider(provider: ProviderId, model: string): void {
   if (!model.trim() || provider === 'mock') return;
   try {
-    const raw = localStorage.getItem(LS_KEYS.LAST_MODEL_BY_PROVIDER);
+    const raw = safeGetItem(LS_KEYS.LAST_MODEL_BY_PROVIDER);
     const parsed = raw ? (JSON.parse(raw) as Record<string, string>) : {};
     parsed[provider] = model.trim();
-    localStorage.setItem(LS_KEYS.LAST_MODEL_BY_PROVIDER, JSON.stringify(parsed));
+    safeSetItem(LS_KEYS.LAST_MODEL_BY_PROVIDER, JSON.stringify(parsed));
   } catch {
     // Non-fatal
   }
@@ -242,9 +244,9 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
   for (const [key, value] of entries) {
     await idbPut<SettingEntry>('settings', { key, value });
   }
-  localStorage.setItem(LS_KEYS.THEME, normalized.theme);
-  localStorage.setItem(LS_KEYS.LAST_PROVIDER, normalized.provider);
-  localStorage.setItem(LS_KEYS.LAST_MODEL, normalized.model);
+  safeSetItem(LS_KEYS.THEME, normalized.theme);
+  safeSetItem(LS_KEYS.LAST_PROVIDER, normalized.provider);
+  safeSetItem(LS_KEYS.LAST_MODEL, normalized.model);
   saveLastModelForProvider(normalized.provider, normalized.model);
 }
 
@@ -315,7 +317,9 @@ function sanitizeChatForStorage(chat: Chat): Chat {
 export async function updateChat(chat: Chat): Promise<void> {
   const sanitized = sanitizeChatForStorage(chat);
   const check = validateSchema(sanitized, CHAT_SCHEMA);
-  if (!check.valid) return;
+  if (!check.valid) {
+    throw new Error(check.errors.map((e) => `${e.path}: ${e.message}`).join('; '));
+  }
   await idbPut('chats', sanitized);
 }
 
@@ -672,7 +676,7 @@ export async function applyImportPackage(
   if (mode === 'replace') {
     await idbClearStore('experts');
     await idbClearStore('library');
-    if (pkg.chats) {
+    if (pkg.chats && pkg.chats.length > 0) {
       await idbClearStore('chats');
       await idbClearStore('messages');
     }
@@ -753,11 +757,12 @@ export async function applyImportPackage(
 }
 
 export async function clearAllStudioData(): Promise<void> {
+  await clearAllApiKeyMaterial();
   await idbClearAllStores();
-  localStorage.removeItem(LS_KEYS.THEME);
-  localStorage.removeItem(LS_KEYS.LAST_PROVIDER);
-  localStorage.removeItem(LS_KEYS.LAST_MODEL);
-  localStorage.removeItem(LS_KEYS.LAST_MODEL_BY_PROVIDER);
-  localStorage.removeItem(LS_KEYS.ONBOARDED);
-  localStorage.removeItem(LS_KEYS.RAIL_PINNED);
+  safeRemoveItem(LS_KEYS.THEME);
+  safeRemoveItem(LS_KEYS.LAST_PROVIDER);
+  safeRemoveItem(LS_KEYS.LAST_MODEL);
+  safeRemoveItem(LS_KEYS.LAST_MODEL_BY_PROVIDER);
+  safeRemoveItem(LS_KEYS.ONBOARDED);
+  safeRemoveItem(LS_KEYS.RAIL_PINNED);
 }

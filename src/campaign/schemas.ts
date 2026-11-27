@@ -296,25 +296,60 @@ export function getDeliverableSchema(kind: CampaignDeliverableKind): JsonSchemaN
 }
 
 export function extractJsonObject(raw: string): { parsed?: unknown; error?: string } {
-  const trimmed = raw.trim();
-  if (!trimmed) return { error: 'Empty response from model.' };
+  const withoutThinking = raw
+    .replace(/<(?:think|thinking)>[\s\S]*?<\/(?:think|thinking)>/gi, '')
+    .trim();
+  if (!withoutThinking) {
+    if (/<(?:think|thinking)>/i.test(raw)) {
+      return { error: 'Model spent its response inside a thinking block without outputting JSON.' };
+    }
+    return { error: 'Empty response from model.' };
+  }
 
-  const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = fenceMatch ? fenceMatch[1].trim() : trimmed;
+  const fenceMatch = withoutThinking.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = fenceMatch ? fenceMatch[1].trim() : withoutThinking;
 
   try {
     return { parsed: JSON.parse(candidate) };
   } catch {
-    const firstBrace = candidate.indexOf('{');
-    const lastBrace = candidate.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace > firstBrace) {
-      try {
-        return { parsed: JSON.parse(candidate.slice(firstBrace, lastBrace + 1)) };
-      } catch (err) {
-        return { error: err instanceof Error ? err.message : 'Invalid JSON syntax.' };
+    let lastSyntaxError: string | undefined;
+    for (let start = candidate.indexOf('{'); start !== -1; start = candidate.indexOf('{', start + 1)) {
+      let depth = 0;
+      let inString = false;
+      let escaped = false;
+      for (let i = start; i < candidate.length; i++) {
+        const ch = candidate[i];
+        if (inString) {
+          if (escaped) {
+            escaped = false;
+          } else if (ch === '\\') {
+            escaped = true;
+          } else if (ch === '"') {
+            inString = false;
+          }
+          continue;
+        }
+        if (ch === '"') {
+          inString = true;
+        } else if (ch === '{') {
+          depth++;
+        } else if (ch === '}') {
+          depth--;
+          if (depth === 0) {
+            try {
+              const parsed = JSON.parse(candidate.slice(start, i + 1));
+              if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                return { parsed };
+              }
+            } catch (err) {
+              lastSyntaxError = err instanceof Error ? err.message : 'Invalid JSON syntax.';
+            }
+            break;
+          }
+        }
       }
     }
-    return { error: 'Response did not contain a valid JSON object.' };
+    return { error: lastSyntaxError ?? 'Response did not contain a valid JSON object.' };
   }
 }
 

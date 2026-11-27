@@ -7,6 +7,7 @@ export interface ChatRequestOptions {
   messages: ChatCompletionMessage[];
   temperature?: number;
   maxTokens?: number;
+  stage?: 'planner' | 'expert' | 'synthesis';
   responseFormat?: 'json_object';
   streamInternal?: boolean;
   signal?: AbortSignal;
@@ -92,6 +93,74 @@ function isTransientStatus(status?: number): boolean {
   return status === 502 || status === 503 || status === 504 || status === 529;
 }
 
+function extractTextContent(raw: unknown): string {
+  if (typeof raw === 'string') return raw;
+  if (Array.isArray(raw)) {
+    return raw
+      .map((part) => {
+        if (typeof part === 'string') return part;
+        if (part && typeof part === 'object') {
+          const rec = part as { type?: string; text?: unknown; content?: unknown };
+          if (rec.type === 'thinking' || rec.type === 'reasoning') return '';
+          if (typeof rec.text === 'string') return rec.text;
+          if (typeof rec.content === 'string') return rec.content;
+        }
+        return '';
+      })
+      .join('');
+  }
+  return '';
+}
+
+function extractBalancedJsonFallback(raw: string): string | null {
+  const cleaned = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  if (!cleaned) return null;
+  for (let start = cleaned.indexOf('{'); start !== -1; start = cleaned.indexOf('{', start + 1)) {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let i = start; i < cleaned.length; i++) {
+      const ch = cleaned[i];
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === '\\') {
+          escaped = true;
+        } else if (ch === '"') {
+          inString = false;
+        }
+        continue;
+      }
+      if (ch === '"') {
+        inString = true;
+      } else if (ch === '{') {
+        depth++;
+      } else if (ch === '}') {
+        depth--;
+        if (depth === 0) {
+          const candidate = cleaned.slice(start, i + 1);
+          try {
+            const parsed = JSON.parse(candidate);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              return candidate;
+            }
+          } catch {
+            // keep scanning
+          }
+          break;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function usesCompletionTokensParam(provider: ProviderId, model: string): boolean {
+  if (provider === 'groq') return false;
+  const baseName = model.includes('/') ? (model.split('/').pop() ?? model) : model;
+  return /^(?:o1|o3|o4|gpt-5)(?:[-.]|$)/i.test(baseName);
+}
+
 export async function runOpenAICompatibleChat(
   provider: ProviderId,
   baseUrl: string,
@@ -100,19 +169,35 @@ export async function runOpenAICompatibleChat(
 ): Promise<ChatResult> {
   const stream = Boolean(options.onToken || options.streamInternal);
   const maxRetries = 3;
+  const isReasoning = usesCompletionTokensParam(provider, options.model);
   let useJsonFormat = options.responseFormat === 'json_object' && !stream;
+  let useReasoningHint = provider === 'openrouter' && options.responseFormat === 'json_object' && !stream;
+  let effectiveMaxTokens = options.maxTokens;
+  let emptyRetries = 0;
   let res!: Response;
+  let parsedNonStreamResult: ChatResult | null = null;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const payload: Record<string, unknown> = {
       model: options.model,
       messages: options.messages,
-      temperature: options.temperature ?? 0.7,
-      max_tokens: options.maxTokens,
       stream,
     };
+    if (isReasoning) {
+      if (effectiveMaxTokens !== undefined) {
+        payload.max_completion_tokens = effectiveMaxTokens;
+      }
+    } else {
+      payload.temperature = options.temperature ?? 0.7;
+      if (effectiveMaxTokens !== undefined) {
+        payload.max_tokens = effectiveMaxTokens;
+      }
+    }
     if (useJsonFormat) {
       payload.response_format = { type: 'json_object' };
+    }
+    if (useReasoningHint) {
+      payload.reasoning = { effort: 'low' };
     }
 
     res = await fetchWithTimeout(
@@ -129,44 +214,58 @@ export async function runOpenAICompatibleChat(
       options.signal
     );
 
-    if (res.ok) break;
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
 
-    const text = await res.text().catch(() => '');
+      if (res.status === 400 || res.status === 422) {
+        if (useReasoningHint && /(reasoning|effort|unknown|unrecognized|extra_forbidden|not supported)/i.test(text)) {
+          useReasoningHint = false;
+          continue;
+        }
+        if (useJsonFormat && /(response_format|json_object|json mode|structured|not supported)/i.test(text)) {
+          useJsonFormat = false;
+          continue;
+        }
+        if (useReasoningHint || useJsonFormat) {
+          useReasoningHint = false;
+          useJsonFormat = false;
+          continue;
+        }
+      }
 
-    if (
-      useJsonFormat &&
-      res.status === 400 &&
-      /(response_format|json_object|json mode|not supported)/i.test(text)
-    ) {
-      useJsonFormat = false;
-      continue;
+      const mapped = mapHttpError(provider, res.status, text, res.headers.get('retry-after'));
+
+      const canRetryRateLimit = mapped.code === 'RATE_LIMIT' && attempt < maxRetries;
+      const canRetryTransient =
+        mapped.code === 'PROVIDER_ERROR' && isTransientStatus(mapped.status) && attempt < 2;
+
+      if (canRetryRateLimit || canRetryTransient) {
+        const fallbackDelay = mapped.code === 'RATE_LIMIT' ? (attempt + 1) * 4000 : (attempt + 1) * 1500;
+        const waitMs = Math.min(
+          Math.max(1200, (mapped.retryAfterMs ?? fallbackDelay) + 400),
+          20000
+        );
+        options.onRetryWait?.(waitMs, attempt + 1);
+        await waitWithAbort(waitMs, options.signal);
+        continue;
+      }
+
+      throw mapped;
     }
 
-    const mapped = mapHttpError(provider, res.status, text, res.headers.get('retry-after'));
-
-    const canRetryRateLimit = mapped.code === 'RATE_LIMIT' && attempt < maxRetries;
-    const canRetryTransient =
-      mapped.code === 'PROVIDER_ERROR' && isTransientStatus(mapped.status) && attempt < 2;
-
-    if (canRetryRateLimit || canRetryTransient) {
-      const fallbackDelay = mapped.code === 'RATE_LIMIT' ? (attempt + 1) * 4000 : (attempt + 1) * 1500;
-      const waitMs = Math.min(
-        Math.max(1200, (mapped.retryAfterMs ?? fallbackDelay) + 400),
-        20000
-      );
-      options.onRetryWait?.(waitMs, attempt + 1);
-      await waitWithAbort(waitMs, options.signal);
-      continue;
+    if (stream && res.body) {
+      break;
     }
 
-    throw mapped;
-  }
-
-  if (!stream || !res.body) {
     let data: {
       error?: { message?: string; code?: number | string };
       choices?: Array<{
-        message?: { content?: string; reasoning?: string; reasoning_content?: string };
+        message?: {
+          content?: unknown;
+          reasoning?: unknown;
+          reasoning_content?: unknown;
+          refusal?: string;
+        };
         finish_reason?: string;
       }>;
       model?: string;
@@ -186,14 +285,42 @@ export async function runOpenAICompatibleChat(
       const statusNum = typeof data.error.code === 'number' ? data.error.code : 500;
       throw mapHttpError(provider, statusNum, JSON.stringify({ error: data.error }));
     }
-    const content = data.choices?.[0]?.message?.content ?? '';
+
+    const choice = data.choices?.[0];
+    const finishReason = choice?.finish_reason;
+    let content = extractTextContent(choice?.message?.content);
+    const reasoningText = extractTextContent(
+      choice?.message?.reasoning ?? choice?.message?.reasoning_content
+    );
+
+    if (!content.trim() && emptyRetries < 2 && attempt < maxRetries) {
+      emptyRetries++;
+      useJsonFormat = false;
+      if (finishReason === 'length') {
+        effectiveMaxTokens = Math.min(
+          Math.max((effectiveMaxTokens ?? 2048) * 2, 6144),
+          16384
+        );
+      } else {
+        useReasoningHint = false;
+      }
+      continue;
+    }
+
+    if (!content.trim() && options.responseFormat === 'json_object' && reasoningText.trim()) {
+      const recovered = extractBalancedJsonFallback(reasoningText);
+      if (recovered) {
+        content = recovered;
+      }
+    }
+
     if (options.onToken && content) {
       options.onToken(content);
     }
-    return {
+    parsedNonStreamResult = {
       content,
       model: data.model ?? options.model,
-      finishReason: data.choices?.[0]?.finish_reason,
+      finishReason,
       usage: data.usage
         ? {
             promptTokens: data.usage.prompt_tokens ?? 0,
@@ -201,6 +328,18 @@ export async function runOpenAICompatibleChat(
             totalTokens: data.usage.total_tokens ?? 0,
           }
         : undefined,
+    };
+    break;
+  }
+
+  if (parsedNonStreamResult) {
+    return parsedNonStreamResult;
+  }
+
+  if (!stream || !res.body) {
+    return {
+      content: '',
+      model: options.model,
     };
   }
 
@@ -243,10 +382,12 @@ export async function runOpenAICompatibleChat(
 
     if (chunk.model) resolvedModel = chunk.model;
     const choice = chunk.choices?.[0];
-    const delta = choice?.delta?.content ?? (!fullContent ? choice?.message?.content : undefined);
-    if (delta) {
-      fullContent += delta;
-      options.onToken?.(delta);
+    const deltaText =
+      extractTextContent(choice?.delta?.content) ||
+      (!fullContent ? extractTextContent(choice?.message?.content) : '');
+    if (deltaText) {
+      fullContent += deltaText;
+      options.onToken?.(deltaText);
     }
     if (choice?.finish_reason) {
       finishReason = choice.finish_reason;
