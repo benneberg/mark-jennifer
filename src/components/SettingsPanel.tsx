@@ -8,7 +8,12 @@ import {
   Trash2,
 } from 'lucide-react';
 import { APP_VERSION, PRIVACY_NOTICE } from '../constants';
-import { isWebCryptoAvailable, loadApiKey, saveApiKey } from '../storage/crypto';
+import {
+  hasStoredKeyRecord,
+  isWebCryptoAvailable,
+  loadApiKey,
+  saveApiKey,
+} from '../storage/crypto';
 import { getLastModelForProvider } from '../storage/entities';
 import type {
   AppSettings,
@@ -64,6 +69,7 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   const [keyInput, setKeyInput] = useState('');
   const [hasStoredKey, setHasStoredKey] = useState(false);
+  const [hasUnreadableKey, setHasUnreadableKey] = useState(false);
   const [keyStatus, setKeyStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle');
   const [keyError, setKeyError] = useState('');
   const [modelSearch, setModelSearch] = useState('');
@@ -85,13 +91,16 @@ export function SettingsPanel({
     setKeyInput('');
     setKeyStatus('idle');
     setKeyError('');
-    loadApiKey(settings.provider).then((val) => {
-      if (!active) return;
-      setHasStoredKey(Boolean(val));
-      if (val && settings.provider !== 'mock') {
-        setKeyStatus('valid');
+    Promise.all([loadApiKey(settings.provider), hasStoredKeyRecord(settings.provider)]).then(
+      ([val, recordExists]) => {
+        if (!active) return;
+        setHasStoredKey(Boolean(val));
+        setHasUnreadableKey(!val && recordExists && settings.provider !== 'mock');
+        if (val && settings.provider !== 'mock') {
+          setKeyStatus('valid');
+        }
       }
-    });
+    );
     return () => {
       active = false;
     };
@@ -129,6 +138,7 @@ export function SettingsPanel({
       await saveApiKey(settings.provider, effectiveKey, settings.rememberKey);
       await onValidateAndLoadModels(settings.provider, effectiveKey);
       setHasStoredKey(true);
+      setHasUnreadableKey(false);
       setKeyInput('');
       setKeyStatus('valid');
       flashSaved('API key');
@@ -246,6 +256,14 @@ export function SettingsPanel({
               {keyStatus === 'validating' ? 'Validating…' : 'Validate & load models'}
             </button>
           </div>
+
+          {hasUnreadableKey && keyStatus !== 'valid' && (
+            <p className="text-xs text-[var(--danger)] leading-relaxed">
+              A key is stored for this provider, but this browser can no longer decrypt it (browser
+              storage was cleared or the secure context changed). Paste the key again to restore
+              access.
+            </p>
+          )}
 
           {keyStatus === 'invalid' && keyError && (
             <p className="text-xs text-[var(--danger)]">{keyError}</p>

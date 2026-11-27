@@ -10,6 +10,11 @@
     <meta property="og:description" content="Client-side, mobile-first AI marketing studio for Hedetangen AB with Brand DNA guardrails, specialist orchestration, and encrypted local API key storage." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <!--
+      Web fonts are the app's only third-party request (see PRIVACY_NOTICE).
+      The production CSP injected by vite.config.ts allows exactly these two hosts.
+      Self-host the woff2 files here if you want zero external requests.
+    -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />

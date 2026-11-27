@@ -59,6 +59,18 @@ export function humanizeAIError(
   const providerName = PROVIDER_LABELS[error.provider] ?? error.provider;
 
   switch (error.code) {
+    case 'KEY_MISSING':
+      return {
+        message: `No API key is saved for ${providerName} yet. Add one in Settings to start chatting (or keep using Demo mode).`,
+        actions: [{ type: 'open_settings', label: 'Add API key' }],
+      };
+
+    case 'KEY_UNREADABLE':
+      return {
+        message: `A key is stored for ${providerName}, but this browser can no longer decrypt it (storage was cleared or the secure context changed). Please paste the key again in Settings.`,
+        actions: [{ type: 'open_settings', label: 'Re-enter key' }],
+      };
+
     case 'AUTH_INVALID':
       return {
         message: `The API key was rejected by ${providerName}. It may have been revoked or pasted incorrectly.`,

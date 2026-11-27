@@ -62,16 +62,23 @@ export function ChatList({
   const [saveTitle, setSaveTitle] = useState('');
   const [saveType, setSaveType] = useState<LibraryItemType>('copy');
   const [saveTags, setSaveTags] = useState('');
+  const [stickToBottom, setStickToBottom] = useState(true);
 
-  // Auto-scroll only when user is already near the bottom
+  // Auto-scroll only when the reader is already near the bottom, so scrolling up
+  // to re-read an earlier draft is not yanked back on every streamed token.
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
+    if (!stickToBottom) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages.length, streamingState.buffer, streamingState.status, streamingState.active, stickToBottom]);
+
+  const handleScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (distanceFromBottom < 120 || streamingState.active) {
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [messages.length, streamingState.buffer, streamingState.status, streamingState.active]);
+    setStickToBottom(distanceFromBottom < 120);
+  };
 
   const handleCopyClick = (id: string, text: string) => {
     onCopy(text);
@@ -110,6 +117,7 @@ export function ChatList({
   return (
     <div
       ref={scrollContainerRef}
+      onScroll={handleScroll}
       className="flex-1 overflow-y-auto px-3 sm:px-6 py-5 scroll-smooth"
     >
       <div className="max-w-[780px] mx-auto space-y-4">
@@ -379,6 +387,22 @@ export function ChatList({
             </article>
           );
         })}
+
+        {!stickToBottom && (
+          <div className="sticky bottom-2 flex justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                setStickToBottom(true);
+                const el = scrollContainerRef.current;
+                if (el) el.scrollTop = el.scrollHeight;
+              }}
+              className="min-h-[36px] px-4 py-1.5 text-xs font-semibold rounded-full bg-[var(--obsidian)] text-[#F4EFE4] dark:bg-[var(--sand)] dark:text-[#181817] shadow-[var(--shadow-md)]"
+            >
+              Jump to latest
+            </button>
+          </div>
+        )}
 
         {streamingState.active && (
           <article

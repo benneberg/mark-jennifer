@@ -133,6 +133,36 @@ export async function idbGetAllByIndex<T>(
   });
 }
 
+/**
+ * Runs `fn` inside a single IndexedDB transaction and resolves once it commits.
+ * Everything `fn` does must be issued synchronously (no `await` inside), which is
+ * how IndexedDB keeps a transaction alive; that is what makes multi-store writes
+ * atomic.
+ */
+export async function idbTransaction(
+  storeNames: StoreName[],
+  mode: IDBTransactionMode,
+  fn: (tx: IDBTransaction) => void
+): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeNames, mode);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error ?? new Error('IndexedDB transaction aborted'));
+    try {
+      fn(tx);
+    } catch (err) {
+      try {
+        tx.abort();
+      } catch {
+        // Already finished or aborted; the original error is what matters.
+      }
+      reject(err);
+    }
+  });
+}
+
 export async function idbClearStore(storeName: StoreName): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {

@@ -258,7 +258,7 @@ export async function runJenniferTurn(params: {
   const detectedLanguage = detectMessageLanguage(userMessage);
   const allowClarifying = !hasPriorJennifer;
 
-  const runDirectStreaming = async (): Promise<TurnResult> => {
+  const runDirectStreaming = async (facts: SessionFacts = prePlanFacts): Promise<TurnResult> => {
     callbacks.onStatus('Jennifer is writing…');
     const directMessages: ChatCompletionMessage[] = [
       {
@@ -267,7 +267,7 @@ export async function runJenniferTurn(params: {
           guardrails,
           experts,
           settings,
-          sessionFacts: prePlanFacts,
+          sessionFacts: facts,
           referencePhoto,
           allowClarifying,
           detectedLanguage,
@@ -283,6 +283,7 @@ export async function runJenniferTurn(params: {
       messages: directMessages,
       temperature: settings.temperature,
       maxTokens: DIRECT_CHAT_MAX_TOKENS,
+      stage: 'direct',
       signal,
       onToken: callbacks.onToken,
       onRetryWait: (waitMs) =>
@@ -302,7 +303,7 @@ export async function runJenniferTurn(params: {
     return {
       content,
       delegatedExperts: [],
-      updatedFacts: prePlanFacts,
+      updatedFacts: facts,
       callCount,
       durationMs: Math.round(performance.now() - startTime),
     };
@@ -341,6 +342,7 @@ export async function runJenniferTurn(params: {
       messages: planMessages,
       temperature: 0.4,
       maxTokens: PLANNER_MAX_TOKENS,
+      stage: 'planner',
       streamInternal: settings.provider !== 'mock',
       signal,
       onRetryWait: (waitMs) =>
@@ -463,6 +465,7 @@ export async function runJenniferTurn(params: {
         messages: expertMessages,
         temperature: expert.temperature ?? settings.temperature,
         maxTokens: EXPERT_MAX_TOKENS,
+        stage: 'expert',
         streamInternal: settings.provider !== 'mock',
         signal,
         onRetryWait: (waitMs) =>
@@ -500,7 +503,7 @@ export async function runJenniferTurn(params: {
   if (succeededExperts.length === 0) {
     if (settings.provider !== 'mock') {
       callbacks.onStatus('Switching to direct response…');
-      return runDirectStreaming();
+      return runDirectStreaming(updatedFacts);
     }
     throw new AIError({
       code: 'PROVIDER_ERROR',
@@ -553,6 +556,7 @@ export async function runJenniferTurn(params: {
       messages: synthesisMessages,
       temperature: settings.temperature,
       maxTokens: SYNTHESIS_MAX_TOKENS,
+      stage: 'synthesis',
       signal,
       onToken: callbacks.onToken,
       onRetryWait: (waitMs) =>
@@ -581,7 +585,7 @@ export async function runJenniferTurn(params: {
     return {
       content: finalContent,
       handoffText,
-      delegatedExperts: plannedNames,
+      delegatedExperts: succeededExperts.map((e) => e.expert),
       updatedFacts,
       truncatedDelegates: plan.truncatedCount || undefined,
       callCount,

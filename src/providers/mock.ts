@@ -64,20 +64,30 @@ export class MockProvider implements AIProvider {
 
     await sleep(280, options.signal);
 
+    // Prefer the explicit stage from the orchestrator; fall back to sniffing the
+    // prompt for older callers/tests.
+    const stage =
+      options.stage ??
+      (sys.includes('<delegation_protocol>')
+        ? 'planner'
+        : sys.includes('<handoff>')
+          ? 'expert'
+          : 'synthesis');
+
     // Stage 1: Jennifer orchestration planner
-    if (sys.includes('<delegation_protocol>')) {
+    if (stage === 'planner') {
       const hasHistory = options.messages.some((m) => m.role === 'assistant');
       const content = this.planResponse(lowerUser, lastUser, sys, hasHistory);
       return { content, model: options.model || 'hedetangen-demo-v1', finishReason: 'stop' };
     }
 
     // Stage 2: Specialist expert execution
-    if (sys.includes('<handoff>')) {
+    if (stage === 'expert') {
       const content = this.expertResponse(sys, lowerUser, lastUser);
       return { content, model: options.model || 'hedetangen-demo-v1', finishReason: 'stop' };
     }
 
-    // Stage 3: Jennifer synthesis (streams to UI)
+    // Stage 3/4: Jennifer synthesis or direct answer (streams to UI)
     const expertOutputsBlock =
       options.messages.find((m) => m.content.includes('<expert_outputs>'))?.content ?? '';
     const synthesized = this.synthesizeResponse(expertOutputsBlock, lowerUser, sys);

@@ -63,7 +63,9 @@ export class GroqProvider implements AIProvider {
           id: m.id,
           name: m.id,
           contextWindow: hint?.contextWindow ?? m.context_window,
-          free: hint?.free ?? true,
+          // Unknown/uncurated models must not be advertised as free: the UI uses
+          // this flag to suggest "free" alternatives and to highlight the list.
+          free: hint?.free ?? false,
           approxRpm: hint?.approxRpm,
           approxRpd: hint?.approxRpd,
           bestFor: hint?.bestFor,

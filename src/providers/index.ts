@@ -1,5 +1,5 @@
 import { MODEL_CACHE_TTL_MS } from '../constants';
-import { loadApiKey } from '../storage/crypto';
+import { hasStoredKeyRecord, loadApiKey } from '../storage/crypto';
 import { loadCachedModels, saveCachedModels } from '../storage/entities';
 import type { ModelInfo, ProviderId } from '../types';
 import type { AIProvider } from './base';
@@ -15,9 +15,12 @@ export async function createProvider(providerId: ProviderId, explicitKey?: strin
   }
   const key = explicitKey ?? (await loadApiKey(providerId));
   if (!key) {
+    const recordExists = await hasStoredKeyRecord(providerId);
     throw new AIError({
-      code: 'AUTH_INVALID',
-      message: `No API key stored for ${providerId}.`,
+      code: recordExists ? 'KEY_UNREADABLE' : 'KEY_MISSING',
+      message: recordExists
+        ? `The stored API key for ${providerId} can no longer be decrypted on this device.`
+        : `No API key stored for ${providerId}.`,
       provider: providerId,
     });
   }

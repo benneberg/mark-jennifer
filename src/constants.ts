@@ -28,4 +28,4 @@ export const SYNTHESIS_MAX_TOKENS = 2400;
 export const DIRECT_CHAT_MAX_TOKENS = 3200;
 
 export const PRIVACY_NOTICE =
-  'Hedetangen AI Studio runs entirely in your browser. Your API key and your content are stored on this device only. When you chat, your message is sent directly to your chosen provider using your key. Nothing is sent to Hedetangen or any other server. Export your data regularly if you want a backup.';
+  'Hedetangen AI Studio runs entirely in your browser. Your API key and your content stay on this device, encrypted where the browser allows it. When you chat, the text goes straight from your browser to your chosen provider using your key — never to Hedetangen or any other server. The one third-party request is our two web fonts, loaded from Google Fonts; nothing from your chats or keys is included. Export a backup regularly.';

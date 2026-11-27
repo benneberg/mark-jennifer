@@ -27,6 +27,36 @@ export interface JsonSchemaNode {
   format?: 'uuid' | 'date-time' | 'uri';
 }
 
+/**
+ * Keywords the in-house validator actually implements. Anything else is reported
+ * as an error instead of being silently ignored: a schema that says `anyOf` must
+ * not quietly validate every value.
+ */
+const METADATA_KEYWORDS = new Set(['$schema', '$id', 'title', 'description', 'default', 'examples']);
+const IMPLEMENTED_KEYWORDS = new Set([
+  'type',
+  'const',
+  'enum',
+  'required',
+  'properties',
+  'additionalProperties',
+  'items',
+  'maxItems',
+  'uniqueItems',
+  'minLength',
+  'maxLength',
+  'minimum',
+  'maximum',
+  'pattern',
+  'format',
+]);
+
+function unsupportedKeywords(schema: JsonSchemaNode): string[] {
+  return Object.keys(schema as Record<string, unknown>).filter(
+    (key) => !METADATA_KEYWORDS.has(key) && !IMPLEMENTED_KEYWORDS.has(key)
+  );
+}
+
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function checkFormat(value: string, format: 'uuid' | 'date-time' | 'uri'): string | null {
@@ -49,6 +79,13 @@ function checkFormat(value: string, format: 'uuid' | 'date-time' | 'uri'): strin
   return null;
 }
 
+/**
+ * @remarks
+ * Unknown properties are *deleted* from `value` when `relaxAdditionalProperties`
+ * is set (that is how imports get sanitized). Stripped paths — including nested
+ * ones — are collected in `strippedFields`, which is shared across the recursive
+ * calls so callers can report exactly what was ignored.
+ */
 export function validateSchema(
   value: unknown,
   schema: JsonSchemaNode,
@@ -57,6 +94,16 @@ export function validateSchema(
 ): ValidationResult {
   const errors: ValidationError[] = [];
   const strippedFields = options.strippedFields ?? [];
+  const childOptions = { ...options, strippedFields };
+
+  const unsupported = unsupportedKeywords(schema);
+  if (unsupported.length > 0) {
+    errors.push({
+      path,
+      message: `uses unsupported schema keyword(s): ${unsupported.join(', ')}`,
+    });
+    return { valid: false, errors, strippedFields };
+  }
 
   if (schema.const !== undefined && value !== schema.const) {
     errors.push({ path, message: `must equal "${String(schema.const)}"` });
@@ -130,7 +177,7 @@ export function validateSchema(
     }
     if (schema.items) {
       value.forEach((item, index) => {
-        const res = validateSchema(item, schema.items!, `${path}[${index}]`, options);
+        const res = validateSchema(item, schema.items!, `${path}[${index}]`, childOptions);
         errors.push(...res.errors);
       });
     }
@@ -150,7 +197,7 @@ export function validateSchema(
         const propSchema = schema.properties[key];
         if (propSchema) {
           if (propVal !== undefined) {
-            const res = validateSchema(propVal, propSchema, `${path}.${key}`, options);
+            const res = validateSchema(propVal, propSchema, `${path}.${key}`, childOptions);
             errors.push(...res.errors);
           }
         } else if (propVal !== undefined && schema.additionalProperties === false) {
