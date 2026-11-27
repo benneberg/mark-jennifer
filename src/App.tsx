@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Menu, Moon, PanelRightClose, PanelRightOpen, Sun, X } from 'lucide-react';
-import { generateCampaignPackage } from './campaign/engine';
+import {
+  generateCampaignPackage,
+  generateSingleDeliverableModule,
+} from './campaign/engine';
+import { buildWinterBookingsPreset } from './campaign/presets';
 import { BusinessProfileEditor } from './components/BusinessProfileEditor';
 import { ChatsPanel } from './components/ChatsPanel';
 import { ChatList } from './components/ChatList';
@@ -105,6 +109,7 @@ export default function App() {
   const [wizardDraft, setWizardDraft] = useState<Partial<CampaignIntake> | null>(null);
   const [pkgGenerating, setPkgGenerating] = useState(false);
   const [pkgProgressLabel, setPkgProgressLabel] = useState<string | null>(null);
+  const [regeneratingDeliverableId, setRegeneratingDeliverableId] = useState<string | null>(null);
   const pkgAbortRef = useRef<AbortController | null>(null);
   const [importExportOpen, setImportExportOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -343,6 +348,11 @@ export default function App() {
     const curated = preferredOrder.find((id) => candidates.some((c) => c.id === id));
     return curated ?? candidates[0]?.id;
   }, [models, settings.model, settings.provider]);
+
+  const openWinterBookingsWizard = useCallback(() => {
+    setWizardDraft(buildWinterBookingsPreset(businessProfile, settings.language));
+    setWizardOpen(true);
+  }, [businessProfile, settings.language]);
 
   const executeTurn = useCallback(
     async (userText: string, overrideSettings?: AppSettings, retryErrorMsgId?: string) => {
@@ -829,6 +839,80 @@ export default function App() {
     [activeChat?.id, businessProfile, guardrails, isConfigured, pkgGenerating, pushToast, settings]
   );
 
+  const handleRegenerateDeliverable = useCallback(
+    async (
+      pkg: CampaignPackage,
+      deliverable: CampaignDeliverable,
+      instruction: string
+    ) => {
+      if (!isConfigured) {
+        pushToast('Add an API key or enable Demo Mode in Settings first.', 'info');
+        setActivePanel('settings');
+        return;
+      }
+      if (regeneratingDeliverableId) return;
+
+      const controller = new AbortController();
+      setRegeneratingDeliverableId(deliverable.id);
+
+      try {
+        const extraContext = [
+          `Campaign Strategy Headline: ${pkg.strategy.headline}`,
+          `Positioning: ${pkg.strategy.positioning}`,
+          `Previous version to improve:\n${deliverable.markdown}`,
+          instruction
+            ? `Owner revision request: ${instruction}`
+            : 'Refresh and sharpen this deliverable while keeping all brand and honesty rules.',
+        ].join('\n\n');
+
+        const regenerated = await generateSingleDeliverableModule({
+          kind: deliverable.kind,
+          intake: pkg.intake,
+          settings,
+          guardrails,
+          businessProfile,
+          extraContext,
+          signal: controller.signal,
+        });
+
+        const nextDeliverables = pkg.deliverables.map((d) =>
+          d.id === deliverable.id
+            ? { ...regenerated, id: deliverable.id, status: 'draft' as const }
+            : d
+        );
+        const allErrors = nextDeliverables
+          .flatMap((d) => d.lintIssues)
+          .filter((i) => i.severity === 'error').length;
+        const allWarnings = nextDeliverables
+          .flatMap((d) => d.lintIssues)
+          .filter((i) => i.severity === 'warning').length;
+
+        const updatedPkg: CampaignPackage = {
+          ...pkg,
+          deliverables: nextDeliverables,
+          lintSummary: {
+            passed: allErrors === 0,
+            errorCount: allErrors,
+            warningCount: allWarnings,
+          },
+          updatedAt: nowIso(),
+        };
+
+        await savePackage(updatedPkg);
+        setPackages((prev) => prev.map((p) => (p.id === pkg.id ? updatedPkg : p)));
+        pushToast(`Updated ${deliverable.title}.`, 'success');
+      } catch (err) {
+        pushToast(
+          err instanceof Error ? err.message : 'Could not update deliverable.',
+          'danger'
+        );
+      } finally {
+        setRegeneratingDeliverableId(null);
+      }
+    },
+    [businessProfile, guardrails, isConfigured, pushToast, regeneratingDeliverableId, settings]
+  );
+
   const handleToggleChecklistTask = useCallback(async (pkgId: string, taskId: string) => {
     setPackages((prev) => {
       const target = prev.find((p) => p.id === pkgId);
@@ -1044,13 +1128,6 @@ export default function App() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActivePanel((p) => (p === 'experts' ? null : 'experts'))}
-                    className="hidden sm:inline font-medium hover:text-[var(--text)] transition-colors"
-                  >
-                    Experts
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setActivePanel((p) => (p === 'profile' ? null : 'profile'))}
                     className="hidden sm:inline font-medium hover:text-[var(--text)] transition-colors"
                   >
@@ -1058,16 +1135,25 @@ export default function App() {
                   </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setWizardDraft(null);
-                    setWizardOpen(true);
-                  }}
-                  className="font-semibold text-[var(--text)] hover:text-[var(--tangerine)] transition-colors"
-                >
-                  Build Campaign Package →
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={openWinterBookingsWizard}
+                    className="font-semibold text-[var(--tangerine)] hover:underline underline-offset-4 transition-colors"
+                  >
+                    Winter Bookings Package →
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWizardDraft(null);
+                      setWizardOpen(true);
+                    }}
+                    className="hidden sm:inline font-semibold text-[var(--text)] hover:text-[var(--tangerine)] transition-colors"
+                  >
+                    Custom Campaign →
+                  </button>
+                </div>
               </div>
 
               <ChatList
@@ -1100,10 +1186,7 @@ export default function App() {
                 onReferencePhotoChange={setReferencePhoto}
                 onSend={handleSend}
                 onStop={handleStop}
-                onOpenWizard={() => {
-                  setWizardDraft(null);
-                  setWizardOpen(true);
-                }}
+                onOpenWizard={openWinterBookingsWizard}
                 onOpenSettings={() => setActivePanel('settings')}
                 onEnableDemoMode={handleEnableDemoMode}
                 isStreaming={streamingState.active}
@@ -1118,13 +1201,16 @@ export default function App() {
               packages={packages}
               activePackageId={activePackageId}
               businessProfile={businessProfile}
+              regeneratingDeliverableId={regeneratingDeliverableId}
               onSelectPackage={setActivePackageId}
               onNewPackage={() => {
                 setWizardDraft(null);
                 setWizardOpen(true);
               }}
+              onNewWinterPackage={openWinterBookingsWizard}
               onToggleChecklistTask={handleToggleChecklistTask}
               onToggleDeliverableApprove={handleToggleDeliverableApprove}
+              onRegenerateDeliverable={handleRegenerateDeliverable}
               onSaveDeliverableToLibrary={(pkg, d, type) =>
                 handleSaveDeliverableToLibrary(pkg.name, d, type)
               }
@@ -1370,6 +1456,16 @@ export default function App() {
               type="button"
               onClick={() => {
                 setMobileMenuOpen(false);
+                openWinterBookingsWizard();
+              }}
+              className="w-full min-h-[48px] px-4 text-left text-sm font-semibold text-[var(--tangerine)] rounded-2xl hover:bg-[var(--surface)] transition-colors"
+            >
+              + Winter Bookings Package
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
                 setWorkspaceView('modules');
               }}
               className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
@@ -1416,16 +1512,6 @@ export default function App() {
               className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
             >
               Brand DNA Guardrails
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setActivePanel('experts');
-              }}
-              className="w-full min-h-[48px] px-4 text-left text-sm font-medium rounded-2xl hover:bg-[var(--surface)] transition-colors"
-            >
-              Specialist Experts
             </button>
             <button
               type="button"
